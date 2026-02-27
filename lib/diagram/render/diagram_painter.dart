@@ -224,11 +224,7 @@ class DiagramPainter extends CustomPainter {
     final r = node.rect.width / 2;
 
     canvas.drawCircle(c, r, fill);
-    canvas.drawCircle(c, r, thick ? _endNodeStroke : _nodeStroke);
-
-    if (selected) {
-      canvas.drawCircle(c, r + 3, _selectedStroke);
-    }
+    canvas.drawCircle(c, r, selected ? _selectedStroke : (thick ? _endNodeStroke : _nodeStroke));
 
     // Draw X inside end events.
     if (thick) {
@@ -251,11 +247,7 @@ class DiagramPainter extends CustomPainter {
   void _drawTaskNode(Canvas canvas, NodeModel node, bool selected, Paint fill) {
     final rr = RRect.fromRectAndRadius(node.rect, const Radius.circular(8));
     canvas.drawRRect(rr, fill);
-    canvas.drawRRect(rr, _nodeStroke);
-
-    if (selected) {
-      canvas.drawRRect(rr.inflate(3), _selectedStroke);
-    }
+    canvas.drawRRect(rr, selected ? _selectedStroke : _nodeStroke);
 
     // Draw name centered.
     final label = node.name.isNotEmpty ? node.name : 'Task';
@@ -275,17 +267,7 @@ class DiagramPainter extends CustomPainter {
       ..close();
 
     canvas.drawPath(path, fill);
-    canvas.drawPath(path, _nodeStroke);
-
-    if (selected) {
-      final selPath = Path()
-        ..moveTo(c.dx, c.dy - hh - 3)
-        ..lineTo(c.dx + hw + 3, c.dy)
-        ..lineTo(c.dx, c.dy + hh + 3)
-        ..lineTo(c.dx - hw - 3, c.dy)
-        ..close();
-      canvas.drawPath(selPath, _selectedStroke);
-    }
+    canvas.drawPath(path, selected ? _selectedStroke : _nodeStroke);
 
     if (node.name.isNotEmpty) {
       _drawText(canvas, node.name, Offset(c.dx, node.rect.bottom + 14), fontSize: 11);
