@@ -39,7 +39,6 @@ class _EditorScreenState extends State<EditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BPMN Editor'),
         actions: [
           ListenableBuilder(
             listenable: _controller,

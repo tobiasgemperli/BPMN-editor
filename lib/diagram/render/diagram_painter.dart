@@ -228,6 +228,19 @@ class DiagramPainter extends CustomPainter {
       canvas.drawCircle(c, r + 3, _selectedStroke);
     }
 
+    // Draw X inside end events.
+    if (thick) {
+      final xSize = r * 0.4;
+      final xPaint = Paint()
+        ..color = Colors.black87
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5;
+      canvas.drawLine(
+          Offset(c.dx - xSize, c.dy - xSize), Offset(c.dx + xSize, c.dy + xSize), xPaint);
+      canvas.drawLine(
+          Offset(c.dx + xSize, c.dy - xSize), Offset(c.dx - xSize, c.dy + xSize), xPaint);
+    }
+
     if (node.name.isNotEmpty) {
       _drawText(canvas, node.name, Offset(c.dx, node.rect.bottom + 14), fontSize: 11);
     }
@@ -271,17 +284,6 @@ class DiagramPainter extends CustomPainter {
         ..close();
       canvas.drawPath(selPath, _selectedStroke);
     }
-
-    // Draw X inside diamond.
-    final xSize = min(hw, hh) * 0.45;
-    final xPaint = Paint()
-      ..color = Colors.black87
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    canvas.drawLine(
-        Offset(c.dx - xSize, c.dy - xSize), Offset(c.dx + xSize, c.dy + xSize), xPaint);
-    canvas.drawLine(
-        Offset(c.dx + xSize, c.dy - xSize), Offset(c.dx - xSize, c.dy + xSize), xPaint);
 
     if (node.name.isNotEmpty) {
       _drawText(canvas, node.name, Offset(c.dx, node.rect.bottom + 14), fontSize: 11);

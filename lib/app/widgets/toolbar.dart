@@ -57,7 +57,7 @@ class EditorToolbar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _ToolButton(
-                icon: Icons.circle_outlined,
+                shape: _ShapeType.startCircle,
                 label: 'Start',
                 enabled: !startDisabled,
                 onPressed: () {
@@ -66,14 +66,14 @@ class EditorToolbar extends StatelessWidget {
                 },
               ),
               _ToolButton(
-                icon: Icons.check_box_outline_blank_rounded,
+                shape: _ShapeType.taskRect,
                 label: 'Step',
                 onPressed: () {
                   controller.addNodeNear(NodeType.task, _visibleCenter());
                 },
               ),
               _ToolButton(
-                icon: Icons.diamond_outlined,
+                shape: _ShapeType.diamond,
                 label: 'Decision',
                 onPressed: () {
                   controller.addNodeNear(
@@ -81,7 +81,7 @@ class EditorToolbar extends StatelessWidget {
                 },
               ),
               _ToolButton(
-                icon: Icons.radio_button_checked,
+                shape: _ShapeType.endCircle,
                 label: 'End',
                 onPressed: () {
                   controller.addNodeNear(
@@ -96,14 +96,16 @@ class EditorToolbar extends StatelessWidget {
   }
 }
 
+enum _ShapeType { startCircle, endCircle, taskRect, diamond }
+
 class _ToolButton extends StatefulWidget {
-  final IconData icon;
+  final _ShapeType shape;
   final String label;
   final VoidCallback onPressed;
   final bool enabled;
 
   const _ToolButton({
-    required this.icon,
+    required this.shape,
     required this.label,
     required this.onPressed,
     this.enabled = true,
@@ -186,7 +188,13 @@ class _ToolButtonState extends State<_ToolButton>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon, color: color, size: 28),
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CustomPaint(
+                  painter: _ShapePainter(widget.shape, color),
+                ),
+              ),
               const SizedBox(height: 2),
               Text(
                 widget.label,
@@ -199,4 +207,64 @@ class _ToolButtonState extends State<_ToolButton>
       ),
     );
   }
+}
+
+class _ShapePainter extends CustomPainter {
+  final _ShapeType shape;
+  final Color color;
+
+  _ShapePainter(this.shape, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    final c = Offset(size.width / 2, size.height / 2);
+
+    switch (shape) {
+      case _ShapeType.startCircle:
+        canvas.drawCircle(c, size.width / 2 - 1, stroke);
+        break;
+      case _ShapeType.endCircle:
+        final thickStroke = Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3.0;
+        canvas.drawCircle(c, size.width / 2 - 2, thickStroke);
+        // Cross inside.
+        final xSize = size.width * 0.2;
+        final xPaint = Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0;
+        canvas.drawLine(
+            Offset(c.dx - xSize, c.dy - xSize), Offset(c.dx + xSize, c.dy + xSize), xPaint);
+        canvas.drawLine(
+            Offset(c.dx + xSize, c.dy - xSize), Offset(c.dx - xSize, c.dy + xSize), xPaint);
+        break;
+      case _ShapeType.taskRect:
+        final rect = Rect.fromCenter(
+            center: c, width: size.width - 2, height: size.height * 0.65);
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(rect, const Radius.circular(4)), stroke);
+        break;
+      case _ShapeType.diamond:
+        final hw = size.width / 2 - 2;
+        final hh = size.height / 2 - 2;
+        final path = Path()
+          ..moveTo(c.dx, c.dy - hh)
+          ..lineTo(c.dx + hw, c.dy)
+          ..lineTo(c.dx, c.dy + hh)
+          ..lineTo(c.dx - hw, c.dy)
+          ..close();
+        canvas.drawPath(path, stroke);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ShapePainter oldDelegate) =>
+      shape != oldDelegate.shape || color != oldDelegate.color;
 }
