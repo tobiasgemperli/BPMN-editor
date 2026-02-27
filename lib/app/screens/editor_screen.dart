@@ -18,6 +18,8 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen> {
   late final EditorController _controller;
+  final TransformationController _transformController =
+      TransformationController();
 
   @override
   void initState() {
@@ -27,6 +29,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   @override
   void dispose() {
+    _transformController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -107,9 +110,13 @@ class _EditorScreenState extends State<EditorScreen> {
           Expanded(
             child: DiagramCanvas(
               controller: _controller,
+              transformationController: _transformController,
             ),
           ),
-          EditorToolbar(controller: _controller),
+          EditorToolbar(
+            controller: _controller,
+            transformationController: _transformController,
+          ),
         ],
       ),
     );

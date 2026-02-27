@@ -64,7 +64,7 @@ class DiagramPainter extends CustomPainter {
     _drawSnapGuides(canvas, size);
     _drawConnectionPreview(canvas);
     _drawConnectorHandle(canvas);
-    _drawDebugClosest(canvas);
+    // _drawDebugClosest(canvas);
   }
 
   void _drawGrid(Canvas canvas, Size size) {
@@ -180,6 +180,15 @@ class DiagramPainter extends CustomPainter {
   void _drawNodes(Canvas canvas) {
     for (final node in controller.diagram.nodes.values) {
       final isSelected = node.id == controller.selectedNodeId;
+      final isBlob = node.id == controller.blobNodeId && controller.blobScale != 1.0;
+
+      if (isBlob) {
+        final c = node.center;
+        canvas.save();
+        canvas.translate(c.dx, c.dy);
+        canvas.scale(controller.blobScale);
+        canvas.translate(-c.dx, -c.dy);
+      }
 
       switch (node.type) {
         case NodeType.startEvent:
@@ -194,6 +203,10 @@ class DiagramPainter extends CustomPainter {
         case NodeType.exclusiveGateway:
           _drawGatewayNode(canvas, node, isSelected);
           break;
+      }
+
+      if (isBlob) {
+        canvas.restore();
       }
     }
   }

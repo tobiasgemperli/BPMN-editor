@@ -67,6 +67,19 @@ class EditorController extends ChangeNotifier {
   /// Debug: the closest target point (node center or connector handle).
   Offset? debugClosestPoint;
 
+  /// ID of the most recently added node (for blob animation).
+  String? lastAddedNodeId;
+
+  /// Blob animation state — the painter reads these to scale the node.
+  String? blobNodeId;
+  double blobScale = 1.0;
+
+  /// Update the blob scale and repaint. Called by the animation controller.
+  void updateBlobScale(double scale) {
+    blobScale = scale;
+    notifyListeners();
+  }
+
   EditorController({DiagramModel? diagram})
       : diagram = diagram ?? DiagramModel() {
     _idGen.seedFrom(this.diagram.nodes.keys.followedBy(this.diagram.edges.keys));
@@ -346,7 +359,26 @@ class EditorController extends ChangeNotifier {
     );
     _exec(AddNodeCommand(node));
     selectedNodeId = id;
+    lastAddedNodeId = id;
     activeTool = EditorTool.select;
+  }
+
+  /// Add a node at [center], offsetting diagonally if another node is nearby.
+  void addNodeNear(NodeType type, Offset center) {
+    const diagonalOffset = Offset(60, 60);
+    const overlapThreshold = 30.0;
+    var position = center;
+
+    // Shift diagonally until no node center is too close.
+    for (var i = 0; i < 20; i++) {
+      final tooClose = diagram.nodes.values.any(
+        (n) => (n.center - position).distance < overlapThreshold,
+      );
+      if (!tooClose) break;
+      position = position + diagonalOffset;
+    }
+
+    addNodeAtPosition(type, position);
   }
 
   void deleteSelected() {

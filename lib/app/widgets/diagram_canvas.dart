@@ -6,27 +6,66 @@ import '../../diagram/render/diagram_painter.dart';
 /// The interactive diagram canvas with pan/zoom support.
 class DiagramCanvas extends StatefulWidget {
   final EditorController controller;
+  final TransformationController transformationController;
 
   const DiagramCanvas({
     super.key,
     required this.controller,
+    required this.transformationController,
   });
 
   @override
   State<DiagramCanvas> createState() => _DiagramCanvasState();
 }
 
-class _DiagramCanvasState extends State<DiagramCanvas> {
-  final TransformationController _transformController =
-      TransformationController();
-
+class _DiagramCanvasState extends State<DiagramCanvas>
+    with SingleTickerProviderStateMixin {
   bool _isDiagramDrag = false;
   int? _activePointer;
 
+  late final AnimationController _blobAnimController;
+  late final Animation<double> _blobAnimation;
+  String? _animatingNodeId;
+
+  @override
+  void initState() {
+    super.initState();
+    _blobAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _blobAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.15), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.15, end: 0.92), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(
+      parent: _blobAnimController,
+      curve: Curves.easeOut,
+    ));
+    _blobAnimController.addListener(_onBlobTick);
+    widget.controller.addListener(_checkNewNode);
+  }
+
   @override
   void dispose() {
-    _transformController.dispose();
+    widget.controller.removeListener(_checkNewNode);
+    _blobAnimController.removeListener(_onBlobTick);
+    _blobAnimController.dispose();
     super.dispose();
+  }
+
+  void _onBlobTick() {
+    widget.controller.updateBlobScale(_blobAnimation.value);
+  }
+
+  void _checkNewNode() {
+    final newId = widget.controller.lastAddedNodeId;
+    if (newId != null && newId != _animatingNodeId) {
+      _animatingNodeId = newId;
+      widget.controller.blobNodeId = newId;
+      widget.controller.blobScale = 0.0;
+      _blobAnimController.forward(from: 0);
+    }
   }
 
   Widget _buildCanvas() {
@@ -40,18 +79,13 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
         final ctrl = widget.controller;
         ctrl.updateDebugClosest(canvasPoint);
 
-        // Use the debug closest point to decide: if it's a connector
-        // handle, start a connection. If it's a node center, prepare
-        // a node drag. Otherwise let InteractiveViewer handle pan/zoom.
         final hit = HitTester().test(canvasPoint, ctrl.diagram,
             selectedNodeId: ctrl.selectedNodeId);
 
         if (hit.isConnectorHandle && hit.connectorSide != null) {
-          // Connector handle hit — go straight to connection mode.
           _isDiagramDrag = true;
           ctrl.startConnectionFromHandle(hit.connectorSide!);
         } else if (hit.hitNode) {
-          // Node body hit — prepare a node drag.
           _isDiagramDrag = true;
           ctrl.onDragStart(canvasPoint);
         } else {
@@ -60,7 +94,6 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
         }
       },
       onPointerMove: (event) {
-        // Only update debug dot on pointer down, not during drag.
         if (_isDiagramDrag && event.pointer == _activePointer) {
           widget.controller.onDragUpdate(event.localPosition);
         }
@@ -77,7 +110,6 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
                       : Offset.zero),
             );
           } else {
-            // No drag or connection started — treat as a tap to select.
             ctrl.onTapDown(event.localPosition);
           }
         }
@@ -112,7 +144,7 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
         final dragging = widget.controller.hasPendingDrag ||
             widget.controller.isConnecting;
         return InteractiveViewer(
-          transformationController: _transformController,
+          transformationController: widget.transformationController,
           constrained: false,
           boundaryMargin: const EdgeInsets.all(2000),
           minScale: 0.2,
