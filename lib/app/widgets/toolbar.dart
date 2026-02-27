@@ -17,9 +17,9 @@ class EditorToolbar extends StatelessWidget {
   Offset _visibleCenter(BuildContext context) {
     final renderBox = context.findAncestorRenderObjectOfType<RenderBox>();
     final viewportSize = renderBox?.size ?? MediaQuery.of(context).size;
-    final screenCenter = Offset(viewportSize.width / 2, viewportSize.height / 2);
+    final screenCenter =
+        Offset(viewportSize.width / 2, viewportSize.height / 2);
 
-    // Invert the transformation to get canvas coordinates.
     final inverse = Matrix4.inverted(transformationController.value);
     final dx = inverse.storage[0] * screenCenter.dx +
         inverse.storage[4] * screenCenter.dy +
@@ -52,64 +52,137 @@ class EditorToolbar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _toolButton(
-            context,
+          _ToolButton(
             icon: Icons.circle_outlined,
             label: 'Start',
-            type: NodeType.startEvent,
+            onPressed: () {
+              controller.addNodeNear(
+                  NodeType.startEvent, _visibleCenter(context));
+            },
           ),
-          _toolButton(
-            context,
+          _ToolButton(
             icon: Icons.check_box_outline_blank_rounded,
             label: 'Step',
-            type: NodeType.task,
+            onPressed: () {
+              controller.addNodeNear(NodeType.task, _visibleCenter(context));
+            },
           ),
-          _toolButton(
-            context,
+          _ToolButton(
             icon: Icons.diamond_outlined,
             label: 'Decision',
-            type: NodeType.exclusiveGateway,
+            onPressed: () {
+              controller.addNodeNear(
+                  NodeType.exclusiveGateway, _visibleCenter(context));
+            },
           ),
-          _toolButton(
-            context,
+          _ToolButton(
             icon: Icons.radio_button_checked,
             label: 'End',
-            type: NodeType.endEvent,
+            onPressed: () {
+              controller.addNodeNear(
+                  NodeType.endEvent, _visibleCenter(context));
+            },
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _toolButton(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required NodeType type,
-  }) {
+class _ToolButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _ToolButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  State<_ToolButton> createState() => _ToolButtonState();
+}
+
+class _ToolButtonState extends State<_ToolButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.85), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.85, end: 1.08), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.08, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    ));
+    _opacityAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.4), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.4, end: 1.0), weight: 70),
+    ]).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    widget.onPressed();
+    _animController.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurface;
 
     return GestureDetector(
-      onTapDown: (_) {
-        final center = _visibleCenter(context);
-        controller.addNodeNear(type, center);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                  color: color, fontSize: 11, fontWeight: FontWeight.w500),
+      onTapDown: (_) => _handleTap(),
+      child: AnimatedBuilder(
+        animation: _animController,
+        builder: (context, child) {
+          return Opacity(
+            opacity: _animController.isAnimating
+                ? _opacityAnimation.value
+                : 1.0,
+            child: Transform.scale(
+              scale: _animController.isAnimating
+                  ? _scaleAnimation.value
+                  : 1.0,
+              child: child,
             ),
-          ],
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, color: color, size: 28),
+              const SizedBox(height: 2),
+              Text(
+                widget.label,
+                style: TextStyle(
+                    color: color, fontSize: 11, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ),
     );

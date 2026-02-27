@@ -67,12 +67,20 @@ class EditorController extends ChangeNotifier {
   /// Debug: the closest target point (node center or connector handle).
   Offset? debugClosestPoint;
 
-  /// ID of the most recently added node (for blob animation).
-  String? lastAddedNodeId;
+  /// ID of the node to bounce-animate, and a counter to retrigger.
+  String? bounceNodeId;
+  int _bounceCounter = 0;
+  int get bounceCounter => _bounceCounter;
 
   /// Blob animation state — the painter reads these to scale the node.
   String? blobNodeId;
   double blobScale = 1.0;
+
+  /// Trigger a bounce animation on a node.
+  void _triggerBounce(String nodeId) {
+    bounceNodeId = nodeId;
+    _bounceCounter++;
+  }
 
   /// Update the blob scale and repaint. Called by the animation controller.
   void updateBlobScale(double scale) {
@@ -162,6 +170,7 @@ class EditorController extends ChangeNotifier {
     if (closestNode != null) {
       selectedNodeId = closestNode;
       selectedEdgeId = null;
+      _triggerBounce(closestNode);
     } else {
       // No node hit — check edges.
       final hit = _hitTester.test(canvasPoint, diagram);
@@ -253,6 +262,7 @@ class EditorController extends ChangeNotifier {
       if (totalDelta != Offset.zero) {
         _exec(MoveNodeCommand(selectedNodeId!, totalDelta));
       }
+      _triggerBounce(selectedNodeId!);
     }
     isDragging = false;
     _pendingDragNodeId = null;
@@ -359,13 +369,13 @@ class EditorController extends ChangeNotifier {
     );
     _exec(AddNodeCommand(node));
     selectedNodeId = id;
-    lastAddedNodeId = id;
+    _triggerBounce(id);
     activeTool = EditorTool.select;
   }
 
   /// Add a node at [center], offsetting diagonally if another node is nearby.
   void addNodeNear(NodeType type, Offset center) {
-    const diagonalOffset = Offset(60, 60);
+    const diagonalOffset = Offset(3, -3);
     const overlapThreshold = 30.0;
     var position = center;
 

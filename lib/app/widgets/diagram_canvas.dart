@@ -25,7 +25,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
 
   late final AnimationController _blobAnimController;
   late final Animation<double> _blobAnimation;
-  String? _animatingNodeId;
+  int _lastBounceCounter = 0;
 
   @override
   void initState() {
@@ -59,11 +59,10 @@ class _DiagramCanvasState extends State<DiagramCanvas>
   }
 
   void _checkNewNode() {
-    final newId = widget.controller.lastAddedNodeId;
-    if (newId != null && newId != _animatingNodeId) {
-      _animatingNodeId = newId;
-      widget.controller.blobNodeId = newId;
-      widget.controller.blobScale = 0.0;
+    final counter = widget.controller.bounceCounter;
+    if (counter != _lastBounceCounter) {
+      _lastBounceCounter = counter;
+      widget.controller.blobNodeId = widget.controller.bounceNodeId;
       _blobAnimController.forward(from: 0);
     }
   }
