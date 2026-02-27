@@ -54,6 +54,7 @@ class EditorController extends ChangeNotifier {
 
   /// Node drag state.
   bool isDragging = false;
+  String? _pendingDragNodeId;
   Offset? _dragStartNodeCenter;
 
   /// Snap guide lines visible during drag.
@@ -128,19 +129,15 @@ class EditorController extends ChangeNotifier {
     return hit.hitNothing;
   }
 
-  /// Start dragging a node.
+  /// Prepare for a potential drag. Actual dragging starts on first move.
   void onDragStart(Offset canvasPoint) {
     if (isConnecting) return;
 
-    // First check if we're dragging a node body (use forDrag for generous area).
-    // This takes priority over connector handles so dragging nodes still works.
+    // First check if we're on a node body.
     final nodeHit = _closestHitNode(canvasPoint, forDrag: true);
     if (nodeHit != null) {
-      selectedNodeId = nodeHit;
-      selectedEdgeId = null;
-      isDragging = true;
+      _pendingDragNodeId = nodeHit;
       _dragStartNodeCenter = diagram.nodes[nodeHit]!.center;
-      notifyListeners();
       return;
     }
 
@@ -159,6 +156,14 @@ class EditorController extends ChangeNotifier {
       connectionEnd = canvasPoint;
       notifyListeners();
       return;
+    }
+
+    // Promote pending drag to actual drag on first move.
+    if (!isDragging && _pendingDragNodeId != null) {
+      isDragging = true;
+      selectedNodeId = _pendingDragNodeId;
+      selectedEdgeId = null;
+      notifyListeners();
     }
 
     if (isDragging && selectedNodeId != null) {
@@ -200,6 +205,7 @@ class EditorController extends ChangeNotifier {
       }
     }
     isDragging = false;
+    _pendingDragNodeId = null;
     _dragStartNodeCenter = null;
     snapGuideX = null;
     snapGuideY = null;

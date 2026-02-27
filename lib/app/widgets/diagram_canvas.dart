@@ -71,29 +71,13 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
             final canvasPoint = event.localPosition;
             _activePointer = event.pointer;
 
-            // Check if we're hitting a node or connector handle.
+            // Check if we're hitting a node or connector handle
+            // using the same hit tester as the editor controller.
             final ctrl = widget.controller;
-            final hitNode = ctrl.diagram.nodes.values.any((node) {
-              final inflated = node.rect.inflate(26);
-              return inflated.contains(canvasPoint);
-            });
+            final hit = HitTester().test(canvasPoint, ctrl.diagram,
+                selectedNodeId: ctrl.selectedNodeId, forDrag: true);
 
-            // Check connector handles.
-            bool hitHandle = false;
-            if (ctrl.selectedNodeId != null) {
-              final selNode = ctrl.diagram.nodes[ctrl.selectedNodeId];
-              if (selNode != null) {
-                for (final side in ConnectorSide.values) {
-                  final center = connectorHandleCenter(selNode, side);
-                  if ((canvasPoint - center).distance <= 54) {
-                    hitHandle = true;
-                    break;
-                  }
-                }
-              }
-            }
-
-            if (hitNode || hitHandle) {
+            if (hit.hitNode || hit.isConnectorHandle) {
               // We'll handle this as a diagram drag.
               _isDiagramDrag = true;
               ctrl.onTapDown(canvasPoint);
