@@ -1,13 +1,37 @@
 import 'dart:ui';
 import '../model/diagram_model.dart';
 
+/// Which side of a node the connector handle is on.
+enum ConnectorSide { top, right, bottom, left }
+
+/// Returns the center position of a connector handle for a given node and side.
+Offset connectorHandleCenter(NodeModel node, ConnectorSide side) {
+  const offset = 18.0;
+  switch (side) {
+    case ConnectorSide.top:
+      return Offset(node.rect.center.dx, node.rect.top - offset);
+    case ConnectorSide.right:
+      return Offset(node.rect.right + offset, node.rect.center.dy);
+    case ConnectorSide.bottom:
+      return Offset(node.rect.center.dx, node.rect.bottom + offset);
+    case ConnectorSide.left:
+      return Offset(node.rect.left - offset, node.rect.center.dy);
+  }
+}
+
 /// Result of a hit test on the diagram canvas.
 class HitTestResult {
   final String? nodeId;
   final String? edgeId;
   final bool isConnectorHandle;
+  final ConnectorSide? connectorSide;
 
-  const HitTestResult({this.nodeId, this.edgeId, this.isConnectorHandle = false});
+  const HitTestResult({
+    this.nodeId,
+    this.edgeId,
+    this.isConnectorHandle = false,
+    this.connectorSide,
+  });
 
   bool get hitNode => nodeId != null;
   bool get hitEdge => edgeId != null;
@@ -26,14 +50,21 @@ class HitTester {
   /// Use [forDrag] = true for drag-start to allow a more forgiving hit area.
   HitTestResult test(Offset point, DiagramModel model,
       {String? selectedNodeId, bool forDrag = false}) {
-    // Check connector handle first if a node is selected.
+    // Check connector handles first if a node is selected.
     if (selectedNodeId != null) {
       final node = model.nodes[selectedNodeId];
       if (node != null) {
-        final handleCenter = Offset(node.rect.right + 18, node.rect.center.dy);
-        final handleRadius = forDrag ? _connectorHandleRadiusDrag : _connectorHandleRadius;
-        if ((point - handleCenter).distance <= handleRadius) {
-          return HitTestResult(nodeId: selectedNodeId, isConnectorHandle: true);
+        final handleRadius =
+            forDrag ? _connectorHandleRadiusDrag : _connectorHandleRadius;
+        for (final side in ConnectorSide.values) {
+          final center = connectorHandleCenter(node, side);
+          if ((point - center).distance <= handleRadius) {
+            return HitTestResult(
+              nodeId: selectedNodeId,
+              isConnectorHandle: true,
+              connectorSide: side,
+            );
+          }
         }
       }
     }

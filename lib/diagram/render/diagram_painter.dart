@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../model/diagram_model.dart';
 import '../edit/editor_controller.dart';
+import '../edit/hit_test.dart';
 
 /// Custom painter that draws the entire BPMN diagram on a canvas.
 class DiagramPainter extends CustomPainter {
@@ -48,6 +49,10 @@ class DiagramPainter extends CustomPainter {
   static final _gridPaint = Paint()
     ..color = const Color(0x22000000)
     ..style = PaintingStyle.fill;
+  static final _snapGuidePaint = Paint()
+    ..color = Colors.orange
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.0;
 
   DiagramPainter(this.controller) : super(repaint: controller);
 
@@ -56,6 +61,7 @@ class DiagramPainter extends CustomPainter {
     _drawGrid(canvas, size);
     _drawEdges(canvas);
     _drawNodes(canvas);
+    _drawSnapGuides(canvas, size);
     _drawConnectionPreview(canvas);
     _drawConnectorHandle(canvas);
   }
@@ -262,6 +268,25 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
+  void _drawSnapGuides(Canvas canvas, Size size) {
+    if (!controller.isDragging) return;
+
+    if (controller.snapGuideX != null) {
+      canvas.drawLine(
+        Offset(controller.snapGuideX!, 0),
+        Offset(controller.snapGuideX!, size.height),
+        _snapGuidePaint,
+      );
+    }
+    if (controller.snapGuideY != null) {
+      canvas.drawLine(
+        Offset(0, controller.snapGuideY!),
+        Offset(size.width, controller.snapGuideY!),
+        _snapGuidePaint,
+      );
+    }
+  }
+
   void _drawConnectionPreview(Canvas canvas) {
     if (controller.isConnecting &&
         controller.connectionStart != null &&
@@ -285,30 +310,51 @@ class DiagramPainter extends CustomPainter {
     final node = controller.diagram.nodes[controller.selectedNodeId];
     if (node == null) return;
 
-    final handleCenter = Offset(node.rect.right + 18, node.rect.center.dy);
-    canvas.drawCircle(handleCenter, 16, _handlePaint);
+    for (final side in ConnectorSide.values) {
+      final center = connectorHandleCenter(node, side);
+      canvas.drawCircle(center, 14, _handlePaint);
 
-    // Draw arrow icon inside.
-    final arrowPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(handleCenter.dx - 5, handleCenter.dy),
-      Offset(handleCenter.dx + 5, handleCenter.dy),
-      arrowPaint,
-    );
-    canvas.drawLine(
-      Offset(handleCenter.dx + 1, handleCenter.dy - 5),
-      Offset(handleCenter.dx + 6, handleCenter.dy),
-      arrowPaint,
-    );
-    canvas.drawLine(
-      Offset(handleCenter.dx + 1, handleCenter.dy + 5),
-      Offset(handleCenter.dx + 6, handleCenter.dy),
-      arrowPaint,
-    );
+      // Draw arrow pointing outward.
+      final arrowPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round;
+
+      Offset dir;
+      switch (side) {
+        case ConnectorSide.top:
+          dir = const Offset(0, -1);
+          break;
+        case ConnectorSide.right:
+          dir = const Offset(1, 0);
+          break;
+        case ConnectorSide.bottom:
+          dir = const Offset(0, 1);
+          break;
+        case ConnectorSide.left:
+          dir = const Offset(-1, 0);
+          break;
+      }
+      final perp = Offset(-dir.dy, dir.dx);
+      // Arrow shaft.
+      canvas.drawLine(
+        center - dir * 4,
+        center + dir * 4,
+        arrowPaint,
+      );
+      // Arrow head.
+      canvas.drawLine(
+        center + dir * 1 - perp * 4,
+        center + dir * 5,
+        arrowPaint,
+      );
+      canvas.drawLine(
+        center + dir * 1 + perp * 4,
+        center + dir * 5,
+        arrowPaint,
+      );
+    }
   }
 
   void _drawText(Canvas canvas, String text, Offset center,
