@@ -39,6 +39,67 @@ class EditorToolbar extends StatelessWidget {
     return Offset(dx, dy);
   }
 
+  void _addNodeAndZoom(NodeType type) {
+    const targetZoom = 1.0;
+    final currentZoom = transformationController.value.getMaxScaleOnAxis();
+
+    // Add node at current visible center before zooming.
+    final center = _visibleCenter();
+    controller.addNodeNear(type, center);
+
+    // If zoomed out too far, animate to target zoom centered on the new node.
+    if (currentZoom < targetZoom) {
+      final nodeCenter = controller.diagram.nodes[controller.selectedNodeId]?.center;
+      if (nodeCenter != null) {
+        _animateZoomTo(targetZoom, nodeCenter);
+      }
+    }
+
+  }
+
+  void _animateZoomTo(double targetScale, Offset canvasCenter) {
+    final renderBox =
+        canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final viewportSize = renderBox.size;
+    final screenCenter =
+        Offset(viewportSize.width / 2, (viewportSize.height - 80) / 2);
+
+    // Build the target matrix: scale around canvas center, then translate
+    // so that canvasCenter maps to screenCenter.
+    final tx = screenCenter.dx - canvasCenter.dx * targetScale;
+    final ty = screenCenter.dy - canvasCenter.dy * targetScale;
+    final target = Matrix4.identity()
+      ..setEntry(0, 3, tx)
+      ..setEntry(1, 3, ty)
+      ..setEntry(0, 0, targetScale)
+      ..setEntry(1, 1, targetScale);
+
+    final start = transformationController.value.clone();
+    final startTime = DateTime.now();
+    const duration = Duration(milliseconds: 300);
+
+    void tick() {
+      final elapsed = DateTime.now().difference(startTime);
+      final t = (elapsed.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+      final eased = Curves.easeInOut.transform(t);
+
+      // Lerp each matrix element.
+      final result = Matrix4.zero();
+      for (int i = 0; i < 16; i++) {
+        result.storage[i] =
+            start.storage[i] + (target.storage[i] - start.storage[i]) * eased;
+      }
+      transformationController.value = result;
+
+      if (t < 1.0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => tick());
+      }
+    }
+
+    tick();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -66,31 +127,28 @@ class EditorToolbar extends StatelessWidget {
                 label: 'Start',
                 enabled: !startDisabled,
                 onPressed: () {
-                  controller.addNodeNear(
-                      NodeType.startEvent, _visibleCenter());
+                  _addNodeAndZoom(NodeType.startEvent);
                 },
               ),
               _ToolButton(
                 shape: _ShapeType.taskRect,
                 label: 'Step',
                 onPressed: () {
-                  controller.addNodeNear(NodeType.task, _visibleCenter());
+                  _addNodeAndZoom(NodeType.task);
                 },
               ),
               _ToolButton(
                 shape: _ShapeType.diamond,
                 label: 'Decision',
                 onPressed: () {
-                  controller.addNodeNear(
-                      NodeType.exclusiveGateway, _visibleCenter());
+                  _addNodeAndZoom(NodeType.exclusiveGateway);
                 },
               ),
               _ToolButton(
                 shape: _ShapeType.endCircle,
                 label: 'End',
                 onPressed: () {
-                  controller.addNodeNear(
-                      NodeType.endEvent, _visibleCenter());
+                  _addNodeAndZoom(NodeType.endEvent);
                 },
               ),
             ],
@@ -240,7 +298,8 @@ class _ShapePainter extends CustomPainter {
           ..strokeWidth = sw;
         canvas.drawCircle(c, size.width / 2 - 2, thickStroke);
         // Cross inside.
-        final xSize = size.width * 0.2;
+        final iconR = size.width / 2 - 2;
+        final xSize = iconR * 0.707;
         final xPaint = Paint()
           ..color = color
           ..style = PaintingStyle.stroke

@@ -228,11 +228,11 @@ class DiagramPainter extends CustomPainter {
 
     // Draw X inside end events.
     if (thick) {
-      final xSize = r * 0.4;
-      final xPaint = Paint()
+      final xSize = r * 0.707;
+      final xPaint = selected ? _selectedStroke : (Paint()
         ..color = Colors.black87
         ..style = PaintingStyle.stroke
-        ..strokeWidth = _strokeWidth;
+        ..strokeWidth = _strokeWidth);
       canvas.drawLine(
           Offset(c.dx - xSize, c.dy - xSize), Offset(c.dx + xSize, c.dy + xSize), xPaint);
       canvas.drawLine(
@@ -313,6 +313,8 @@ class DiagramPainter extends CustomPainter {
 
   void _drawConnectorHandle(Canvas canvas) {
     if (controller.selectedNodeId == null || controller.isConnecting || controller.isDragging) return;
+    if (controller.liftNodeId != null) return;
+    if (controller.blobNodeId == controller.selectedNodeId && controller.blobScale != 1.0) return;
     if (!controller.canDrawFrom(controller.selectedNodeId!)) return;
     final node = controller.diagram.nodes[controller.selectedNodeId];
     if (node == null) return;

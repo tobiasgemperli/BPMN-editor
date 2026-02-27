@@ -41,7 +41,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     // Bounce.
     _blobAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 200),
     );
     _blobAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.15), weight: 40),
