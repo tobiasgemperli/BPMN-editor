@@ -20,6 +20,7 @@ class _EditorScreenState extends State<EditorScreen> {
   late final EditorController _controller;
   final TransformationController _transformController =
       TransformationController();
+  final GlobalKey _canvasKey = GlobalKey();
 
   @override
   void initState() {
@@ -108,6 +109,7 @@ class _EditorScreenState extends State<EditorScreen> {
       body: Stack(
         children: [
           DiagramCanvas(
+            key: _canvasKey,
             controller: _controller,
             transformationController: _transformController,
           ),
@@ -119,6 +121,7 @@ class _EditorScreenState extends State<EditorScreen> {
               child: EditorToolbar(
                 controller: _controller,
                 transformationController: _transformController,
+                canvasKey: _canvasKey,
               ),
             ),
           ),

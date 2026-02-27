@@ -6,26 +6,30 @@ import '../../diagram/model/diagram_model.dart';
 class EditorToolbar extends StatelessWidget {
   final EditorController controller;
   final TransformationController transformationController;
+  final GlobalKey canvasKey;
 
   const EditorToolbar({
     super.key,
     required this.controller,
     required this.transformationController,
+    required this.canvasKey,
   });
 
-  /// Compute the canvas point at the center of the visible viewport.
-  Offset _visibleCenter(BuildContext context) {
-    final renderBox = context.findAncestorRenderObjectOfType<RenderBox>();
-    final viewportSize = renderBox?.size ?? MediaQuery.of(context).size;
-    final screenCenter =
+  /// Compute the canvas point at the center of the visible canvas viewport.
+  Offset _visibleCenter() {
+    final renderBox =
+        canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    final viewportSize = renderBox?.size ?? const Size(400, 600);
+    final localCenter =
         Offset(viewportSize.width / 2, viewportSize.height / 2);
 
+    // Invert the InteractiveViewer transform to get canvas coordinates.
     final inverse = Matrix4.inverted(transformationController.value);
-    final dx = inverse.storage[0] * screenCenter.dx +
-        inverse.storage[4] * screenCenter.dy +
+    final dx = inverse.storage[0] * localCenter.dx +
+        inverse.storage[4] * localCenter.dy +
         inverse.storage[12];
-    final dy = inverse.storage[1] * screenCenter.dx +
-        inverse.storage[5] * screenCenter.dy +
+    final dy = inverse.storage[1] * localCenter.dx +
+        inverse.storage[5] * localCenter.dy +
         inverse.storage[13];
     return Offset(dx, dy);
   }
@@ -53,14 +57,14 @@ class EditorToolbar extends StatelessWidget {
             label: 'Start',
             onPressed: () {
               controller.addNodeNear(
-                  NodeType.startEvent, _visibleCenter(context));
+                  NodeType.startEvent, _visibleCenter());
             },
           ),
           _ToolButton(
             icon: Icons.check_box_outline_blank_rounded,
             label: 'Step',
             onPressed: () {
-              controller.addNodeNear(NodeType.task, _visibleCenter(context));
+              controller.addNodeNear(NodeType.task, _visibleCenter());
             },
           ),
           _ToolButton(
@@ -68,7 +72,7 @@ class EditorToolbar extends StatelessWidget {
             label: 'Decision',
             onPressed: () {
               controller.addNodeNear(
-                  NodeType.exclusiveGateway, _visibleCenter(context));
+                  NodeType.exclusiveGateway, _visibleCenter());
             },
           ),
           _ToolButton(
@@ -76,7 +80,7 @@ class EditorToolbar extends StatelessWidget {
             label: 'End',
             onPressed: () {
               controller.addNodeNear(
-                  NodeType.endEvent, _visibleCenter(context));
+                  NodeType.endEvent, _visibleCenter());
             },
           ),
         ],

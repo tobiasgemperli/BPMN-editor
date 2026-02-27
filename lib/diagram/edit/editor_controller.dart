@@ -373,21 +373,27 @@ class EditorController extends ChangeNotifier {
     activeTool = EditorTool.select;
   }
 
-  /// Add a node at [center], offsetting diagonally if another node is nearby.
-  void addNodeNear(NodeType type, Offset center) {
-    const diagonalOffset = Offset(3, -3);
-    const overlapThreshold = 30.0;
-    var position = center;
+  /// Track where the last toolbar-added node was placed and the scroll offset.
+  Offset? _lastAddCenter;
+  Offset? _lastAddScrollCenter;
 
-    // Shift diagonally until no node center is too close.
-    for (var i = 0; i < 20; i++) {
-      final tooClose = diagram.nodes.values.any(
-        (n) => (n.center - position).distance < overlapThreshold,
-      );
-      if (!tooClose) break;
-      position = position + diagonalOffset;
+  /// Add a node at the visible [screenCenter]. If the user hasn't scrolled
+  /// since the last add, offset from the previous node instead.
+  void addNodeNear(NodeType type, Offset screenCenter) {
+    const nudge = Offset(3, -3);
+    Offset position;
+
+    if (_lastAddCenter != null &&
+        _lastAddScrollCenter != null &&
+        (screenCenter - _lastAddScrollCenter!).distance < 1.0) {
+      // Same scroll position — offset from previous node.
+      position = _lastAddCenter! + nudge;
+    } else {
+      position = screenCenter;
     }
 
+    _lastAddScrollCenter = screenCenter;
+    _lastAddCenter = position;
     addNodeAtPosition(type, position);
   }
 
