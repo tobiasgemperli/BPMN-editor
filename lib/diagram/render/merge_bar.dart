@@ -147,16 +147,20 @@ ConnectorSide inferSide(NodeModel node, Offset approach) {
 }
 
 /// Returns true if a waypoint has crossed past the merge bar toward the node.
+///
+/// "Past" means the waypoint is between the bar and the node (or inside the
+/// node).  For a left-side bar at x = 805, the node is to the right, so
+/// past means x > 805.
 bool isPastBar(Offset wp, MergeBarInfo bar) {
   switch (bar.side) {
     case ConnectorSide.top:
-      return wp.dy <= bar.barPos;
+      return wp.dy > bar.barPos;    // bar is above node; past = below bar
     case ConnectorSide.bottom:
-      return wp.dy >= bar.barPos;
+      return wp.dy < bar.barPos;    // bar is below node; past = above bar
     case ConnectorSide.left:
-      return wp.dx <= bar.barPos;
+      return wp.dx > bar.barPos;    // bar is left of node; past = right of bar
     case ConnectorSide.right:
-      return wp.dx >= bar.barPos;
+      return wp.dx < bar.barPos;    // bar is right of node; past = left of bar
   }
 }
 
@@ -176,10 +180,41 @@ List<Offset> adjustEdgeForMergeBar(
   }
 
   // Add perpendicular approach: bend then slot.
-  final prev = result.last;
-  final bendPoint = bar.isHorizontal
+  var prev = result.last;
+  var bendPoint = bar.isHorizontal
       ? Offset(slotPoint.dx, prev.dy)
       : Offset(prev.dx, slotPoint.dy);
+
+  // Detect zigzag: if prev and bendPoint are on the same axis but the bend
+  // reverses direction compared to the segment before prev, pop prev and
+  // recompute from the new last waypoint.
+  if (result.length >= 2) {
+    final before = result[result.length - 2];
+    final sameX = (prev.dx - bendPoint.dx).abs() < 1.0;
+    final sameY = (prev.dy - bendPoint.dy).abs() < 1.0;
+    if (sameX) {
+      // Vertical segment prev→bend; check if it reverses before→prev direction.
+      final dirPrev = prev.dy - before.dy;
+      final dirBend = bendPoint.dy - prev.dy;
+      if (dirPrev != 0 && dirBend != 0 && dirPrev.sign != dirBend.sign) {
+        result.removeLast();
+        prev = result.last;
+        bendPoint = bar.isHorizontal
+            ? Offset(slotPoint.dx, prev.dy)
+            : Offset(prev.dx, slotPoint.dy);
+      }
+    } else if (sameY) {
+      final dirPrev = prev.dx - before.dx;
+      final dirBend = bendPoint.dx - prev.dx;
+      if (dirPrev != 0 && dirBend != 0 && dirPrev.sign != dirBend.sign) {
+        result.removeLast();
+        prev = result.last;
+        bendPoint = bar.isHorizontal
+            ? Offset(slotPoint.dx, prev.dy)
+            : Offset(prev.dx, slotPoint.dy);
+      }
+    }
+  }
 
   // Only add bend if it creates a meaningful segment.
   if ((bendPoint - prev).distance > 1.0 && (bendPoint - slotPoint).distance > 1.0) {

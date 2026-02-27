@@ -383,9 +383,12 @@ void main() {
         isHorizontal: true,
         edgeSlots: {},
       );
-      expect(isPastBar(const Offset(400, 250), bar), isTrue);
-      expect(isPastBar(const Offset(400, 300), bar), isTrue);
-      expect(isPastBar(const Offset(400, 350), bar), isFalse);
+      // y=250 is above bar (approach side) — not past
+      expect(isPastBar(const Offset(400, 250), bar), isFalse);
+      // y=300 is at bar — not past
+      expect(isPastBar(const Offset(400, 300), bar), isFalse);
+      // y=350 is below bar toward node — past
+      expect(isPastBar(const Offset(400, 350), bar), isTrue);
     });
 
     test('waypoint past left bar', () {
@@ -399,9 +402,12 @@ void main() {
         isHorizontal: false,
         edgeSlots: {},
       );
-      expect(isPastBar(const Offset(150, 300), bar), isTrue);
-      expect(isPastBar(const Offset(200, 300), bar), isTrue);
-      expect(isPastBar(const Offset(250, 300), bar), isFalse);
+      // x=150 is left of bar (approach side) — not past
+      expect(isPastBar(const Offset(150, 300), bar), isFalse);
+      // x=200 is at bar — not past
+      expect(isPastBar(const Offset(200, 300), bar), isFalse);
+      // x=250 is right of bar toward node — past
+      expect(isPastBar(const Offset(250, 300), bar), isTrue);
     });
 
     test('waypoint past bottom bar', () {
@@ -415,9 +421,12 @@ void main() {
         isHorizontal: true,
         edgeSlots: {},
       );
-      expect(isPastBar(const Offset(400, 550), bar), isTrue);
-      expect(isPastBar(const Offset(400, 500), bar), isTrue);
-      expect(isPastBar(const Offset(400, 450), bar), isFalse);
+      // y=550 is below bar (approach side) — not past
+      expect(isPastBar(const Offset(400, 550), bar), isFalse);
+      // y=500 is at bar — not past
+      expect(isPastBar(const Offset(400, 500), bar), isFalse);
+      // y=450 is above bar toward node — past
+      expect(isPastBar(const Offset(400, 450), bar), isTrue);
     });
 
     test('waypoint past right bar', () {
@@ -431,9 +440,12 @@ void main() {
         isHorizontal: false,
         edgeSlots: {},
       );
-      expect(isPastBar(const Offset(550, 300), bar), isTrue);
-      expect(isPastBar(const Offset(500, 300), bar), isTrue);
-      expect(isPastBar(const Offset(450, 300), bar), isFalse);
+      // x=550 is right of bar (approach side) — not past
+      expect(isPastBar(const Offset(550, 300), bar), isFalse);
+      // x=500 is at bar — not past
+      expect(isPastBar(const Offset(500, 300), bar), isFalse);
+      // x=450 is left of bar toward node — past
+      expect(isPastBar(const Offset(450, 300), bar), isTrue);
     });
   });
 
@@ -507,22 +519,23 @@ void main() {
         isHorizontal: true,
         edgeSlots: {'e1': const Offset(400, 340)},
       );
-      // Edge has an inner waypoint that dips past the bar (y=320 < barPos=340).
+      // Edge has inner waypoints: y=320 is before the bar (kept),
+      // y=380 is past the bar toward the node (trimmed).
       final rawWps = [
         const Offset(200, 100),
-        const Offset(200, 500),  // inner: above bar, kept
-        const Offset(400, 500),  // inner: above bar, kept
-        const Offset(400, 320),  // inner: past bar (y < 340), should be trimmed
+        const Offset(200, 320),  // inner: before bar (y < 340), kept
+        const Offset(400, 320),  // inner: before bar, kept
+        const Offset(400, 380),  // inner: past bar (y > 340), trimmed
         const Offset(400, 400),  // target center (stripped by adjustEdge)
       ];
-      final clippedStart = const Offset(200, 500);
+      final clippedStart = const Offset(200, 135);
 
       final result = adjustEdgeForMergeBar(rawWps, clippedStart, bar, 'e1');
 
-      // The inner waypoint at y=320 should have been removed.
-      // No inner waypoint should be past the bar.
+      // The inner waypoint at y=380 should have been removed.
+      // No intermediate waypoint should be past the bar (y > 340).
       for (int i = 0; i < result.length - 1; i++) {
-        expect(result[i].dy, greaterThanOrEqualTo(340),
+        expect(result[i].dy, lessThanOrEqualTo(340),
             reason: 'Waypoint $i at y=${result[i].dy} should not be past the bar');
       }
       // Last point is the slot on the bar.
