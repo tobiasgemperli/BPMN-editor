@@ -50,12 +50,21 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
           widget.onLongPressPosition?.call(canvasPoint);
         }
       },
-      child: InteractiveViewer(
-        transformationController: _transformController,
-        constrained: false,
-        boundaryMargin: const EdgeInsets.all(2000),
-        minScale: 0.2,
-        maxScale: 3.0,
+      child: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, child) {
+          final dragging = widget.controller.isDragging || widget.controller.isConnecting;
+          return InteractiveViewer(
+            transformationController: _transformController,
+            constrained: false,
+            boundaryMargin: const EdgeInsets.all(2000),
+            minScale: 0.2,
+            maxScale: 3.0,
+            panEnabled: !dragging,
+            scaleEnabled: !dragging,
+            child: child!,
+          );
+        },
         child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
