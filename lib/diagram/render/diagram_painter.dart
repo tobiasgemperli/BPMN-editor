@@ -64,6 +64,7 @@ class DiagramPainter extends CustomPainter {
     _drawSnapGuides(canvas, size);
     _drawConnectionPreview(canvas);
     _drawConnectorHandle(canvas);
+    _drawDebugClosest(canvas);
   }
 
   void _drawGrid(Canvas canvas, Size size) {
@@ -355,6 +356,15 @@ class DiagramPainter extends CustomPainter {
         arrowPaint,
       );
     }
+  }
+
+  void _drawDebugClosest(Canvas canvas) {
+    final point = controller.debugClosestPoint;
+    if (point == null) return;
+    final paint = Paint()
+      ..color = Colors.green
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(point, 8, paint);
   }
 
   void _drawText(Canvas canvas, String text, Offset center,

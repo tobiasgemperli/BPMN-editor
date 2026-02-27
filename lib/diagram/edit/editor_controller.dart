@@ -61,6 +61,9 @@ class EditorController extends ChangeNotifier {
   double? snapGuideX; // vertical line at this x
   double? snapGuideY; // horizontal line at this y
 
+  /// Debug: the closest target point (node center or connector handle).
+  Offset? debugClosestPoint;
+
   EditorController({DiagramModel? diagram})
       : diagram = diagram ?? DiagramModel() {
     _idGen.seedFrom(this.diagram.nodes.keys.followedBy(this.diagram.edges.keys));
@@ -95,6 +98,40 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update debug highlight: find the closest candidate point to the pointer.
+  /// Considers all node centers and connector handles of the selected node.
+  void updateDebugClosest(Offset point) {
+    double bestDist = double.infinity;
+    Offset? bestPoint;
+
+    // Check all node centers.
+    for (final node in diagram.nodes.values) {
+      final d = (point - node.center).distance;
+      if (d < bestDist) {
+        bestDist = d;
+        bestPoint = node.center;
+      }
+    }
+
+    // Check connector handles of the selected node.
+    if (selectedNodeId != null) {
+      final selNode = diagram.nodes[selectedNodeId];
+      if (selNode != null) {
+        for (final side in ConnectorSide.values) {
+          final center = connectorHandleCenter(selNode, side);
+          final d = (point - center).distance;
+          if (d < bestDist) {
+            bestDist = d;
+            bestPoint = center;
+          }
+        }
+      }
+    }
+
+    debugClosestPoint = bestPoint;
+    notifyListeners();
+  }
+
   /// Called when the user taps on the canvas.
   void onTapDown(Offset canvasPoint) {
     if (activeTool != EditorTool.select) {
@@ -126,20 +163,23 @@ class EditorController extends ChangeNotifier {
   void onDragStart(Offset canvasPoint) {
     if (isConnecting) return;
 
-    // First check if we're on a node body.
+    // When a node is selected, check connector handles FIRST so that
+    // connections can be started even on small nodes where the handle
+    // overlaps the inflated node body.
+    if (selectedNodeId != null) {
+      final hit = _hitTester.test(canvasPoint, diagram,
+          selectedNodeId: selectedNodeId, forDrag: true);
+      if (hit.isConnectorHandle) {
+        _startConnection(canvasPoint, side: hit.connectorSide);
+        return;
+      }
+    }
+
+    // Then check node body for dragging.
     final nodeHit = _closestHitNode(canvasPoint, forDrag: true);
     if (nodeHit != null) {
       _pendingDragNodeId = nodeHit;
       _dragStartNodeCenter = diagram.nodes[nodeHit]!.center;
-      return;
-    }
-
-    // No node body hit — check connector handles.
-    final hit = _hitTester.test(canvasPoint, diagram,
-        selectedNodeId: selectedNodeId, forDrag: true);
-
-    if (hit.isConnectorHandle) {
-      _startConnection(canvasPoint, side: hit.connectorSide);
       return;
     }
   }

@@ -38,6 +38,8 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
         _activePointer = event.pointer;
 
         final ctrl = widget.controller;
+        ctrl.updateDebugClosest(canvasPoint);
+
         final hit = HitTester().test(canvasPoint, ctrl.diagram,
             selectedNodeId: ctrl.selectedNodeId, forDrag: true);
 
@@ -51,6 +53,7 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
         }
       },
       onPointerMove: (event) {
+        widget.controller.updateDebugClosest(event.localPosition);
         if (_isDiagramDrag && event.pointer == _activePointer) {
           widget.controller.onDragUpdate(event.localPosition);
         }
