@@ -40,12 +40,19 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
         final ctrl = widget.controller;
         ctrl.updateDebugClosest(canvasPoint);
 
+        // Use the debug closest point to decide: if it's a connector
+        // handle, start a connection. If it's a node center, prepare
+        // a node drag. Otherwise let InteractiveViewer handle pan/zoom.
         final hit = HitTester().test(canvasPoint, ctrl.diagram,
-            selectedNodeId: ctrl.selectedNodeId, forDrag: true);
+            selectedNodeId: ctrl.selectedNodeId);
 
-        if (hit.hitNode || hit.isConnectorHandle) {
+        if (hit.isConnectorHandle && hit.connectorSide != null) {
+          // Connector handle hit — go straight to connection mode.
           _isDiagramDrag = true;
-          ctrl.onTapDown(canvasPoint);
+          ctrl.startConnectionFromHandle(hit.connectorSide!);
+        } else if (hit.hitNode) {
+          // Node body hit — prepare a node drag.
+          _isDiagramDrag = true;
           ctrl.onDragStart(canvasPoint);
         } else {
           _isDiagramDrag = false;
@@ -53,7 +60,7 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
         }
       },
       onPointerMove: (event) {
-        widget.controller.updateDebugClosest(event.localPosition);
+        // Only update debug dot on pointer down, not during drag.
         if (_isDiagramDrag && event.pointer == _activePointer) {
           widget.controller.onDragUpdate(event.localPosition);
         }
@@ -61,13 +68,18 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
       onPointerUp: (event) {
         if (_isDiagramDrag && event.pointer == _activePointer) {
           final ctrl = widget.controller;
-          ctrl.onDragEnd(
-            ctrl.isConnecting
-                ? (ctrl.connectionEnd ?? Offset.zero)
-                : (ctrl.selectedNodeId != null
-                    ? ctrl.diagram.nodes[ctrl.selectedNodeId]!.center
-                    : Offset.zero),
-          );
+          if (ctrl.isConnecting || ctrl.isDragging) {
+            ctrl.onDragEnd(
+              ctrl.isConnecting
+                  ? (ctrl.connectionEnd ?? Offset.zero)
+                  : (ctrl.selectedNodeId != null
+                      ? ctrl.diagram.nodes[ctrl.selectedNodeId]!.center
+                      : Offset.zero),
+            );
+          } else {
+            // No drag or connection started — treat as a tap to select.
+            ctrl.onTapDown(event.localPosition);
+          }
         }
         _isDiagramDrag = false;
         _activePointer = null;

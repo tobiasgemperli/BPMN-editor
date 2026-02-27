@@ -159,23 +159,23 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Start a connection directly from a known connector handle side.
+  /// Called when the hit tester already identified a connector handle hit.
+  void startConnectionFromHandle(ConnectorSide side) {
+    if (selectedNodeId == null) return;
+    final node = diagram.nodes[selectedNodeId!];
+    if (node == null) return;
+    final handleCenter = connectorHandleCenter(node, side);
+    _startConnection(handleCenter, side: side);
+  }
+
   /// Prepare for a potential drag. Actual dragging starts on first move.
+  /// Uses closest-point logic: if a connector handle is closer than the
+  /// node center, start a connection; otherwise prepare a node drag.
   void onDragStart(Offset canvasPoint) {
     if (isConnecting) return;
 
-    // When a node is selected, check connector handles FIRST so that
-    // connections can be started even on small nodes where the handle
-    // overlaps the inflated node body.
-    if (selectedNodeId != null) {
-      final hit = _hitTester.test(canvasPoint, diagram,
-          selectedNodeId: selectedNodeId, forDrag: true);
-      if (hit.isConnectorHandle) {
-        _startConnection(canvasPoint, side: hit.connectorSide);
-        return;
-      }
-    }
-
-    // Then check node body for dragging.
+    // Prepare node drag. The canvas handles connector handles separately.
     final nodeHit = _closestHitNode(canvasPoint, forDrag: true);
     if (nodeHit != null) {
       _pendingDragNodeId = nodeHit;
