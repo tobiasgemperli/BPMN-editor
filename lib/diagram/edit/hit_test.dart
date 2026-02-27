@@ -98,6 +98,18 @@ class HitTester {
     return const HitTestResult();
   }
 
+  /// Test only edges, ignoring nodes. Returns the first edge hit.
+  HitTestResult testEdgesOnly(Offset point, DiagramModel model,
+      {Set<String>? excludeEdgeIds}) {
+    for (final edge in model.edges.values) {
+      if (excludeEdgeIds != null && excludeEdgeIds.contains(edge.id)) continue;
+      if (_hitTestEdge(point, edge, model)) {
+        return HitTestResult(edgeId: edge.id);
+      }
+    }
+    return const HitTestResult();
+  }
+
   bool _hitTestNode(Offset point, NodeModel node, double inflate) {
     final inflated = node.rect.inflate(inflate);
 

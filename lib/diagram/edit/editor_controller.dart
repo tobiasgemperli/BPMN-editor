@@ -345,14 +345,15 @@ class EditorController extends ChangeNotifier {
   /// whose center is closest. Returns null if no node is hit.
   /// Find an edge under [point], excluding edges connected to [excludeNodeId].
   EdgeModel? _findEdgeAtPoint(Offset point, String excludeNodeId) {
-    final hit = _hitTester.test(point, diagram);
+    // Collect edge IDs connected to the excluded node.
+    final excludeEdgeIds = diagram.edges.values
+        .where((e) => e.sourceId == excludeNodeId || e.targetId == excludeNodeId)
+        .map((e) => e.id)
+        .toSet();
+    final hit = _hitTester.testEdgesOnly(point, diagram,
+        excludeEdgeIds: excludeEdgeIds);
     if (hit.hitEdge) {
-      final edge = diagram.edges[hit.edgeId];
-      if (edge != null &&
-          edge.sourceId != excludeNodeId &&
-          edge.targetId != excludeNodeId) {
-        return edge;
-      }
+      return diagram.edges[hit.edgeId];
     }
     return null;
   }
