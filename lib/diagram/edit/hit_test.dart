@@ -5,17 +5,17 @@ import '../model/diagram_model.dart';
 enum ConnectorSide { top, right, bottom, left }
 
 /// Returns the center position of a connector handle for a given node and side.
+/// Handles sit right on the node border.
 Offset connectorHandleCenter(NodeModel node, ConnectorSide side) {
-  const offset = 18.0;
   switch (side) {
     case ConnectorSide.top:
-      return Offset(node.rect.center.dx, node.rect.top - offset);
+      return Offset(node.rect.center.dx, node.rect.top);
     case ConnectorSide.right:
-      return Offset(node.rect.right + offset, node.rect.center.dy);
+      return Offset(node.rect.right, node.rect.center.dy);
     case ConnectorSide.bottom:
-      return Offset(node.rect.center.dx, node.rect.bottom + offset);
+      return Offset(node.rect.center.dx, node.rect.bottom);
     case ConnectorSide.left:
-      return Offset(node.rect.left - offset, node.rect.center.dy);
+      return Offset(node.rect.left, node.rect.center.dy);
   }
 }
 

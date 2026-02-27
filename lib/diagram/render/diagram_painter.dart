@@ -336,48 +336,7 @@ class DiagramPainter extends CustomPainter {
 
     for (final side in ConnectorSide.values) {
       final center = connectorHandleCenter(node, side);
-      canvas.drawCircle(center, 14, _handlePaint);
-
-      // Draw arrow pointing outward.
-      final arrowPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = _strokeWidth
-        ..strokeCap = StrokeCap.round;
-
-      Offset dir;
-      switch (side) {
-        case ConnectorSide.top:
-          dir = const Offset(0, -1);
-          break;
-        case ConnectorSide.right:
-          dir = const Offset(1, 0);
-          break;
-        case ConnectorSide.bottom:
-          dir = const Offset(0, 1);
-          break;
-        case ConnectorSide.left:
-          dir = const Offset(-1, 0);
-          break;
-      }
-      final perp = Offset(-dir.dy, dir.dx);
-      // Arrow shaft.
-      canvas.drawLine(
-        center - dir * 4,
-        center + dir * 4,
-        arrowPaint,
-      );
-      // Arrow head.
-      canvas.drawLine(
-        center + dir * 1 - perp * 4,
-        center + dir * 5,
-        arrowPaint,
-      );
-      canvas.drawLine(
-        center + dir * 1 + perp * 4,
-        center + dir * 5,
-        arrowPaint,
-      );
+      canvas.drawCircle(center, 6, _handlePaint);
     }
   }
 
