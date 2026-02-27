@@ -181,10 +181,10 @@ class DiagramPainter extends CustomPainter {
     for (final node in controller.diagram.nodes.values) {
       final isSelected = node.id == controller.selectedNodeId;
       final isBlob = node.id == controller.blobNodeId && controller.blobScale != 1.0;
-      final isLifted = node.id == controller.liftNodeId && controller.liftScale != 1.0;
+      final isLifted = node.id == controller.liftNodeId;
 
       // Apply scale transforms (lift or blob, lift takes priority).
-      final needsScale = isLifted || isBlob;
+      final needsScale = (isLifted && controller.liftScale != 1.0) || isBlob;
       if (needsScale) {
         final scale = isLifted ? controller.liftScale : controller.blobScale;
         final c = node.center;
@@ -194,18 +194,20 @@ class DiagramPainter extends CustomPainter {
         canvas.translate(-c.dx, -c.dy);
       }
 
+      final fill = _nodePaint;
+
       switch (node.type) {
         case NodeType.startEvent:
-          _drawCircleNode(canvas, node, isSelected, false);
+          _drawCircleNode(canvas, node, isSelected, false, fill);
           break;
         case NodeType.endEvent:
-          _drawCircleNode(canvas, node, isSelected, true);
+          _drawCircleNode(canvas, node, isSelected, true, fill);
           break;
         case NodeType.task:
-          _drawTaskNode(canvas, node, isSelected);
+          _drawTaskNode(canvas, node, isSelected, fill);
           break;
         case NodeType.exclusiveGateway:
-          _drawGatewayNode(canvas, node, isSelected);
+          _drawGatewayNode(canvas, node, isSelected, fill);
           break;
       }
 
@@ -215,11 +217,11 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  void _drawCircleNode(Canvas canvas, NodeModel node, bool selected, bool thick) {
+  void _drawCircleNode(Canvas canvas, NodeModel node, bool selected, bool thick, Paint fill) {
     final c = node.center;
     final r = node.rect.width / 2;
 
-    canvas.drawCircle(c, r, _nodePaint);
+    canvas.drawCircle(c, r, fill);
     canvas.drawCircle(c, r, thick ? _endNodeStroke : _nodeStroke);
 
     if (selected) {
@@ -231,9 +233,9 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  void _drawTaskNode(Canvas canvas, NodeModel node, bool selected) {
+  void _drawTaskNode(Canvas canvas, NodeModel node, bool selected, Paint fill) {
     final rr = RRect.fromRectAndRadius(node.rect, const Radius.circular(8));
-    canvas.drawRRect(rr, _nodePaint);
+    canvas.drawRRect(rr, fill);
     canvas.drawRRect(rr, _nodeStroke);
 
     if (selected) {
@@ -245,7 +247,7 @@ class DiagramPainter extends CustomPainter {
     _drawText(canvas, label, node.center, fontSize: 13, maxWidth: node.rect.width - 12);
   }
 
-  void _drawGatewayNode(Canvas canvas, NodeModel node, bool selected) {
+  void _drawGatewayNode(Canvas canvas, NodeModel node, bool selected, Paint fill) {
     final c = node.center;
     final hw = node.rect.width / 2;
     final hh = node.rect.height / 2;
@@ -257,7 +259,7 @@ class DiagramPainter extends CustomPainter {
       ..lineTo(c.dx - hw, c.dy)
       ..close();
 
-    canvas.drawPath(path, _nodePaint);
+    canvas.drawPath(path, fill);
     canvas.drawPath(path, _nodeStroke);
 
     if (selected) {

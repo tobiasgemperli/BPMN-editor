@@ -110,7 +110,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
   }
 
   void _startLift(String nodeId) {
-    _liftShrinkController.stop();
+    if (_liftShrinkController.isAnimating) _liftShrinkController.stop();
     widget.controller.startLift(nodeId);
     _liftGrowController.forward(from: 0);
   }
