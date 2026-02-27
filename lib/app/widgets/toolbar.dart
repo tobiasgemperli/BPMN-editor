@@ -15,13 +15,18 @@ class EditorToolbar extends StatelessWidget {
     required this.canvasKey,
   });
 
-  /// Compute the canvas point at the center of the visible canvas viewport.
+  /// Compute the canvas point at the perceived center of the visible area
+  /// (vertically between the app bar and the floating toolbar).
   Offset _visibleCenter() {
     final renderBox =
         canvasKey.currentContext?.findRenderObject() as RenderBox?;
     final viewportSize = renderBox?.size ?? const Size(400, 600);
-    final localCenter =
-        Offset(viewportSize.width / 2, viewportSize.height / 2);
+    // Approximate toolbar + bottom padding height to find perceived center.
+    const toolbarAreaHeight = 80.0;
+    final localCenter = Offset(
+      viewportSize.width / 2,
+      (viewportSize.height - toolbarAreaHeight) / 2,
+    );
 
     // Invert the InteractiveViewer transform to get canvas coordinates.
     final inverse = Matrix4.inverted(transformationController.value);
