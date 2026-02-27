@@ -46,9 +46,8 @@ class DiagramPainter extends CustomPainter {
     ..color = Colors.blue
     ..style = PaintingStyle.fill;
   static final _gridPaint = Paint()
-    ..color = const Color(0x11000000)
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 0.5;
+    ..color = const Color(0x22000000)
+    ..style = PaintingStyle.fill;
 
   DiagramPainter(this.controller) : super(repaint: controller);
 
@@ -62,12 +61,11 @@ class DiagramPainter extends CustomPainter {
   }
 
   void _drawGrid(Canvas canvas, Size size) {
-    const step = 40.0;
+    const step = 20.0;
     for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), _gridPaint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), _gridPaint);
+      for (double y = 0; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x, y), 0.7, _gridPaint);
+      }
     }
   }
 

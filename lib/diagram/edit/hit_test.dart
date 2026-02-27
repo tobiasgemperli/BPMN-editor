@@ -18,23 +18,30 @@ class HitTestResult {
 class HitTester {
   static const double _edgeHitThreshold = 24.0;
   static const double _connectorHandleRadius = 24.0;
+  static const double _connectorHandleRadiusDrag = 54.0;
+  static const double _nodeInflate = 14.0;
+  static const double _nodeInflateDrag = 26.0;
 
   /// Test a point against the diagram. Nodes are checked first.
-  HitTestResult test(Offset point, DiagramModel model, {String? selectedNodeId}) {
+  /// Use [forDrag] = true for drag-start to allow a more forgiving hit area.
+  HitTestResult test(Offset point, DiagramModel model,
+      {String? selectedNodeId, bool forDrag = false}) {
     // Check connector handle first if a node is selected.
     if (selectedNodeId != null) {
       final node = model.nodes[selectedNodeId];
       if (node != null) {
         final handleCenter = Offset(node.rect.right + 18, node.rect.center.dy);
-        if ((point - handleCenter).distance <= _connectorHandleRadius) {
+        final handleRadius = forDrag ? _connectorHandleRadiusDrag : _connectorHandleRadius;
+        if ((point - handleCenter).distance <= handleRadius) {
           return HitTestResult(nodeId: selectedNodeId, isConnectorHandle: true);
         }
       }
     }
 
     // Check nodes (reverse order for z-order).
+    final inflate = forDrag ? _nodeInflateDrag : _nodeInflate;
     for (final node in model.nodes.values.toList().reversed) {
-      if (_hitTestNode(point, node)) {
+      if (_hitTestNode(point, node, inflate)) {
         return HitTestResult(nodeId: node.id);
       }
     }
@@ -49,9 +56,8 @@ class HitTester {
     return const HitTestResult();
   }
 
-  bool _hitTestNode(Offset point, NodeModel node) {
-    // Inflate generously for thumb-friendly touch targets (min ~44pt).
-    final inflated = node.rect.inflate(14);
+  bool _hitTestNode(Offset point, NodeModel node, double inflate) {
+    final inflated = node.rect.inflate(inflate);
 
     if (node.type == NodeType.startEvent || node.type == NodeType.endEvent) {
       // Circle hit test.

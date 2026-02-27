@@ -9,6 +9,17 @@ import 'hit_test.dart';
 /// The tool currently active in the editor.
 enum EditorTool { select, addStart, addEnd, addTask, addGateway }
 
+/// Grid size for snapping node centers.
+const double gridSize = 20.0;
+
+/// Snaps an offset to the nearest grid point.
+Offset _snapToGrid(Offset point) {
+  return Offset(
+    (point.dx / gridSize).round() * gridSize,
+    (point.dy / gridSize).round() * gridSize,
+  );
+}
+
 /// Central controller for the diagram editor.
 ///
 /// Notifies listeners whenever the diagram or selection state changes.
@@ -105,7 +116,8 @@ class EditorController extends ChangeNotifier {
   void onDragStart(Offset canvasPoint) {
     if (isConnecting) return;
 
-    final hit = _hitTester.test(canvasPoint, diagram, selectedNodeId: selectedNodeId);
+    final hit = _hitTester.test(canvasPoint, diagram,
+        selectedNodeId: selectedNodeId, forDrag: true);
 
     if (hit.isConnectorHandle) {
       _startConnection(canvasPoint);
@@ -130,8 +142,8 @@ class EditorController extends ChangeNotifier {
 
     if (isDragging && selectedNodeId != null) {
       final node = diagram.nodes[selectedNodeId!]!;
-      final oldCenter = node.center;
-      final delta = canvasPoint - oldCenter;
+      final snappedCenter = _snapToGrid(canvasPoint);
+      final delta = snappedCenter - node.center;
       node.rect = node.rect.shift(delta);
       notifyListeners();
     }
@@ -184,7 +196,7 @@ class EditorController extends ChangeNotifier {
     final node = NodeModel(
       id: id,
       type: type,
-      rect: NodeModel.defaultRect(type, position),
+      rect: NodeModel.defaultRect(type, _snapToGrid(position)),
     );
     _exec(AddNodeCommand(node));
     selectedNodeId = id;
@@ -202,7 +214,7 @@ class EditorController extends ChangeNotifier {
     final node = NodeModel(
       id: id,
       type: type,
-      rect: NodeModel.defaultRect(type, position),
+      rect: NodeModel.defaultRect(type, _snapToGrid(position)),
     );
     _exec(AddNodeCommand(node));
     selectedNodeId = id;
