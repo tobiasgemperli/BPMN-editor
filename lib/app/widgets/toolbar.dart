@@ -36,55 +36,62 @@ class EditorToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final startDisabled = controller.hasStartEvent;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ToolButton(
-            icon: Icons.circle_outlined,
-            label: 'Start',
-            onPressed: () {
-              controller.addNodeNear(
-                  NodeType.startEvent, _visibleCenter());
-            },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ToolButton(
+                icon: Icons.circle_outlined,
+                label: 'Start',
+                enabled: !startDisabled,
+                onPressed: () {
+                  controller.addNodeNear(
+                      NodeType.startEvent, _visibleCenter());
+                },
+              ),
+              _ToolButton(
+                icon: Icons.check_box_outline_blank_rounded,
+                label: 'Step',
+                onPressed: () {
+                  controller.addNodeNear(NodeType.task, _visibleCenter());
+                },
+              ),
+              _ToolButton(
+                icon: Icons.diamond_outlined,
+                label: 'Decision',
+                onPressed: () {
+                  controller.addNodeNear(
+                      NodeType.exclusiveGateway, _visibleCenter());
+                },
+              ),
+              _ToolButton(
+                icon: Icons.radio_button_checked,
+                label: 'End',
+                onPressed: () {
+                  controller.addNodeNear(
+                      NodeType.endEvent, _visibleCenter());
+                },
+              ),
+            ],
           ),
-          _ToolButton(
-            icon: Icons.check_box_outline_blank_rounded,
-            label: 'Step',
-            onPressed: () {
-              controller.addNodeNear(NodeType.task, _visibleCenter());
-            },
-          ),
-          _ToolButton(
-            icon: Icons.diamond_outlined,
-            label: 'Decision',
-            onPressed: () {
-              controller.addNodeNear(
-                  NodeType.exclusiveGateway, _visibleCenter());
-            },
-          ),
-          _ToolButton(
-            icon: Icons.radio_button_checked,
-            label: 'End',
-            onPressed: () {
-              controller.addNodeNear(
-                  NodeType.endEvent, _visibleCenter());
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -93,11 +100,13 @@ class _ToolButton extends StatefulWidget {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final bool enabled;
 
   const _ToolButton({
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.enabled = true,
   });
 
   @override
@@ -141,13 +150,16 @@ class _ToolButtonState extends State<_ToolButton>
   }
 
   void _handleTap() {
+    if (!widget.enabled) return;
     widget.onPressed();
     _animController.forward(from: 0);
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurface;
+    final color = widget.enabled
+        ? Theme.of(context).colorScheme.onSurface
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3);
 
     return GestureDetector(
       onTapDown: (_) => _handleTap(),

@@ -118,6 +118,10 @@ class EditorController extends ChangeNotifier {
   bool get canUndo => _commandStack.canUndo;
   bool get canRedo => _commandStack.canRedo;
 
+  /// Whether the diagram already contains a start event.
+  bool get hasStartEvent =>
+      diagram.nodes.values.any((n) => n.type == NodeType.startEvent);
+
   void _exec(Command cmd) {
     _commandStack.execute(cmd, diagram);
     notifyListeners();
@@ -442,6 +446,30 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Check whether a connection from [sourceId] to [targetId] is allowed.
+  bool canConnect(String sourceId, String targetId) {
+    final source = diagram.nodes[sourceId];
+    final target = diagram.nodes[targetId];
+    if (source == null || target == null) return false;
+
+    // End events cannot have outputs.
+    if (source.type == NodeType.endEvent) return false;
+    // Start events cannot have inputs.
+    if (target.type == NodeType.startEvent) return false;
+
+    final outgoing = diagram.outgoingEdges(sourceId);
+    final incoming = diagram.incomingEdges(targetId);
+
+    // Start: max 1 output.
+    if (source.type == NodeType.startEvent && outgoing.isNotEmpty) return false;
+    // Task (Step): max 1 output.
+    if (source.type == NodeType.task && outgoing.isNotEmpty) return false;
+    // End: max 1 input.
+    if (target.type == NodeType.endEvent && incoming.isNotEmpty) return false;
+
+    return true;
+  }
+
   void _finishConnection(Offset point) {
     if (connectionSourceId == null) {
       _cancelConnection();
@@ -449,7 +477,9 @@ class EditorController extends ChangeNotifier {
     }
 
     final hit = _hitTester.test(point, diagram);
-    if (hit.hitNode && hit.nodeId != connectionSourceId) {
+    if (hit.hitNode &&
+        hit.nodeId != connectionSourceId &&
+        canConnect(connectionSourceId!, hit.nodeId!)) {
       final edgeId = _idGen.next('flow');
       final edge = EdgeModel(
         id: edgeId,
