@@ -50,21 +50,31 @@ class HitTester {
   /// Use [forDrag] = true for drag-start to allow a more forgiving hit area.
   HitTestResult test(Offset point, DiagramModel model,
       {String? selectedNodeId, bool forDrag = false}) {
-    // Check connector handles first if a node is selected.
+    // Check connector handles if a node is selected.
+    // Only report a handle hit if the touch is closer to the handle
+    // than to the node center (handles sit on the border now).
     if (selectedNodeId != null) {
       final node = model.nodes[selectedNodeId];
       if (node != null) {
         final handleRadius =
             forDrag ? _connectorHandleRadiusDrag : _connectorHandleRadius;
+        final centerDist = (point - node.center).distance;
+        double bestHandleDist = double.infinity;
+        ConnectorSide? bestSide;
         for (final side in ConnectorSide.values) {
           final center = connectorHandleCenter(node, side);
-          if ((point - center).distance <= handleRadius) {
-            return HitTestResult(
-              nodeId: selectedNodeId,
-              isConnectorHandle: true,
-              connectorSide: side,
-            );
+          final d = (point - center).distance;
+          if (d <= handleRadius && d < bestHandleDist) {
+            bestHandleDist = d;
+            bestSide = side;
           }
+        }
+        if (bestSide != null && bestHandleDist < centerDist) {
+          return HitTestResult(
+            nodeId: selectedNodeId,
+            isConnectorHandle: true,
+            connectorSide: bestSide,
+          );
         }
       }
     }
