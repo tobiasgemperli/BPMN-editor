@@ -706,7 +706,45 @@ class EditorController extends ChangeNotifier {
       }
     }
 
-    // Phase 4: Route each edge with its assigned sides.
+    // Phase 4: Compute channel biases for edges sharing a Z-channel.
+    // Group incoming edges by target node and target side.
+    final channelBias = <String, double>{};
+    final incoming = <String, List<EdgeModel>>{};
+    for (final edge in diagram.edges.values) {
+      incoming.putIfAbsent(edge.targetId, () => []).add(edge);
+    }
+    for (final entry in incoming.entries) {
+      if (entry.value.length < 2) continue;
+      // Group by target side (edges entering from the same side share a channel).
+      final bySide = <ConnectorSide, List<EdgeModel>>{};
+      for (final edge in entry.value) {
+        final s = sides[edge.id];
+        if (s == null) continue;
+        bySide.putIfAbsent(s.$2, () => []).add(edge);
+      }
+      for (final sideEdges in bySide.values) {
+        if (sideEdges.length < 2) continue;
+        // Sort by source cross-axis position for consistent ordering.
+        final tgtSide = sides[sideEdges.first.id]!.$2;
+        final isH = tgtSide == ConnectorSide.left || tgtSide == ConnectorSide.right;
+        sideEdges.sort((a, b) {
+          final sa = diagram.nodes[a.sourceId]?.center ?? Offset.zero;
+          final sb = diagram.nodes[b.sourceId]?.center ?? Offset.zero;
+          return isH
+              ? sa.dy.compareTo(sb.dy)
+              : sa.dx.compareTo(sb.dx);
+        });
+        for (int i = 0; i < sideEdges.length; i++) {
+          // Spread from -1 to +1 evenly.
+          final t = sideEdges.length == 1
+              ? 0.0
+              : -1.0 + 2.0 * i / (sideEdges.length - 1);
+          channelBias[sideEdges[i].id] = t;
+        }
+      }
+    }
+
+    // Phase 5: Route each edge with its assigned sides and channel bias.
     for (final edge in diagram.edges.values) {
       final source = diagram.nodes[edge.sourceId];
       final target = diagram.nodes[edge.targetId];
@@ -723,6 +761,7 @@ class EditorController extends ChangeNotifier {
         sourceSide: s.$1,
         targetSide: s.$2,
         obstacles: obstacles,
+        channelBias: channelBias[edge.id] ?? 0.0,
       );
       edge.sourceSide = s.$1;
       edge.targetSide = s.$2;

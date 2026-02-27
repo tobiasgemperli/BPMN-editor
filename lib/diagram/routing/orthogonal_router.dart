@@ -17,12 +17,16 @@ const double _alignTolerance = 5.0;
 /// target anchor. The path consists only of horizontal and vertical segments.
 class OrthogonalRouter {
   /// Route an edge between [source] and [target], avoiding [obstacles].
+  ///
+  /// [channelBias] shifts the Z-shape midpoint channel. 0.0 = exact midpoint,
+  /// negative = closer to source, positive = closer to target. Range [-1, 1].
   List<Offset> route({
     required NodeModel source,
     required NodeModel target,
     ConnectorSide? sourceSide,
     ConnectorSide? targetSide,
     List<NodeModel> obstacles = const [],
+    double channelBias = 0.0,
   }) {
     sourceSide ??= bestSourceSide(source, target);
     targetSide ??= bestTargetSide(source, target, sourceSide);
@@ -53,7 +57,7 @@ class OrthogonalRouter {
 
     // Try Z-shape (one intermediate channel).
     final zRoute = _tryZShape(srcAnchor, tgtAnchor, sourceSide, targetSide,
-        source, target, obstacles);
+        source, target, obstacles, channelBias);
     if (zRoute != null) return _simplify(zRoute);
 
     // Fallback: U-turn.
@@ -221,13 +225,16 @@ class OrthogonalRouter {
     NodeModel source,
     NodeModel target,
     List<NodeModel> obstacles,
+    double channelBias,
   ) {
     final srcStub = _stubPoint(srcAnchor, srcSide);
     final tgtStub = _stubPoint(tgtAnchor, tgtSide);
 
     if (_isVertical(srcSide) && _isVertical(tgtSide)) {
-      // Z with a horizontal channel at the midpoint Y.
-      var midY = (srcStub.dy + tgtStub.dy) / 2;
+      // Z with a horizontal channel. Apply bias to shift from midpoint.
+      final mid = (srcStub.dy + tgtStub.dy) / 2;
+      final half = (tgtStub.dy - srcStub.dy).abs() / 2;
+      var midY = mid + channelBias * half * 0.4;
       final route = [
         srcAnchor,
         srcStub,
@@ -242,7 +249,9 @@ class OrthogonalRouter {
     }
 
     if (_isHorizontal(srcSide) && _isHorizontal(tgtSide)) {
-      var midX = (srcStub.dx + tgtStub.dx) / 2;
+      final mid = (srcStub.dx + tgtStub.dx) / 2;
+      final half = (tgtStub.dx - srcStub.dx).abs() / 2;
+      var midX = mid + channelBias * half * 0.4;
       final route = [
         srcAnchor,
         srcStub,
