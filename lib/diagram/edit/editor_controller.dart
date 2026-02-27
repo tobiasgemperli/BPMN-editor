@@ -316,10 +316,21 @@ class EditorController extends ChangeNotifier {
       }
 
       final totalDelta = node.center - _dragStartNodeCenter!;
+      final dropCenter = node.center;
       // Undo the live drag, then apply via command for undo support.
       node.rect = node.rect.shift(-totalDelta);
+
       if (totalDelta != Offset.zero) {
-        _exec(MoveNodeCommand(selectedNodeId!, totalDelta));
+        // Check if dropped on an edge (only Task and Gateway can split).
+        final splitEdge = _findEdgeAtPoint(dropCenter, selectedNodeId!);
+        if (splitEdge != null &&
+            (node.type == NodeType.task ||
+                node.type == NodeType.exclusiveGateway) &&
+            _canSplitEdge(splitEdge, selectedNodeId!)) {
+          _splitEdgeWithNode(selectedNodeId!, totalDelta, splitEdge);
+        } else {
+          _exec(MoveNodeCommand(selectedNodeId!, totalDelta));
+        }
       }
       _triggerBounce(selectedNodeId!);
     }
@@ -332,6 +343,57 @@ class EditorController extends ChangeNotifier {
 
   /// Among all nodes whose hit area contains [point], return the one
   /// whose center is closest. Returns null if no node is hit.
+  /// Find an edge under [point], excluding edges connected to [excludeNodeId].
+  EdgeModel? _findEdgeAtPoint(Offset point, String excludeNodeId) {
+    final hit = _hitTester.test(point, diagram);
+    if (hit.hitEdge) {
+      final edge = diagram.edges[hit.edgeId];
+      if (edge != null &&
+          edge.sourceId != excludeNodeId &&
+          edge.targetId != excludeNodeId) {
+        return edge;
+      }
+    }
+    return null;
+  }
+
+  /// Check if we can split this edge with the given node.
+  bool _canSplitEdge(EdgeModel edge, String nodeId) {
+    final node = diagram.nodes[nodeId];
+    if (node == null) return false;
+    // Node must accept at least 1 input and 1 output.
+    final outgoing = diagram.outgoingEdges(nodeId);
+    // Task: max 1 outgoing.
+    if (node.type == NodeType.task && outgoing.isNotEmpty) return false;
+    // Check that incoming is allowed (tasks/gateways accept multiple).
+    return true;
+  }
+
+  /// Split an edge by inserting a node into it.
+  /// Moves the node, deletes the old edge, creates two new edges.
+  void _splitEdgeWithNode(
+      String nodeId, Offset delta, EdgeModel edge) {
+    final edge1Id = _idGen.next('flow');
+    final edge2Id = _idGen.next('flow');
+
+    final commands = <Command>[
+      MoveNodeCommand(nodeId, delta),
+      DeleteEdgeCommand(edge.id),
+      AddEdgeCommand(EdgeModel(
+        id: edge1Id,
+        sourceId: edge.sourceId,
+        targetId: nodeId,
+      )),
+      AddEdgeCommand(EdgeModel(
+        id: edge2Id,
+        sourceId: nodeId,
+        targetId: edge.targetId,
+      )),
+    ];
+
+    _exec(CompositeCommand(commands, description: 'Split edge with node'));
+  }
+
   String? _closestHitNode(Offset point, {bool forDrag = false}) {
     String? bestId;
     double bestDist = double.infinity;

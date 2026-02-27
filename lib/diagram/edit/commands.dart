@@ -131,6 +131,32 @@ class DeleteEdgeCommand extends Command {
   String get description => 'Delete edge';
 }
 
+/// A composite command that executes multiple commands as one undo unit.
+class CompositeCommand extends Command {
+  final List<Command> commands;
+  final String _description;
+
+  CompositeCommand(this.commands, {String description = 'Composite'})
+      : _description = description;
+
+  @override
+  void execute(DiagramModel model) {
+    for (final cmd in commands) {
+      cmd.execute(model);
+    }
+  }
+
+  @override
+  void undo(DiagramModel model) {
+    for (final cmd in commands.reversed) {
+      cmd.undo(model);
+    }
+  }
+
+  @override
+  String get description => _description;
+}
+
 /// Renames a node.
 class RenameNodeCommand extends Command {
   final String nodeId;
