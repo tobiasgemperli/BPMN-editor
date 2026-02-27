@@ -109,8 +109,8 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, child) {
-        final dragging =
-            widget.controller.isDragging || widget.controller.isConnecting;
+        final dragging = widget.controller.hasPendingDrag ||
+            widget.controller.isConnecting;
         return InteractiveViewer(
           transformationController: _transformController,
           constrained: false,

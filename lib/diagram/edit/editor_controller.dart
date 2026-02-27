@@ -57,6 +57,9 @@ class EditorController extends ChangeNotifier {
   String? _pendingDragNodeId;
   Offset? _dragStartNodeCenter;
 
+  /// True when a drag is pending or active — used to disable canvas pan.
+  bool get hasPendingDrag => _pendingDragNodeId != null || isDragging;
+
   /// Snap guide lines visible during drag.
   double? snapGuideX; // vertical line at this x
   double? snapGuideY; // horizontal line at this y
@@ -180,6 +183,7 @@ class EditorController extends ChangeNotifier {
     if (nodeHit != null) {
       _pendingDragNodeId = nodeHit;
       _dragStartNodeCenter = diagram.nodes[nodeHit]!.center;
+      notifyListeners(); // Disable InteractiveViewer pan immediately.
       return;
     }
   }
