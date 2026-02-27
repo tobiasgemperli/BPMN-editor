@@ -77,6 +77,18 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
+  // Debug paint for waypoint visualization.
+  static final _debugRawWpPaint = Paint()
+    ..color = Colors.red
+    ..style = PaintingStyle.fill;
+  static final _debugClippedWpPaint = Paint()
+    ..color = Colors.green
+    ..style = PaintingStyle.fill;
+  static final _debugRawLinePaint = Paint()
+    ..color = Colors.red.withValues(alpha: 0.3)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.0;
+
   void _drawEdges(Canvas canvas) {
     final diagram = controller.diagram;
     for (final edge in diagram.edges.values) {
@@ -94,11 +106,25 @@ class DiagramPainter extends CustomPainter {
 
       if (wps.length < 2) continue;
 
+      // DEBUG: Draw raw waypoints as red dots and thin red line.
+      final rawPath = Path();
+      rawPath.moveTo(wps[0].dx, wps[0].dy);
+      for (int i = 0; i < wps.length; i++) {
+        canvas.drawCircle(wps[i], 4, _debugRawWpPaint);
+        if (i > 0) rawPath.lineTo(wps[i].dx, wps[i].dy);
+      }
+      canvas.drawPath(rawPath, _debugRawLinePaint);
+
       // Clip start and end to node boundaries.
       final clippedStart = _clipToNodeBorder(source, wps[1]);
       final clippedEnd = _clipToNodeBorder(target, wps[wps.length - 2]);
 
       final adjustedWps = [clippedStart, ...wps.sublist(1, wps.length - 1), clippedEnd];
+
+      // DEBUG: Draw clipped waypoints as green dots.
+      for (final wp in adjustedWps) {
+        canvas.drawCircle(wp, 3, _debugClippedWpPaint);
+      }
 
       // Draw polyline.
       final path = Path();
@@ -111,13 +137,19 @@ class DiagramPainter extends CustomPainter {
       // Arrowhead at the end.
       _drawArrow(canvas, adjustedWps[adjustedWps.length - 2], adjustedWps.last, arrowFill);
 
-      // Draw edge name if present.
+      // Draw edge name on the first segment, near the source.
       if (edge.name.isNotEmpty && adjustedWps.length >= 2) {
-        final mid = Offset(
-          (adjustedWps.first.dx + adjustedWps.last.dx) / 2,
-          (adjustedWps.first.dy + adjustedWps.last.dy) / 2 - 10,
-        );
-        _drawText(canvas, edge.name, mid, fontSize: 11);
+        final p0 = adjustedWps[0];
+        final p1 = adjustedWps[1];
+        // Place at 30% along the first segment (closer to source).
+        final t = 0.3;
+        final ptX = p0.dx + (p1.dx - p0.dx) * t;
+        final ptY = p0.dy + (p1.dy - p0.dy) * t;
+        final isVertical = (p0.dx - p1.dx).abs() < 1.0;
+        final labelPos = isVertical
+            ? Offset(ptX + 18, ptY)    // offset right for vertical segments
+            : Offset(ptX, ptY - 12);   // offset up for horizontal segments
+        _drawText(canvas, edge.name, labelPos, fontSize: 11, background: true);
       }
     }
   }
@@ -240,7 +272,7 @@ class DiagramPainter extends CustomPainter {
     }
 
     if (node.name.isNotEmpty) {
-      _drawText(canvas, node.name, Offset(c.dx, node.rect.bottom + 14), fontSize: 11);
+      _drawText(canvas, node.name, Offset(c.dx, node.rect.bottom + 14), fontSize: 11, background: true);
     }
   }
 
@@ -270,7 +302,8 @@ class DiagramPainter extends CustomPainter {
     canvas.drawPath(path, selected ? _selectedStroke : _nodeStroke);
 
     if (node.name.isNotEmpty) {
-      _drawText(canvas, node.name, Offset(c.dx, node.rect.bottom + 14), fontSize: 11);
+      // Place gateway label to the left of the diamond to avoid edge overlap.
+      _drawText(canvas, node.name, Offset(node.rect.left - 8, c.dy), fontSize: 11, background: true, alignRight: true);
     }
   }
 
@@ -297,12 +330,48 @@ class DiagramPainter extends CustomPainter {
     if (controller.isConnecting &&
         controller.connectionStart != null &&
         controller.connectionEnd != null) {
-      canvas.drawLine(
-          controller.connectionStart!, controller.connectionEnd!, _connectionPreviewPaint);
+      final start = controller.connectionStart!;
+      final end = controller.connectionEnd!;
+      final side = controller.connectionSourceSide;
+
+      // Draw orthogonal L-shaped preview.
+      final path = Path();
+      path.moveTo(start.dx, start.dy);
+
+      if (side != null) {
+        // Stub out from the source side, then bend toward cursor.
+        const stubLen = 30.0;
+        Offset stub;
+        switch (side) {
+          case ConnectorSide.top:
+            stub = Offset(start.dx, start.dy - stubLen);
+            path.lineTo(stub.dx, stub.dy);
+            path.lineTo(end.dx, stub.dy);
+            break;
+          case ConnectorSide.right:
+            stub = Offset(start.dx + stubLen, start.dy);
+            path.lineTo(stub.dx, stub.dy);
+            path.lineTo(stub.dx, end.dy);
+            break;
+          case ConnectorSide.bottom:
+            stub = Offset(start.dx, start.dy + stubLen);
+            path.lineTo(stub.dx, stub.dy);
+            path.lineTo(end.dx, stub.dy);
+            break;
+          case ConnectorSide.left:
+            stub = Offset(start.dx - stubLen, start.dy);
+            path.lineTo(stub.dx, stub.dy);
+            path.lineTo(stub.dx, end.dy);
+            break;
+        }
+      }
+
+      path.lineTo(end.dx, end.dy);
+      canvas.drawPath(path, _connectionPreviewPaint);
 
       // Draw a small circle at the end.
       canvas.drawCircle(
-        controller.connectionEnd!,
+        end,
         5,
         Paint()
           ..color = Colors.blue.withValues(alpha: 0.5)
@@ -334,8 +403,15 @@ class DiagramPainter extends CustomPainter {
     canvas.drawCircle(point, 8, paint);
   }
 
+  static final _labelBgPaint = Paint()
+    ..color = Colors.white
+    ..style = PaintingStyle.fill;
+  static const _labelPadH = 6.0;
+  static const _labelPadV = 2.0;
+  static const _labelRadius = Radius.circular(4);
+
   void _drawText(Canvas canvas, String text, Offset center,
-      {double fontSize = 13, double? maxWidth}) {
+      {double fontSize = 13, double? maxWidth, bool background = false, bool alignRight = false}) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
@@ -349,7 +425,26 @@ class DiagramPainter extends CustomPainter {
       ellipsis: '...',
     );
     tp.layout(maxWidth: maxWidth ?? 200);
-    tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+
+    // alignRight: right edge of text aligns to center.dx
+    final topLeft = alignRight
+        ? Offset(center.dx - tp.width, center.dy - tp.height / 2)
+        : Offset(center.dx - tp.width / 2, center.dy - tp.height / 2);
+
+    if (background) {
+      final bgRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          topLeft.dx - _labelPadH,
+          topLeft.dy - _labelPadV,
+          tp.width + _labelPadH * 2,
+          tp.height + _labelPadV * 2,
+        ),
+        _labelRadius,
+      );
+      canvas.drawRRect(bgRect, _labelBgPaint);
+    }
+
+    tp.paint(canvas, topLeft);
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import '../edit/hit_test.dart';
 
 /// The types of BPMN nodes we support.
 enum NodeType { startEvent, endEvent, task, exclusiveGateway }
@@ -47,6 +48,8 @@ class EdgeModel {
   String targetId;
   List<Offset> waypoints;
   String name;
+  ConnectorSide? sourceSide;
+  ConnectorSide? targetSide;
 
   EdgeModel({
     required this.id,
@@ -54,6 +57,8 @@ class EdgeModel {
     required this.targetId,
     List<Offset>? waypoints,
     this.name = '',
+    this.sourceSide,
+    this.targetSide,
   }) : waypoints = waypoints ?? [];
 
   EdgeModel copy() => EdgeModel(
@@ -62,6 +67,8 @@ class EdgeModel {
         targetId: targetId,
         waypoints: List.of(waypoints),
         name: name,
+        sourceSide: sourceSide,
+        targetSide: targetSide,
       );
 }
 
