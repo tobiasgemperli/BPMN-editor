@@ -6,7 +6,7 @@ import '../edit/hit_test.dart';
 const double _routeMargin = 20.0;
 
 /// Length of the mandatory stub segment exiting a connector.
-const double _stubLength = 30.0;
+const double _stubLength = 20.0;
 
 /// Tolerance for considering two coordinates aligned.
 const double _alignTolerance = 5.0;
@@ -17,9 +17,6 @@ const double _alignTolerance = 5.0;
 /// target anchor. The path consists only of horizontal and vertical segments.
 class OrthogonalRouter {
   /// Route an edge between [source] and [target], avoiding [obstacles].
-  ///
-  /// [sourceSide] and [targetSide] specify which side of each node the
-  /// connection exits/enters. If null, they are auto-detected.
   List<Offset> route({
     required NodeModel source,
     required NodeModel target,
@@ -33,35 +30,36 @@ class OrthogonalRouter {
     final srcAnchor = _anchorPoint(source, sourceSide);
     final tgtAnchor = _anchorPoint(target, targetSide);
 
-    final srcStub = _stubPoint(srcAnchor, sourceSide);
-    final tgtStub = _stubPoint(tgtAnchor, targetSide);
-
-    List<Offset> waypoints;
-
-    // Check for straight-through: same axis, aligned.
-    if (_isHorizontal(sourceSide) && _isHorizontal(targetSide)) {
-      if ((srcAnchor.dy - tgtAnchor.dy).abs() < _alignTolerance) {
-        // Straight horizontal line.
-        waypoints = [srcAnchor, tgtAnchor];
-      } else {
-        waypoints = _routeHH(srcAnchor, srcStub, tgtAnchor, tgtStub,
-            sourceSide, targetSide, source, target, obstacles);
+    // Check for straight-through: same axis, aligned, no obstacles in the way.
+    if (_isVertical(sourceSide) && _isVertical(targetSide) &&
+        (srcAnchor.dx - tgtAnchor.dx).abs() < _alignTolerance) {
+      final straight = [srcAnchor, tgtAnchor];
+      if (!_routeHitsObstacle(straight, source, target, obstacles)) {
+        return straight;
       }
-    } else if (_isVertical(sourceSide) && _isVertical(targetSide)) {
-      if ((srcAnchor.dx - tgtAnchor.dx).abs() < _alignTolerance) {
-        // Straight vertical line.
-        waypoints = [srcAnchor, tgtAnchor];
-      } else {
-        waypoints = _routeVV(srcAnchor, srcStub, tgtAnchor, tgtStub,
-            sourceSide, targetSide, source, target, obstacles);
+    }
+    if (_isHorizontal(sourceSide) && _isHorizontal(targetSide) &&
+        (srcAnchor.dy - tgtAnchor.dy).abs() < _alignTolerance) {
+      final straight = [srcAnchor, tgtAnchor];
+      if (!_routeHitsObstacle(straight, source, target, obstacles)) {
+        return straight;
       }
-    } else {
-      waypoints = _routeHV(srcAnchor, srcStub, tgtAnchor, tgtStub,
-          sourceSide, targetSide, source, target, obstacles);
     }
 
-    waypoints = _simplify(waypoints);
-    return waypoints;
+    // Try L-shape first (fewest bends).
+    final lRoute = _tryLShape(srcAnchor, tgtAnchor, sourceSide, targetSide,
+        source, target, obstacles);
+    if (lRoute != null) return _simplify(lRoute);
+
+    // Try Z-shape (one intermediate channel).
+    final zRoute = _tryZShape(srcAnchor, tgtAnchor, sourceSide, targetSide,
+        source, target, obstacles);
+    if (zRoute != null) return _simplify(zRoute);
+
+    // Fallback: U-turn.
+    final uRoute = _makeUTurn(srcAnchor, tgtAnchor, sourceSide, targetSide,
+        source, target, obstacles);
+    return _simplify(uRoute);
   }
 
   /// Auto-detect the best source side facing the target.
@@ -86,7 +84,6 @@ class OrthogonalRouter {
     }
   }
 
-  /// Anchor point on the node border for a given side.
   Offset _anchorPoint(NodeModel node, ConnectorSide side) {
     switch (side) {
       case ConnectorSide.top:
@@ -100,7 +97,6 @@ class OrthogonalRouter {
     }
   }
 
-  /// Point at the end of the mandatory stub segment.
   Offset _stubPoint(Offset anchor, ConnectorSide side) {
     switch (side) {
       case ConnectorSide.top:
@@ -120,70 +116,101 @@ class OrthogonalRouter {
   bool _isVertical(ConnectorSide side) =>
       side == ConnectorSide.top || side == ConnectorSide.bottom;
 
-  /// Both sides are horizontal: Z-shape or U-turn.
-  List<Offset> _routeHH(
+  /// Try an L-shape: stub from source, one corner, stub into target.
+  /// Works when source and target exit on perpendicular sides,
+  /// or when one side is vertical and the other horizontal.
+  List<Offset>? _tryLShape(
     Offset srcAnchor,
-    Offset srcStub,
     Offset tgtAnchor,
-    Offset tgtStub,
     ConnectorSide srcSide,
     ConnectorSide tgtSide,
     NodeModel source,
     NodeModel target,
     List<NodeModel> obstacles,
   ) {
-    // Normal case: source exits right, target enters left (or vice versa)
-    // and there's space between them.
-    final facingEachOther =
-        (srcSide == ConnectorSide.right && tgtSide == ConnectorSide.left) ||
-        (srcSide == ConnectorSide.left && tgtSide == ConnectorSide.right);
+    final srcStub = _stubPoint(srcAnchor, srcSide);
+    final tgtStub = _stubPoint(tgtAnchor, tgtSide);
 
-    if (facingEachOther && _stubsHaveSpace(srcStub, tgtStub, srcSide)) {
-      // Z-shape: vertical channel at midpoint X.
-      var midX = (srcStub.dx + tgtStub.dx) / 2;
-      midX = _adjustMidChannelX(midX, srcStub.dy, tgtStub.dy, source, target, obstacles);
-      return [
+    // For mixed H/V sides, the corner is at the intersection of the two stub lines.
+    if (_isHorizontal(srcSide) != _isHorizontal(tgtSide)) {
+      Offset corner;
+      if (_isHorizontal(srcSide)) {
+        corner = Offset(tgtStub.dx, srcStub.dy);
+      } else {
+        corner = Offset(srcStub.dx, tgtStub.dy);
+      }
+      final route = [srcAnchor, srcStub, corner, tgtStub, tgtAnchor];
+      if (!_routeHitsObstacle(route, source, target, obstacles)) {
+        return route;
+      }
+    }
+
+    // For same-axis sides (both V or both H) with slight offset,
+    // convert to an L by using one stub direction + a perpendicular jog.
+    if (_isVertical(srcSide) && _isVertical(tgtSide)) {
+      // Source exits vertically, bend horizontally to align with target, then enter.
+      final route = [
         srcAnchor,
         srcStub,
-        Offset(midX, srcStub.dy),
-        Offset(midX, tgtStub.dy),
+        Offset(tgtAnchor.dx, srcStub.dy),
+        tgtAnchor,
+      ];
+      if (!_routeHitsObstacle(route, source, target, obstacles)) {
+        return route;
+      }
+      // Try the other way: go straight from source, bend at target stub level.
+      final route2 = [
+        srcAnchor,
+        Offset(srcAnchor.dx, tgtStub.dy),
         tgtStub,
         tgtAnchor,
       ];
+      if (!_routeHitsObstacle(route2, source, target, obstacles)) {
+        return route2;
+      }
     }
 
-    // U-turn: both exiting same direction or target is behind source.
-    final uY = _uTurnY(srcStub, tgtStub, source, target, obstacles);
-    return [
-      srcAnchor,
-      srcStub,
-      Offset(srcStub.dx, uY),
-      Offset(tgtStub.dx, uY),
-      tgtStub,
-      tgtAnchor,
-    ];
+    if (_isHorizontal(srcSide) && _isHorizontal(tgtSide)) {
+      final route = [
+        srcAnchor,
+        srcStub,
+        Offset(srcStub.dx, tgtAnchor.dy),
+        tgtAnchor,
+      ];
+      if (!_routeHitsObstacle(route, source, target, obstacles)) {
+        return route;
+      }
+      final route2 = [
+        srcAnchor,
+        Offset(srcAnchor.dx, tgtStub.dy),
+        tgtStub,
+        tgtAnchor,
+      ];
+      if (!_routeHitsObstacle(route2, source, target, obstacles)) {
+        return route2;
+      }
+    }
+
+    return null;
   }
 
-  /// Both sides are vertical: same logic rotated 90 degrees.
-  List<Offset> _routeVV(
+  /// Try a Z-shape: stub, horizontal/vertical channel, stub.
+  List<Offset>? _tryZShape(
     Offset srcAnchor,
-    Offset srcStub,
     Offset tgtAnchor,
-    Offset tgtStub,
     ConnectorSide srcSide,
     ConnectorSide tgtSide,
     NodeModel source,
     NodeModel target,
     List<NodeModel> obstacles,
   ) {
-    final facingEachOther =
-        (srcSide == ConnectorSide.bottom && tgtSide == ConnectorSide.top) ||
-        (srcSide == ConnectorSide.top && tgtSide == ConnectorSide.bottom);
+    final srcStub = _stubPoint(srcAnchor, srcSide);
+    final tgtStub = _stubPoint(tgtAnchor, tgtSide);
 
-    if (facingEachOther && _stubsHaveSpaceV(srcStub, tgtStub, srcSide)) {
+    if (_isVertical(srcSide) && _isVertical(tgtSide)) {
+      // Z with a horizontal channel at the midpoint Y.
       var midY = (srcStub.dy + tgtStub.dy) / 2;
-      midY = _adjustMidChannelY(midY, srcStub.dx, tgtStub.dx, source, target, obstacles);
-      return [
+      final route = [
         srcAnchor,
         srcStub,
         Offset(srcStub.dx, midY),
@@ -191,171 +218,87 @@ class OrthogonalRouter {
         tgtStub,
         tgtAnchor,
       ];
+      if (!_routeHitsObstacle(route, source, target, obstacles)) {
+        return route;
+      }
     }
 
-    final uX = _uTurnX(srcStub, tgtStub, source, target, obstacles);
-    return [
-      srcAnchor,
-      srcStub,
-      Offset(uX, srcStub.dy),
-      Offset(uX, tgtStub.dy),
-      tgtStub,
-      tgtAnchor,
-    ];
+    if (_isHorizontal(srcSide) && _isHorizontal(tgtSide)) {
+      var midX = (srcStub.dx + tgtStub.dx) / 2;
+      final route = [
+        srcAnchor,
+        srcStub,
+        Offset(midX, srcStub.dy),
+        Offset(midX, tgtStub.dy),
+        tgtStub,
+        tgtAnchor,
+      ];
+      if (!_routeHitsObstacle(route, source, target, obstacles)) {
+        return route;
+      }
+    }
+
+    return null;
   }
 
-  /// One horizontal, one vertical: L-shape with one corner.
-  List<Offset> _routeHV(
+  /// Fallback U-turn: go around both nodes.
+  List<Offset> _makeUTurn(
     Offset srcAnchor,
-    Offset srcStub,
     Offset tgtAnchor,
-    Offset tgtStub,
     ConnectorSide srcSide,
     ConnectorSide tgtSide,
     NodeModel source,
     NodeModel target,
     List<NodeModel> obstacles,
   ) {
-    // The corner point connects the horizontal stub to the vertical stub
-    // (or vice versa).
-    Offset corner;
-    if (_isHorizontal(srcSide)) {
-      // Source goes horizontal, target goes vertical.
-      corner = Offset(tgtStub.dx, srcStub.dy);
+    final srcStub = _stubPoint(srcAnchor, srcSide);
+    final tgtStub = _stubPoint(tgtAnchor, tgtSide);
+
+    if (_isVertical(srcSide) || _isVertical(tgtSide)) {
+      // Go left or right of both nodes.
+      final leftClear = [source.rect.left, target.rect.left]
+              .reduce((a, b) => a < b ? a : b) -
+          _routeMargin - _stubLength;
+      final rightClear = [source.rect.right, target.rect.right]
+              .reduce((a, b) => a > b ? a : b) +
+          _routeMargin + _stubLength;
+
+      final avgX = (srcStub.dx + tgtStub.dx) / 2;
+      final uX = (avgX - leftClear).abs() < (avgX - rightClear).abs()
+          ? leftClear
+          : rightClear;
+
+      return [
+        srcAnchor,
+        srcStub,
+        Offset(uX, srcStub.dy),
+        Offset(uX, tgtStub.dy),
+        tgtStub,
+        tgtAnchor,
+      ];
     } else {
-      // Source goes vertical, target goes horizontal.
-      corner = Offset(srcStub.dx, tgtStub.dy);
+      // Go above or below both nodes.
+      final topClear = [source.rect.top, target.rect.top]
+              .reduce((a, b) => a < b ? a : b) -
+          _routeMargin - _stubLength;
+      final bottomClear = [source.rect.bottom, target.rect.bottom]
+              .reduce((a, b) => a > b ? a : b) +
+          _routeMargin + _stubLength;
+
+      final avgY = (srcStub.dy + tgtStub.dy) / 2;
+      final uY = (avgY - topClear).abs() < (avgY - bottomClear).abs()
+          ? topClear
+          : bottomClear;
+
+      return [
+        srcAnchor,
+        srcStub,
+        Offset(srcStub.dx, uY),
+        Offset(tgtStub.dx, uY),
+        tgtStub,
+        tgtAnchor,
+      ];
     }
-
-    final route = [srcAnchor, srcStub, corner, tgtStub, tgtAnchor];
-
-    // Check if the L-shape corner region crosses any obstacle.
-    if (_routeHitsObstacle(route, source, target, obstacles)) {
-      // Fall back to S-shape through stubs.
-      if (_isHorizontal(srcSide)) {
-        final midX = (srcStub.dx + tgtStub.dx) / 2;
-        return [
-          srcAnchor,
-          srcStub,
-          Offset(midX, srcStub.dy),
-          Offset(midX, tgtStub.dy),
-          tgtStub,
-          tgtAnchor,
-        ];
-      } else {
-        final midY = (srcStub.dy + tgtStub.dy) / 2;
-        return [
-          srcAnchor,
-          srcStub,
-          Offset(srcStub.dx, midY),
-          Offset(tgtStub.dx, midY),
-          tgtStub,
-          tgtAnchor,
-        ];
-      }
-    }
-
-    return route;
-  }
-
-  /// Check if stubs have enough space between them (horizontal case).
-  bool _stubsHaveSpace(Offset srcStub, Offset tgtStub, ConnectorSide srcSide) {
-    if (srcSide == ConnectorSide.right) {
-      return tgtStub.dx > srcStub.dx + _routeMargin;
-    } else {
-      return tgtStub.dx < srcStub.dx - _routeMargin;
-    }
-  }
-
-  /// Check if stubs have enough space between them (vertical case).
-  bool _stubsHaveSpaceV(Offset srcStub, Offset tgtStub, ConnectorSide srcSide) {
-    if (srcSide == ConnectorSide.bottom) {
-      return tgtStub.dy > srcStub.dy + _routeMargin;
-    } else {
-      return tgtStub.dy < srcStub.dy - _routeMargin;
-    }
-  }
-
-  /// Compute Y for a U-turn that clears both nodes.
-  double _uTurnY(Offset srcStub, Offset tgtStub, NodeModel source,
-      NodeModel target, List<NodeModel> obstacles) {
-    // Go above or below both nodes.
-    final topClear = [source.rect.top, target.rect.top]
-            .reduce((a, b) => a < b ? a : b) -
-        _routeMargin - _stubLength;
-    final bottomClear = [source.rect.bottom, target.rect.bottom]
-            .reduce((a, b) => a > b ? a : b) +
-        _routeMargin + _stubLength;
-
-    // Pick the side that's closer to the stubs.
-    final avgStubY = (srcStub.dy + tgtStub.dy) / 2;
-    return (avgStubY - topClear).abs() < (avgStubY - bottomClear).abs()
-        ? topClear
-        : bottomClear;
-  }
-
-  /// Compute X for a U-turn that clears both nodes (vertical case).
-  double _uTurnX(Offset srcStub, Offset tgtStub, NodeModel source,
-      NodeModel target, List<NodeModel> obstacles) {
-    final leftClear = [source.rect.left, target.rect.left]
-            .reduce((a, b) => a < b ? a : b) -
-        _routeMargin - _stubLength;
-    final rightClear = [source.rect.right, target.rect.right]
-            .reduce((a, b) => a > b ? a : b) +
-        _routeMargin + _stubLength;
-
-    final avgStubX = (srcStub.dx + tgtStub.dx) / 2;
-    return (avgStubX - leftClear).abs() < (avgStubX - rightClear).abs()
-        ? leftClear
-        : rightClear;
-  }
-
-  /// Adjust the mid-channel X to avoid obstacles.
-  double _adjustMidChannelX(double midX, double y1, double y2,
-      NodeModel source, NodeModel target, List<NodeModel> obstacles) {
-    final minY = y1 < y2 ? y1 : y2;
-    final maxY = y1 > y2 ? y1 : y2;
-
-    for (final obs in obstacles) {
-      if (obs.id == source.id || obs.id == target.id) continue;
-      final inflated = obs.rect.inflate(_routeMargin);
-      // Check if the vertical segment at midX would cross this obstacle.
-      if (midX > inflated.left &&
-          midX < inflated.right &&
-          maxY > inflated.top &&
-          minY < inflated.bottom) {
-        // Shift midX to clear the obstacle.
-        final shiftLeft = inflated.left - _routeMargin;
-        final shiftRight = inflated.right + _routeMargin;
-        midX = (midX - shiftLeft).abs() < (midX - shiftRight).abs()
-            ? shiftLeft
-            : shiftRight;
-      }
-    }
-    return midX;
-  }
-
-  /// Adjust the mid-channel Y to avoid obstacles.
-  double _adjustMidChannelY(double midY, double x1, double x2,
-      NodeModel source, NodeModel target, List<NodeModel> obstacles) {
-    final minX = x1 < x2 ? x1 : x2;
-    final maxX = x1 > x2 ? x1 : x2;
-
-    for (final obs in obstacles) {
-      if (obs.id == source.id || obs.id == target.id) continue;
-      final inflated = obs.rect.inflate(_routeMargin);
-      if (midY > inflated.top &&
-          midY < inflated.bottom &&
-          maxX > inflated.left &&
-          minX < inflated.right) {
-        final shiftUp = inflated.top - _routeMargin;
-        final shiftDown = inflated.bottom + _routeMargin;
-        midY = (midY - shiftUp).abs() < (midY - shiftDown).abs()
-            ? shiftUp
-            : shiftDown;
-      }
-    }
-    return midY;
   }
 
   /// Check if any segment of the route crosses an inflated obstacle rect.
@@ -373,7 +316,6 @@ class OrthogonalRouter {
     return false;
   }
 
-  /// Test if an axis-aligned segment intersects a rectangle.
   bool _segmentIntersectsRect(Offset a, Offset b, Rect rect) {
     // Horizontal segment.
     if ((a.dy - b.dy).abs() < 0.1) {
@@ -391,7 +333,6 @@ class OrthogonalRouter {
       final maxY = a.dy > b.dy ? a.dy : b.dy;
       return maxY > rect.top && minY < rect.bottom;
     }
-    // Diagonal — shouldn't happen with our router, but ignore.
     return false;
   }
 
@@ -413,7 +354,8 @@ class OrthogonalRouter {
       if (sameX || sameY) continue;
 
       // Skip zero-length segments.
-      if ((prev.dx - curr.dx).abs() < 0.1 && (prev.dy - curr.dy).abs() < 0.1) {
+      if ((prev.dx - curr.dx).abs() < 0.1 &&
+          (prev.dy - curr.dy).abs() < 0.1) {
         continue;
       }
 

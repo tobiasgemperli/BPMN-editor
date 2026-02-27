@@ -302,8 +302,8 @@ class DiagramPainter extends CustomPainter {
     canvas.drawPath(path, selected ? _selectedStroke : _nodeStroke);
 
     if (node.name.isNotEmpty) {
-      // Place gateway label to the left of the diamond to avoid edge overlap.
-      _drawText(canvas, node.name, Offset(node.rect.left - 8, c.dy), fontSize: 11, background: true, alignRight: true);
+      // Place gateway label above the diamond where the incoming line arrives.
+      _drawText(canvas, node.name, Offset(c.dx, node.rect.top - 14), fontSize: 11, background: true);
     }
   }
 
