@@ -295,8 +295,8 @@ class DiagramPainter extends CustomPainter {
     canvas.drawPath(path, selected ? _selectedStroke : _nodeStroke);
 
     if (node.name.isNotEmpty) {
-      // Place gateway label above the diamond where the incoming line arrives.
-      _drawText(canvas, node.name, Offset(c.dx, node.rect.top - 14), fontSize: 11, background: true);
+      // Place gateway label above the diamond tip.
+      _drawText(canvas, node.name, Offset(c.dx, node.rect.top - 10), fontSize: 11, background: true);
     }
   }
 

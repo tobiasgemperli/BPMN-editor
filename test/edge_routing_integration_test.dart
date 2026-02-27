@@ -1626,6 +1626,48 @@ void main() {
         }
       });
     }
+    test('moved double diamond: gateway outputs use different ports', () {
+      // User-reported case: after dragging nodes, gateways had two edges on same port.
+      final diagram = DiagramModel(
+        nodes: {
+          'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start',
+              rect: Rect.fromLTWH(36, 276, 48, 48)),
+          'n2': _gateway('n2', 200, 300),
+          'n3': _task('n3', 400, 170),
+          'n4': _task('n4', 374, 462),
+          'n5': _gateway('n5', 620, 300),
+          'n6': _task('n6', 820, 170),
+          'n7': _task('n7', 820, 430),
+          'n8': _task('n8', 1060, 300),
+          'n9': NodeModel(id: 'n9', type: NodeType.endEvent, name: 'End',
+              rect: Rect.fromLTWH(1236, 276, 48, 48)),
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3', name: 'A'),
+          'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4', name: 'B'),
+          'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5'),
+          'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n5'),
+          'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6', name: 'Fast'),
+          'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n7', name: 'Safe'),
+          'e8': EdgeModel(id: 'e8', sourceId: 'n6', targetId: 'n8'),
+          'e9': EdgeModel(id: 'e9', sourceId: 'n7', targetId: 'n8'),
+          'e10': EdgeModel(id: 'e10', sourceId: 'n8', targetId: 'n9'),
+        },
+      );
+      routeAllEdges(diagram);
+
+      // Check both gateways.
+      for (final gwId in ['n2', 'n5']) {
+        final outEdges = diagram.edges.values
+            .where((e) => e.sourceId == gwId).toList();
+        final ports = outEdges.map((e) => e.sourceSide).toSet();
+        expect(ports.length, outEdges.length,
+            reason: 'Gateway $gwId has ${outEdges.length} outputs but only '
+                '${ports.length} distinct ports: '
+                '${outEdges.map((e) => "${e.id}=${e.sourceSide}").join(", ")}');
+      }
+    });
   });
 
   // ── No zigzag in rendered edges ─────────────────────────────────────────

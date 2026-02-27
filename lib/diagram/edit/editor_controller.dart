@@ -291,7 +291,7 @@ class EditorController extends ChangeNotifier {
       final delta = canvasPoint - node.center;
       node.rect = node.rect.shift(delta);
       _updateSnapGuides(node);
-      _rerouteEdgesForNode(selectedNodeId!);
+      _assignPortsAndRoute();
       notifyListeners();
     }
   }
@@ -334,7 +334,7 @@ class EditorController extends ChangeNotifier {
         } else {
           _exec(MoveNodeCommand(selectedNodeId!, totalDelta));
         }
-        _rerouteEdgesForNode(selectedNodeId!);
+        _assignPortsAndRoute();
       }
       _triggerBounce(selectedNodeId!);
     }
@@ -399,7 +399,7 @@ class EditorController extends ChangeNotifier {
     _exec(CompositeCommand(commands, description: 'Split edge with node'));
 
     // Route the two new edges.
-    _rerouteEdgesForNode(nodeId);
+    _assignPortsAndRoute();
   }
 
   String? _closestHitNode(Offset point, {bool forDrag = false}) {
@@ -583,79 +583,18 @@ class EditorController extends ChangeNotifier {
     if (hit.hitNode &&
         hit.nodeId != connectionSourceId &&
         canConnect(connectionSourceId!, hit.nodeId!)) {
-      final source = diagram.nodes[connectionSourceId!]!;
-      final target = diagram.nodes[hit.nodeId!]!;
-
-      final srcSide = connectionSourceSide ??
-          _router.bestSourceSide(source, target);
-      final tgtSide = _router.bestTargetSide(source, target, srcSide);
-
-      final obstacles = diagram.nodes.values
-          .where((n) => n.id != source.id && n.id != target.id)
-          .toList();
-
-      final waypoints = _router.route(
-        source: source,
-        target: target,
-        sourceSide: srcSide,
-        targetSide: tgtSide,
-        obstacles: obstacles,
-      );
-
       final edgeId = _idGen.next('flow');
       final edge = EdgeModel(
         id: edgeId,
         sourceId: connectionSourceId!,
         targetId: hit.nodeId!,
-        waypoints: waypoints,
-        sourceSide: srcSide,
-        targetSide: tgtSide,
       );
       _exec(AddEdgeCommand(edge));
+      // Reroute all edges with port distribution.
+      _assignPortsAndRoute();
     }
 
     _cancelConnection();
-  }
-
-  /// Reroute all edges connected to [nodeId] using the orthogonal router.
-  void _rerouteEdgesForNode(String nodeId, {bool log = false}) {
-    final node = diagram.nodes[nodeId];
-    if (log) {
-      print('REROUTE for node $nodeId (${node?.name}) at ${node?.center}');
-    }
-    final edges = diagram.edgesForNode(nodeId);
-    for (final edge in edges) {
-      final source = diagram.nodes[edge.sourceId];
-      final target = diagram.nodes[edge.targetId];
-      if (source == null || target == null) continue;
-
-      final srcSide = _router.bestSourceSide(source, target);
-      final tgtSide = _router.bestTargetSide(source, target, srcSide);
-
-      final obstacles = diagram.nodes.values
-          .where((n) => n.id != source.id && n.id != target.id)
-          .toList();
-
-      edge.waypoints = _router.route(
-        source: source,
-        target: target,
-        sourceSide: srcSide,
-        targetSide: tgtSide,
-        obstacles: obstacles,
-      );
-      edge.sourceSide = srcSide;
-      edge.targetSide = tgtSide;
-
-      if (log) {
-        print('  edge ${edge.id}: ${source.name} -> ${target.name}');
-        print('    sides: $srcSide -> $tgtSide');
-        print('    waypoints (${edge.waypoints.length}):');
-        for (int i = 0; i < edge.waypoints.length; i++) {
-          final wp = edge.waypoints[i];
-          print('      [$i] (${wp.dx.toStringAsFixed(1)}, ${wp.dy.toStringAsFixed(1)})');
-        }
-      }
-    }
   }
 
   /// Reroute all edges in the diagram.
