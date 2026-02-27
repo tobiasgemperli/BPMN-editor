@@ -122,6 +122,20 @@ class EditorController extends ChangeNotifier {
   bool get hasStartEvent =>
       diagram.nodes.values.any((n) => n.type == NodeType.startEvent);
 
+  /// Whether the given node can still have outgoing connections drawn.
+  bool canDrawFrom(String nodeId) {
+    final node = diagram.nodes[nodeId];
+    if (node == null) return false;
+    // End events never have outputs.
+    if (node.type == NodeType.endEvent) return false;
+    // Start and Task: max 1 outgoing.
+    if (node.type == NodeType.startEvent || node.type == NodeType.task) {
+      return diagram.outgoingEdges(nodeId).isEmpty;
+    }
+    // Gateway: unlimited.
+    return true;
+  }
+
   void _exec(Command cmd) {
     _commandStack.execute(cmd, diagram);
     notifyListeners();

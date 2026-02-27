@@ -329,6 +329,7 @@ class DiagramPainter extends CustomPainter {
 
   void _drawConnectorHandle(Canvas canvas) {
     if (controller.selectedNodeId == null || controller.isConnecting || controller.isDragging) return;
+    if (!controller.canDrawFrom(controller.selectedNodeId!)) return;
     final node = controller.diagram.nodes[controller.selectedNodeId];
     if (node == null) return;
 
