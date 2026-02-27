@@ -180,6 +180,9 @@ class _DiagramCanvasState extends State<DiagramCanvas>
                       : Offset.zero),
             );
           } else {
+            // No drag or connection started — clean up pending state
+            // and treat as a tap to select.
+            ctrl.cancelPendingDrag();
             ctrl.onTapDown(event.localPosition);
           }
         }

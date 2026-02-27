@@ -60,6 +60,13 @@ class EditorController extends ChangeNotifier {
   /// True when a drag is pending or active — used to disable canvas pan.
   bool get hasPendingDrag => _pendingDragNodeId != null || isDragging;
 
+  /// Clear pending drag state (e.g. when a tap completes without dragging).
+  void cancelPendingDrag() {
+    _pendingDragNodeId = null;
+    _dragStartNodeCenter = null;
+    notifyListeners();
+  }
+
   /// Snap guide lines visible during drag.
   double? snapGuideX; // vertical line at this x
   double? snapGuideY; // horizontal line at this y
