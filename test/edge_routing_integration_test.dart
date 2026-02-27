@@ -175,6 +175,66 @@ bool _segmentsOverlap(Offset a1, Offset a2, Offset b1, Offset b2) {
   return false;
 }
 
+/// Check if an orthogonal segment intersects a node's inflated rect.
+/// Uses a small margin to avoid false positives from border-touching segments.
+bool segmentCrossesRect(Offset a, Offset b, Rect rect) {
+  final inflated = rect.inflate(-2.0); // shrink slightly to avoid border touches
+  final isH = (a.dy - b.dy).abs() < 0.5;
+  final isV = (a.dx - b.dx).abs() < 0.5;
+
+  if (isH) {
+    final y = a.dy;
+    if (y <= inflated.top || y >= inflated.bottom) return false;
+    final minX = a.dx < b.dx ? a.dx : b.dx;
+    final maxX = a.dx > b.dx ? a.dx : b.dx;
+    return maxX > inflated.left && minX < inflated.right;
+  }
+  if (isV) {
+    final x = a.dx;
+    if (x <= inflated.left || x >= inflated.right) return false;
+    final minY = a.dy < b.dy ? a.dy : b.dy;
+    final maxY = a.dy > b.dy ? a.dy : b.dy;
+    return maxY > inflated.top && minY < inflated.bottom;
+  }
+  return false;
+}
+
+/// Check if any segment of an edge crosses through a node (other than source/target).
+/// Returns the ID of the first node crossed, or null if clear.
+String? edgeCrossesAnyNode(
+    List<Offset> wps, String sourceId, String targetId, DiagramModel diagram) {
+  for (final node in diagram.nodes.values) {
+    if (node.id == sourceId || node.id == targetId) continue;
+    for (int i = 0; i < wps.length - 1; i++) {
+      if (segmentCrossesRect(wps[i], wps[i + 1], node.rect)) {
+        return node.id;
+      }
+    }
+  }
+  return null;
+}
+
+/// Get adjusted waypoints for an edge (as rendered), considering merge bars.
+List<Offset> getRenderedWaypoints(EdgeModel edge, DiagramModel diagram,
+    Map<String, MergeBarInfo> bars) {
+  final source = diagram.nodes[edge.sourceId]!;
+  final target = diagram.nodes[edge.targetId]!;
+  final wps = edge.waypoints.isNotEmpty
+      ? edge.waypoints
+      : [source.center, target.center];
+  if (wps.length < 2) return wps;
+
+  final clippedStart = clipToNodeBorder(source, wps[1]);
+  final mergeBar = bars[edge.targetId];
+
+  if (mergeBar != null) {
+    return adjustEdgeForMergeBar(wps, clippedStart, mergeBar, edge.id);
+  } else {
+    final clippedEnd = clipToNodeBorder(target, wps[wps.length - 2]);
+    return [clippedStart, ...wps.sublist(1, wps.length - 1), clippedEnd];
+  }
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────
 
 void main() {
@@ -854,6 +914,348 @@ void main() {
         } else {
           expect((last.dy - prev.dy).abs(), lessThan(0.5),
               reason: 'Edge $edgeId final segment should be horizontal');
+        }
+      }
+    });
+  });
+
+  // ── No edge crosses through a symbol ────────────────────────────────────
+
+  group('Edges must not cross through symbols', () {
+    test('diamond: no raw edge crosses a node', () {
+      final diagram = SampleDiagrams.diamond();
+      routeAllEdges(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final crossed = edgeCrossesAnyNode(
+            edge.waypoints, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Edge ${edge.id} (${edge.sourceId}->${edge.targetId}) '
+                'crosses node $crossed');
+      }
+    });
+
+    test('diamond: no rendered edge (with merge bar) crosses a node', () {
+      final diagram = SampleDiagrams.diamond();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final rendered = getRenderedWaypoints(edge, diagram, bars);
+        final crossed = edgeCrossesAnyNode(
+            rendered, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Rendered edge ${edge.id} crosses node $crossed');
+      }
+    });
+
+    test('three-way merge: no raw edge crosses a node', () {
+      final diagram = SampleDiagrams.threeWayMerge();
+      routeAllEdges(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final crossed = edgeCrossesAnyNode(
+            edge.waypoints, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Edge ${edge.id} crosses node $crossed');
+      }
+    });
+
+    test('three-way merge: no rendered edge crosses a node', () {
+      final diagram = SampleDiagrams.threeWayMerge();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final rendered = getRenderedWaypoints(edge, diagram, bars);
+        final crossed = edgeCrossesAnyNode(
+            rendered, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Rendered edge ${edge.id} crosses node $crossed');
+      }
+    });
+
+    test('four-way merge: no raw edge crosses a node', () {
+      final diagram = SampleDiagrams.fourWayMerge();
+      routeAllEdges(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final crossed = edgeCrossesAnyNode(
+            edge.waypoints, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Edge ${edge.id} crosses node $crossed');
+      }
+    });
+
+    test('four-way merge: no rendered edge crosses a node', () {
+      final diagram = SampleDiagrams.fourWayMerge();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final rendered = getRenderedWaypoints(edge, diagram, bars);
+        final crossed = edgeCrossesAnyNode(
+            rendered, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Rendered edge ${edge.id} crosses node $crossed');
+      }
+    });
+
+    test('double diamond: no raw edge crosses a node', () {
+      final diagram = SampleDiagrams.doubleDiamond();
+      routeAllEdges(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final crossed = edgeCrossesAnyNode(
+            edge.waypoints, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Edge ${edge.id} crosses node $crossed');
+      }
+    });
+
+    test('double diamond: no rendered edge crosses a node', () {
+      final diagram = SampleDiagrams.doubleDiamond();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final rendered = getRenderedWaypoints(edge, diagram, bars);
+        final crossed = edgeCrossesAnyNode(
+            rendered, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Rendered edge ${edge.id} crosses node $crossed');
+      }
+    });
+
+    test('edge routed around obstacle between source and target', () {
+      // Node C sits between A and B horizontally.
+      final a = _task('A', 100, 300);
+      final c = _task('C', 350, 300);
+      final b = _task('B', 600, 300);
+      final diagram = DiagramModel(
+        nodes: {'A': a, 'B': b, 'C': c},
+        edges: {'e1': EdgeModel(id: 'e1', sourceId: 'A', targetId: 'B')},
+      );
+      routeAllEdges(diagram);
+
+      final crossed = edgeCrossesAnyNode(
+          diagram.edges['e1']!.waypoints, 'A', 'B', diagram);
+      expect(crossed, isNull,
+          reason: 'Edge should route around C, not through it');
+    });
+
+    test('merge-bar-adjusted edge avoids intermediate nodes', () {
+      // A and B both go into C, with D sitting between them.
+      // A at top-left, B at bottom-left, D in the middle, C to the right.
+      final diagram = DiagramModel(
+        nodes: {
+          'A': _task('A', 100, 100),
+          'B': _task('B', 100, 500),
+          'D': _task('D', 350, 300),
+          'C': _task('C', 600, 300),
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'A', targetId: 'C'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'B', targetId: 'C'),
+        },
+      );
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      for (final edge in diagram.edges.values) {
+        final rendered = getRenderedWaypoints(edge, diagram, bars);
+        final crossed = edgeCrossesAnyNode(
+            rendered, edge.sourceId, edge.targetId, diagram);
+        expect(crossed, isNull,
+            reason: 'Rendered edge ${edge.id} should not cross node $crossed');
+      }
+    });
+  });
+
+  // ── No overlapping vertical/horizontal lines ─────────────────────────────
+
+  group('No overlapping vertical or horizontal lines', () {
+    test('diamond: no pair of rendered edges overlaps', () {
+      final diagram = SampleDiagrams.diamond();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      final rendered = <String, List<Offset>>{};
+      for (final edge in diagram.edges.values) {
+        rendered[edge.id] = getRenderedWaypoints(edge, diagram, bars);
+      }
+
+      final ids = rendered.keys.toList();
+      for (int i = 0; i < ids.length; i++) {
+        for (int j = i + 1; j < ids.length; j++) {
+          // Allow shared start for edges from same source.
+          final sameSource = diagram.edges[ids[i]]!.sourceId ==
+              diagram.edges[ids[j]]!.sourceId;
+          expect(
+            hasOverlappingSegments(rendered[ids[i]]!, rendered[ids[j]]!,
+                skipSharedStart: sameSource),
+            isFalse,
+            reason: 'Rendered edges ${ids[i]} and ${ids[j]} should not overlap',
+          );
+        }
+      }
+    });
+
+    test('three-way merge: no pair of rendered edges overlaps', () {
+      final diagram = SampleDiagrams.threeWayMerge();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      final rendered = <String, List<Offset>>{};
+      for (final edge in diagram.edges.values) {
+        rendered[edge.id] = getRenderedWaypoints(edge, diagram, bars);
+      }
+
+      final ids = rendered.keys.toList();
+      for (int i = 0; i < ids.length; i++) {
+        for (int j = i + 1; j < ids.length; j++) {
+          final sameSource = diagram.edges[ids[i]]!.sourceId ==
+              diagram.edges[ids[j]]!.sourceId;
+          expect(
+            hasOverlappingSegments(rendered[ids[i]]!, rendered[ids[j]]!,
+                skipSharedStart: sameSource),
+            isFalse,
+            reason: 'Rendered edges ${ids[i]} and ${ids[j]} should not overlap',
+          );
+        }
+      }
+    });
+
+    test('four-way merge: no pair of rendered edges overlaps', () {
+      final diagram = SampleDiagrams.fourWayMerge();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      final rendered = <String, List<Offset>>{};
+      for (final edge in diagram.edges.values) {
+        rendered[edge.id] = getRenderedWaypoints(edge, diagram, bars);
+      }
+
+      final ids = rendered.keys.toList();
+      for (int i = 0; i < ids.length; i++) {
+        for (int j = i + 1; j < ids.length; j++) {
+          final sameSource = diagram.edges[ids[i]]!.sourceId ==
+              diagram.edges[ids[j]]!.sourceId;
+          expect(
+            hasOverlappingSegments(rendered[ids[i]]!, rendered[ids[j]]!,
+                skipSharedStart: sameSource),
+            isFalse,
+            reason: 'Rendered edges ${ids[i]} and ${ids[j]} should not overlap',
+          );
+        }
+      }
+    });
+
+    test('double diamond: no pair of rendered edges overlaps', () {
+      final diagram = SampleDiagrams.doubleDiamond();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      final rendered = <String, List<Offset>>{};
+      for (final edge in diagram.edges.values) {
+        rendered[edge.id] = getRenderedWaypoints(edge, diagram, bars);
+      }
+
+      final ids = rendered.keys.toList();
+      for (int i = 0; i < ids.length; i++) {
+        for (int j = i + 1; j < ids.length; j++) {
+          final sameSource = diagram.edges[ids[i]]!.sourceId ==
+              diagram.edges[ids[j]]!.sourceId;
+          expect(
+            hasOverlappingSegments(rendered[ids[i]]!, rendered[ids[j]]!,
+                skipSharedStart: sameSource),
+            isFalse,
+            reason: 'Rendered edges ${ids[i]} and ${ids[j]} should not overlap',
+          );
+        }
+      }
+    });
+
+    test('parallel vertical edges at same X should not overlap', () {
+      // Two edges from vertically-stacked sources to a common target.
+      // Both would naturally use the same X channel.
+      final diagram = DiagramModel(
+        nodes: {
+          'A': _task('A', 100, 100),
+          'B': _task('B', 100, 300),
+          'C': _task('C', 400, 200),
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'A', targetId: 'C'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'B', targetId: 'C'),
+        },
+      );
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      final r1 = getRenderedWaypoints(diagram.edges['e1']!, diagram, bars);
+      final r2 = getRenderedWaypoints(diagram.edges['e2']!, diagram, bars);
+
+      expect(hasOverlappingSegments(r1, r2), isFalse,
+          reason: 'Vertical edges from A and B to C should not overlap');
+    });
+
+    test('edges sharing vertical channel but different Y ranges do not overlap', () {
+      // Sources at different heights, targets at different heights.
+      final diagram = DiagramModel(
+        nodes: {
+          'A': _task('A', 100, 100),
+          'B': _task('B', 100, 400),
+          'C': _task('C', 400, 100),
+          'D': _task('D', 400, 400),
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'A', targetId: 'D'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'B', targetId: 'C'),
+        },
+      );
+      routeAllEdges(diagram);
+
+      expect(hasOverlappingSegments(
+          diagram.edges['e1']!.waypoints, diagram.edges['e2']!.waypoints),
+          isFalse,
+          reason: 'Crossing edges should use different channels');
+    });
+
+    test('four sources to one target: vertical segments all distinct', () {
+      // 4 sources stacked vertically on the left, one target on the right.
+      final diagram = DiagramModel(
+        nodes: {
+          'S1': _task('S1', 100, 100),
+          'S2': _task('S2', 100, 250),
+          'S3': _task('S3', 100, 400),
+          'S4': _task('S4', 100, 550),
+          'T':  _task('T',  500, 325),
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'S1', targetId: 'T'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'S2', targetId: 'T'),
+          'e3': EdgeModel(id: 'e3', sourceId: 'S3', targetId: 'T'),
+          'e4': EdgeModel(id: 'e4', sourceId: 'S4', targetId: 'T'),
+        },
+      );
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      final rendered = <String, List<Offset>>{};
+      for (final edge in diagram.edges.values) {
+        rendered[edge.id] = getRenderedWaypoints(edge, diagram, bars);
+      }
+
+      final ids = rendered.keys.toList();
+      for (int i = 0; i < ids.length; i++) {
+        for (int j = i + 1; j < ids.length; j++) {
+          expect(
+            hasOverlappingSegments(rendered[ids[i]]!, rendered[ids[j]]!),
+            isFalse,
+            reason: 'Edges ${ids[i]} and ${ids[j]} should not have '
+                'overlapping vertical segments',
+          );
         }
       }
     });
