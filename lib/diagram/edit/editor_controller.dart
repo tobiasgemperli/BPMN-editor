@@ -31,6 +31,9 @@ class EditorController extends ChangeNotifier {
   String? connectionSourceId;
   ConnectorSide? connectionSourceSide;
 
+  /// The node the connection line would snap to (highlighted during draw).
+  String? connectionTargetId;
+
   /// Connection start point — computed from the node border on the active side.
   Offset? get connectionStart {
     if (connectionSourceId == null || connectionSourceSide == null) return null;
@@ -260,6 +263,15 @@ class EditorController extends ChangeNotifier {
   void onDragUpdate(Offset canvasPoint) {
     if (isConnecting) {
       connectionEnd = canvasPoint;
+      // Find valid snap target under the finger.
+      final hit = _hitTester.test(canvasPoint, diagram);
+      if (hit.hitNode &&
+          hit.nodeId != connectionSourceId &&
+          canConnect(connectionSourceId!, hit.nodeId!)) {
+        connectionTargetId = hit.nodeId;
+      } else {
+        connectionTargetId = null;
+      }
       notifyListeners();
       return;
     }
@@ -518,6 +530,7 @@ class EditorController extends ChangeNotifier {
     connectionEnd = null;
     connectionSourceId = null;
     connectionSourceSide = null;
+    connectionTargetId = null;
     notifyListeners();
   }
 

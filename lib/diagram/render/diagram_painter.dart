@@ -181,7 +181,8 @@ class DiagramPainter extends CustomPainter {
   void _drawNodes(Canvas canvas) {
     for (final node in controller.diagram.nodes.values) {
       final isLifted = node.id == controller.liftNodeId;
-      final isSelected = node.id == controller.selectedNodeId || isLifted;
+      final isConnectionTarget = node.id == controller.connectionTargetId;
+      final isSelected = node.id == controller.selectedNodeId || isLifted || isConnectionTarget;
       final isBlob = node.id == controller.blobNodeId && controller.blobScale != 1.0;
 
       // Apply scale transforms (lift or blob, lift takes priority).
