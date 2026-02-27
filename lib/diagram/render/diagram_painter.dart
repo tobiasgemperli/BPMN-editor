@@ -8,6 +8,10 @@ import '../edit/hit_test.dart';
 class DiagramPainter extends CustomPainter {
   final EditorController controller;
 
+  // Merge bar constants.
+  static const double _mergeBarOffset = 25.0;
+  static const double _mergeBarThickness = 3.5;
+
   // Cached paints.
   static final _nodePaint = Paint()
     ..color = Colors.white
@@ -54,18 +58,132 @@ class DiagramPainter extends CustomPainter {
     ..color = Colors.red
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.0;
+  static final _mergeBarPaint = Paint()
+    ..color = Colors.black87
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = _mergeBarThickness
+    ..strokeCap = StrokeCap.round;
+  static final _mergeConnectorPaint = Paint()
+    ..color = Colors.black87
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = _strokeWidth;
 
   DiagramPainter(this.controller) : super(repaint: controller);
 
   @override
   void paint(Canvas canvas, Size size) {
     _drawGrid(canvas, size);
-    _drawEdges(canvas);
+    final mergeBars = _computeMergeBars();
+    _drawEdges(canvas, mergeBars);
+    _drawMergeBars(canvas, mergeBars);
     _drawNodes(canvas);
     _drawSnapGuides(canvas, size);
     _drawConnectionPreview(canvas);
     _drawConnectorHandle(canvas);
     // _drawDebugClosest(canvas);
+  }
+
+  /// Computes merge bar info for nodes with 2+ incoming edges.
+  Map<String, _MergeBarInfo> _computeMergeBars() {
+    final diagram = controller.diagram;
+    final Map<String, _MergeBarInfo> bars = {};
+
+    for (final node in diagram.nodes.values) {
+      final incoming = diagram.incomingEdges(node.id);
+      if (incoming.length < 2) continue;
+
+      // Determine the incoming side from the last segment of each edge.
+      final sideCounts = <ConnectorSide, int>{};
+
+      for (final edge in incoming) {
+        final wps = edge.waypoints.isNotEmpty
+            ? edge.waypoints
+            : [diagram.nodes[edge.sourceId]?.center ?? Offset.zero, node.center];
+        if (wps.length < 2) continue;
+
+        final side = _inferSide(node, wps[wps.length - 2]);
+        sideCounts[side] = (sideCounts[side] ?? 0) + 1;
+      }
+
+      // Pick the most common incoming side.
+      ConnectorSide barSide = ConnectorSide.top;
+      int maxCount = 0;
+      for (final entry in sideCounts.entries) {
+        if (entry.value > maxCount) {
+          maxCount = entry.value;
+          barSide = entry.key;
+        }
+      }
+
+      final isHorizontal = barSide == ConnectorSide.top || barSide == ConnectorSide.bottom;
+      final nodeCenter = node.center;
+
+      // Bar position along the incoming axis.
+      double barPos;
+      switch (barSide) {
+        case ConnectorSide.top:
+          barPos = node.rect.top - _mergeBarOffset;
+          break;
+        case ConnectorSide.bottom:
+          barPos = node.rect.bottom + _mergeBarOffset;
+          break;
+        case ConnectorSide.left:
+          barPos = node.rect.left - _mergeBarOffset;
+          break;
+        case ConnectorSide.right:
+          barPos = node.rect.right + _mergeBarOffset;
+          break;
+      }
+
+      // Bar width = half the node's cross-axis dimension, centered on node.
+      final halfBar = isHorizontal
+          ? node.rect.width / 4
+          : node.rect.height / 4;
+      final crossCenter = isHorizontal ? nodeCenter.dx : nodeCenter.dy;
+      final minCross = crossCenter - halfBar;
+      final maxCross = crossCenter + halfBar;
+
+      // Assign evenly-spaced slot positions on the bar for each incoming edge.
+      final n = incoming.length;
+      final edgeSlots = <String, Offset>{};
+      for (int i = 0; i < n; i++) {
+        final t = (i + 0.5) / n; // evenly distributed 0..1
+        final crossPos = minCross + t * (maxCross - minCross);
+        edgeSlots[incoming[i].id] = isHorizontal
+            ? Offset(crossPos, barPos)
+            : Offset(barPos, crossPos);
+      }
+
+      // Connector point: where the bar connects to the node.
+      final connectorNodePoint = _clipToNodeBorder(node, isHorizontal
+          ? Offset(nodeCenter.dx, barPos)
+          : Offset(barPos, nodeCenter.dy));
+
+      bars[node.id] = _MergeBarInfo(
+        side: barSide,
+        barPos: barPos,
+        minCross: minCross,
+        maxCross: maxCross,
+        connectorNodePoint: connectorNodePoint,
+        nodeCenter: nodeCenter,
+        isHorizontal: isHorizontal,
+        edgeSlots: edgeSlots,
+      );
+    }
+
+    return bars;
+  }
+
+  /// Infer which side of a node an approaching point comes from.
+  ConnectorSide _inferSide(NodeModel node, Offset approach) {
+    final c = node.center;
+    final dx = approach.dx - c.dx;
+    final dy = approach.dy - c.dy;
+    if (dx.abs() > dy.abs()) {
+      return dx > 0 ? ConnectorSide.right : ConnectorSide.left;
+    } else {
+      return dy > 0 ? ConnectorSide.bottom : ConnectorSide.top;
+    }
   }
 
   void _drawGrid(Canvas canvas, Size size) {
@@ -77,19 +195,7 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  // Debug paint for waypoint visualization.
-  static final _debugRawWpPaint = Paint()
-    ..color = Colors.red
-    ..style = PaintingStyle.fill;
-  static final _debugClippedWpPaint = Paint()
-    ..color = Colors.green
-    ..style = PaintingStyle.fill;
-  static final _debugRawLinePaint = Paint()
-    ..color = Colors.red.withValues(alpha: 0.3)
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.0;
-
-  void _drawEdges(Canvas canvas) {
+  void _drawEdges(Canvas canvas, Map<String, _MergeBarInfo> mergeBars) {
     final diagram = controller.diagram;
     for (final edge in diagram.edges.values) {
       final isSelected = edge.id == controller.selectedEdgeId;
@@ -106,24 +212,40 @@ class DiagramPainter extends CustomPainter {
 
       if (wps.length < 2) continue;
 
-      // DEBUG: Draw raw waypoints as red dots and thin red line.
-      final rawPath = Path();
-      rawPath.moveTo(wps[0].dx, wps[0].dy);
-      for (int i = 0; i < wps.length; i++) {
-        canvas.drawCircle(wps[i], 4, _debugRawWpPaint);
-        if (i > 0) rawPath.lineTo(wps[i].dx, wps[i].dy);
-      }
-      canvas.drawPath(rawPath, _debugRawLinePaint);
-
-      // Clip start and end to node boundaries.
+      // Clip start to source node boundary.
       final clippedStart = _clipToNodeBorder(source, wps[1]);
-      final clippedEnd = _clipToNodeBorder(target, wps[wps.length - 2]);
 
-      final adjustedWps = [clippedStart, ...wps.sublist(1, wps.length - 1), clippedEnd];
+      // Check if target has a merge bar.
+      final mergeBar = mergeBars[edge.targetId];
 
-      // DEBUG: Draw clipped waypoints as green dots.
-      for (final wp in adjustedWps) {
-        canvas.drawCircle(wp, 3, _debugClippedWpPaint);
+      List<Offset> adjustedWps;
+      bool skipArrow;
+
+      if (mergeBar != null) {
+        // Get this edge's assigned slot on the bar.
+        final slotPoint = mergeBar.edgeSlots[edge.id]!;
+        // Build waypoints up to (but not including) the last raw waypoint,
+        // then add a bend so the final segment is perpendicular to the bar.
+        final inner = wps.sublist(1, wps.length - 1);
+        final beforeBar = <Offset>[clippedStart, ...inner];
+
+        // Bend point: same cross-axis as slot, same main-axis as the previous waypoint.
+        final prev = beforeBar.last;
+        final bendPoint = mergeBar.isHorizontal
+            ? Offset(slotPoint.dx, prev.dy)
+            : Offset(prev.dx, slotPoint.dy);
+
+        // Only add bend if it's meaningfully different from prev and slot.
+        if ((bendPoint - prev).distance > 1.0 && (bendPoint - slotPoint).distance > 1.0) {
+          beforeBar.add(bendPoint);
+        }
+        beforeBar.add(slotPoint);
+        adjustedWps = beforeBar;
+        skipArrow = true;
+      } else {
+        final clippedEnd = _clipToNodeBorder(target, wps[wps.length - 2]);
+        adjustedWps = [clippedStart, ...wps.sublist(1, wps.length - 1), clippedEnd];
+        skipArrow = false;
       }
 
       // Draw polyline.
@@ -134,8 +256,10 @@ class DiagramPainter extends CustomPainter {
       }
       canvas.drawPath(path, paint);
 
-      // Arrowhead at the end.
-      _drawArrow(canvas, adjustedWps[adjustedWps.length - 2], adjustedWps.last, arrowFill);
+      // Arrowhead at the end (skip if edge terminates at a merge bar).
+      if (!skipArrow) {
+        _drawArrow(canvas, adjustedWps[adjustedWps.length - 2], adjustedWps.last, arrowFill);
+      }
 
       // Draw edge name on the first segment, near the source.
       if (edge.name.isNotEmpty && adjustedWps.length >= 2) {
@@ -151,6 +275,28 @@ class DiagramPainter extends CustomPainter {
             : Offset(ptX, ptY - 12);   // offset up for horizontal segments
         _drawText(canvas, edge.name, labelPos, fontSize: 11, background: true);
       }
+    }
+  }
+
+  void _drawMergeBars(Canvas canvas, Map<String, _MergeBarInfo> mergeBars) {
+    for (final bar in mergeBars.values) {
+      // Draw the thick bar line.
+      final barStart = bar.isHorizontal
+          ? Offset(bar.minCross, bar.barPos)
+          : Offset(bar.barPos, bar.minCross);
+      final barEnd = bar.isHorizontal
+          ? Offset(bar.maxCross, bar.barPos)
+          : Offset(bar.barPos, bar.maxCross);
+      canvas.drawLine(barStart, barEnd, _mergeBarPaint);
+
+      // Draw the connector from bar center to the node border.
+      final barCenter = bar.isHorizontal
+          ? Offset(bar.nodeCenter.dx, bar.barPos)
+          : Offset(bar.barPos, bar.nodeCenter.dy);
+      canvas.drawLine(barCenter, bar.connectorNodePoint, _mergeConnectorPaint);
+
+      // Arrowhead on the connector at the node border.
+      _drawArrow(canvas, barCenter, bar.connectorNodePoint, _arrowPaint);
     }
   }
 
@@ -449,4 +595,27 @@ class DiagramPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant DiagramPainter oldDelegate) => false;
+}
+
+/// Info about a merge bar for a node with multiple incoming edges.
+class _MergeBarInfo {
+  final ConnectorSide side;
+  final double barPos;       // position along the incoming axis
+  final double minCross;     // bar span start (perpendicular axis)
+  final double maxCross;     // bar span end (perpendicular axis)
+  final Offset connectorNodePoint; // where connector meets the node border
+  final Offset nodeCenter;
+  final bool isHorizontal;   // bar is horizontal (top/bottom incoming)
+  final Map<String, Offset> edgeSlots; // edge id -> point on the bar
+
+  const _MergeBarInfo({
+    required this.side,
+    required this.barPos,
+    required this.minCross,
+    required this.maxCross,
+    required this.connectorNodePoint,
+    required this.nodeCenter,
+    required this.isHorizontal,
+    required this.edgeSlots,
+  });
 }
