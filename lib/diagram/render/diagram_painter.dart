@@ -287,28 +287,28 @@ class DiagramPainter extends CustomPainter {
     final node = controller.diagram.nodes[controller.selectedNodeId];
     if (node == null) return;
 
-    final handleCenter = Offset(node.rect.right + 16, node.rect.center.dy);
-    canvas.drawCircle(handleCenter, 10, _handlePaint);
+    final handleCenter = Offset(node.rect.right + 18, node.rect.center.dy);
+    canvas.drawCircle(handleCenter, 16, _handlePaint);
 
-    // Draw a small arrow icon inside.
+    // Draw arrow icon inside.
     final arrowPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(
-      Offset(handleCenter.dx - 3, handleCenter.dy),
-      Offset(handleCenter.dx + 3, handleCenter.dy),
+      Offset(handleCenter.dx - 5, handleCenter.dy),
+      Offset(handleCenter.dx + 5, handleCenter.dy),
       arrowPaint,
     );
     canvas.drawLine(
-      Offset(handleCenter.dx + 1, handleCenter.dy - 3),
-      Offset(handleCenter.dx + 4, handleCenter.dy),
+      Offset(handleCenter.dx + 1, handleCenter.dy - 5),
+      Offset(handleCenter.dx + 6, handleCenter.dy),
       arrowPaint,
     );
     canvas.drawLine(
-      Offset(handleCenter.dx + 1, handleCenter.dy + 3),
-      Offset(handleCenter.dx + 4, handleCenter.dy),
+      Offset(handleCenter.dx + 1, handleCenter.dy + 5),
+      Offset(handleCenter.dx + 6, handleCenter.dy),
       arrowPaint,
     );
   }

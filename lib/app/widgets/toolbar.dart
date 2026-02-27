@@ -75,7 +75,7 @@ class EditorToolbar extends StatelessWidget {
         : Theme.of(context).colorScheme.onSurface;
 
     return GestureDetector(
-      onTap: () {
+      onTapDown: (_) {
         controller.setTool(isActive ? EditorTool.select : tool);
       },
       child: Container(

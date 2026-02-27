@@ -16,8 +16,8 @@ class HitTestResult {
 
 /// Performs hit-testing against diagram elements.
 class HitTester {
-  static const double _edgeHitThreshold = 12.0;
-  static const double _connectorHandleRadius = 14.0;
+  static const double _edgeHitThreshold = 24.0;
+  static const double _connectorHandleRadius = 24.0;
 
   /// Test a point against the diagram. Nodes are checked first.
   HitTestResult test(Offset point, DiagramModel model, {String? selectedNodeId}) {
@@ -25,7 +25,7 @@ class HitTester {
     if (selectedNodeId != null) {
       final node = model.nodes[selectedNodeId];
       if (node != null) {
-        final handleCenter = Offset(node.rect.right + 16, node.rect.center.dy);
+        final handleCenter = Offset(node.rect.right + 18, node.rect.center.dy);
         if ((point - handleCenter).distance <= _connectorHandleRadius) {
           return HitTestResult(nodeId: selectedNodeId, isConnectorHandle: true);
         }
@@ -50,8 +50,8 @@ class HitTester {
   }
 
   bool _hitTestNode(Offset point, NodeModel node) {
-    // Inflate rect slightly for touch friendliness.
-    final inflated = node.rect.inflate(6);
+    // Inflate generously for thumb-friendly touch targets (min ~44pt).
+    final inflated = node.rect.inflate(14);
 
     if (node.type == NodeType.startEvent || node.type == NodeType.endEvent) {
       // Circle hit test.

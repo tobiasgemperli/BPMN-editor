@@ -228,7 +228,7 @@ class EditorController extends ChangeNotifier {
     isConnecting = true;
     connectionSourceId = selectedNodeId;
     final node = diagram.nodes[selectedNodeId!]!;
-    connectionStart = Offset(node.rect.right + 16, node.rect.center.dy);
+    connectionStart = Offset(node.rect.right + 18, node.rect.center.dy);
     connectionEnd = point;
     notifyListeners();
   }
