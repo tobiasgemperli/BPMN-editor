@@ -51,7 +51,7 @@ class DiagramPainter extends CustomPainter {
     ..color = const Color(0x22000000)
     ..style = PaintingStyle.fill;
   static final _snapGuidePaint = Paint()
-    ..color = Colors.orange
+    ..color = Colors.red
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.0;
 
