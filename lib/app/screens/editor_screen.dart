@@ -4,6 +4,7 @@ import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/io/bpmn_parser.dart';
 import '../../diagram/io/bpmn_serializer.dart';
 import '../../diagram/model/diagram_model.dart';
+import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
@@ -74,13 +75,24 @@ class _EditorScreenState extends State<EditorScreen> {
                     onSelected: _handleMenuAction,
                     itemBuilder: (context) => [
                       const PopupMenuItem(
-                        value: 'sample',
+                        value: 'bpmn_sample',
                         child: ListTile(
                           leading: Icon(Icons.file_open),
-                          title: Text('Load Sample'),
+                          title: Text('Load BPMN File'),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
+                      ...SampleDiagrams.all.asMap().entries.map((entry) =>
+                        PopupMenuItem(
+                          value: 'sample_${entry.key}',
+                          child: ListTile(
+                            leading: const Icon(Icons.schema_outlined),
+                            title: Text(entry.value.name),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                      const PopupMenuDivider(),
                       const PopupMenuItem(
                         value: 'export',
                         child: ListTile(
@@ -130,8 +142,14 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<void> _handleMenuAction(String action) async {
+    if (action.startsWith('sample_')) {
+      final index = int.parse(action.substring(7));
+      final diagram = SampleDiagrams.all[index].builder();
+      _controller.loadDiagram(diagram);
+      return;
+    }
     switch (action) {
-      case 'sample':
+      case 'bpmn_sample':
         await _loadSample();
         break;
       case 'export':

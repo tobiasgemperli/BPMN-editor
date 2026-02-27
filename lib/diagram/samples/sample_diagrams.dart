@@ -1,0 +1,171 @@
+import 'dart:ui';
+import '../model/diagram_model.dart';
+
+/// Collection of sample diagrams for the editor.
+class SampleDiagrams {
+  static const _taskW = 140.0;
+  static const _taskH = 70.0;
+  static const _eventS = 48.0;
+  static const _gwS = 56.0;
+
+  static Rect _task(double x, double y) =>
+      Rect.fromCenter(center: Offset(x, y), width: _taskW, height: _taskH);
+  static Rect _event(double x, double y) =>
+      Rect.fromCenter(center: Offset(x, y), width: _eventS, height: _eventS);
+  static Rect _gw(double x, double y) =>
+      Rect.fromCenter(center: Offset(x, y), width: _gwS, height: _gwS);
+
+  /// Simple linear: Start -> A -> B -> C -> End
+  static DiagramModel linear() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(100, 250)),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Gather Requirements', rect: _task(300, 250)),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Design Solution', rect: _task(520, 250)),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Implement', rect: _task(740, 250)),
+      'n5': NodeModel(id: 'n5', type: NodeType.endEvent, name: 'Done', rect: _event(940, 250)),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Diamond: gateway splits into two paths that merge back.
+  ///
+  /// ```
+  /// Start -> Check -> [GW] --Yes--> Approve --\
+  ///                       \--No---> Reject ---+--> Notify -> End
+  /// ```
+  static DiagramModel diamond() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(80, 300)),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Review Request', rect: _task(260, 300)),
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Approved?', rect: _gw(450, 300)),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Process Approval', rect: _task(650, 170)),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Send Rejection', rect: _task(650, 430)),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Notify Customer', rect: _task(900, 300)),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'End', rect: _event(1100, 300)),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4', name: 'Yes'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5', name: 'No'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n6', targetId: 'n7'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Three parallel paths converge onto a single task (3 merge inputs).
+  ///
+  /// ```
+  /// Start -> [GW] --> Research  --\
+  ///              \--> Prototype --+--> Evaluate -> End
+  ///              \--> Survey    --/
+  /// ```
+  static DiagramModel threeWayMerge() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(80, 300)),
+      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Split', rect: _gw(240, 300)),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Research', rect: _task(460, 120)),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Prototype', rect: _task(460, 300)),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Survey Users', rect: _task(460, 480)),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Evaluate Results', rect: _task(740, 300)),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'End', rect: _event(960, 300)),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n2', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n3', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n4', targetId: 'n6'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n6'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n6', targetId: 'n7'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Multiple merge points: two diamonds chained.
+  ///
+  /// ```
+  /// Start -> [GW1] -> A --\        /-- D --\
+  ///                -> B --+->[GW2]-+-- E --+--> Final -> End
+  ///                                        /
+  /// ```
+  static DiagramModel doubleDiamond() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(60, 300)),
+      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Phase?', rect: _gw(200, 300)),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Plan A', rect: _task(400, 170)),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Plan B', rect: _task(400, 430)),
+      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway, name: 'Route?', rect: _gw(620, 300)),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Execute Fast', rect: _task(820, 170)),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Execute Safe', rect: _task(820, 430)),
+      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Ship Release', rect: _task(1060, 300)),
+      'n9': NodeModel(id: 'n9', type: NodeType.endEvent, name: 'End', rect: _event(1260, 300)),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3', name: 'A'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4', name: 'B'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n5'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6', name: 'Fast'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n7', name: 'Safe'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n6', targetId: 'n8'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n7', targetId: 'n8'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n8', targetId: 'n9'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Four inputs converge on one node.
+  ///
+  /// ```
+  /// Start1 -> Task A --\
+  /// Start2 -> Task B --+--> Consolidate -> End
+  /// Start3 -> Task C --/
+  /// Start4 -> Task D -/
+  /// ```
+  static DiagramModel fourWayMerge() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Req 1', rect: _event(80, 120)),
+      'n2': NodeModel(id: 'n2', type: NodeType.startEvent, name: 'Req 2', rect: _event(80, 280)),
+      'n3': NodeModel(id: 'n3', type: NodeType.startEvent, name: 'Req 3', rect: _event(80, 440)),
+      'n4': NodeModel(id: 'n4', type: NodeType.startEvent, name: 'Req 4', rect: _event(80, 600)),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Analyze Data', rect: _task(280, 120)),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Build Model', rect: _task(280, 280)),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Run Tests', rect: _task(280, 440)),
+      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Write Docs', rect: _task(280, 600)),
+      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Consolidate', rect: _task(560, 360)),
+      'n10': NodeModel(id: 'n10', type: NodeType.endEvent, name: 'Done', rect: _event(780, 360)),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n5'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n6'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n7'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n8'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n9'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n9'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n9'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n9', targetId: 'n10'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// All sample diagrams with display names.
+  static final List<({String name, DiagramModel Function() builder})> all = [
+    (name: 'Linear Flow', builder: linear),
+    (name: 'Diamond (2 merge)', builder: diamond),
+    (name: 'Three-Way Merge', builder: threeWayMerge),
+    (name: 'Double Diamond (2x2 merge)', builder: doubleDiamond),
+    (name: 'Four-Way Merge', builder: fourWayMerge),
+  ];
+}

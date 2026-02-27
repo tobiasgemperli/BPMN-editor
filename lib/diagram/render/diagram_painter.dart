@@ -143,13 +143,28 @@ class DiagramPainter extends CustomPainter {
       final minCross = crossCenter - halfBar;
       final maxCross = crossCenter + halfBar;
 
-      // Assign evenly-spaced slot positions on the bar for each incoming edge.
-      final n = incoming.length;
+      // Sort incoming edges by their approach cross-axis position so left
+      // edges get left slots, right edges get right slots (no crossing).
+      final sorted = List<EdgeModel>.from(incoming);
+      sorted.sort((a, b) {
+        final aWps = a.waypoints.isNotEmpty
+            ? a.waypoints
+            : [diagram.nodes[a.sourceId]?.center ?? Offset.zero, node.center];
+        final bWps = b.waypoints.isNotEmpty
+            ? b.waypoints
+            : [diagram.nodes[b.sourceId]?.center ?? Offset.zero, node.center];
+        final aCross = isHorizontal ? aWps[aWps.length - 2].dx : aWps[aWps.length - 2].dy;
+        final bCross = isHorizontal ? bWps[bWps.length - 2].dx : bWps[bWps.length - 2].dy;
+        return aCross.compareTo(bCross);
+      });
+
+      // Assign evenly-spaced slot positions on the bar.
+      final n = sorted.length;
       final edgeSlots = <String, Offset>{};
       for (int i = 0; i < n; i++) {
-        final t = (i + 0.5) / n; // evenly distributed 0..1
+        final t = (i + 0.5) / n;
         final crossPos = minCross + t * (maxCross - minCross);
-        edgeSlots[incoming[i].id] = isHorizontal
+        edgeSlots[sorted[i].id] = isHorizontal
             ? Offset(crossPos, barPos)
             : Offset(barPos, crossPos);
       }
@@ -183,6 +198,20 @@ class DiagramPainter extends CustomPainter {
       return dx > 0 ? ConnectorSide.right : ConnectorSide.left;
     } else {
       return dy > 0 ? ConnectorSide.bottom : ConnectorSide.top;
+    }
+  }
+
+  /// Returns true if a waypoint has crossed past the merge bar toward the node.
+  bool _isPastBar(Offset wp, _MergeBarInfo bar) {
+    switch (bar.side) {
+      case ConnectorSide.top:
+        return wp.dy <= bar.barPos;
+      case ConnectorSide.bottom:
+        return wp.dy >= bar.barPos;
+      case ConnectorSide.left:
+        return wp.dx <= bar.barPos;
+      case ConnectorSide.right:
+        return wp.dx >= bar.barPos;
     }
   }
 
@@ -224,18 +253,24 @@ class DiagramPainter extends CustomPainter {
       if (mergeBar != null) {
         // Get this edge's assigned slot on the bar.
         final slotPoint = mergeBar.edgeSlots[edge.id]!;
-        // Build waypoints up to (but not including) the last raw waypoint,
-        // then add a bend so the final segment is perpendicular to the bar.
-        final inner = wps.sublist(1, wps.length - 1);
-        final beforeBar = <Offset>[clippedStart, ...inner];
 
-        // Bend point: same cross-axis as slot, same main-axis as the previous waypoint.
+        // Build waypoints, trimming any that extend past the bar.
+        final beforeBar = <Offset>[clippedStart];
+        final inner = wps.sublist(1, wps.length - 1);
+        for (final wp in inner) {
+          final pastBar = _isPastBar(wp, mergeBar);
+          if (!pastBar) {
+            beforeBar.add(wp);
+          }
+        }
+
+        // Add perpendicular approach: bend then slot.
         final prev = beforeBar.last;
         final bendPoint = mergeBar.isHorizontal
             ? Offset(slotPoint.dx, prev.dy)
             : Offset(prev.dx, slotPoint.dy);
 
-        // Only add bend if it's meaningfully different from prev and slot.
+        // Only add bend if it creates a meaningful segment.
         if ((bendPoint - prev).distance > 1.0 && (bendPoint - slotPoint).distance > 1.0) {
           beforeBar.add(bendPoint);
         }
