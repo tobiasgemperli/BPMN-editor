@@ -217,10 +217,11 @@ class _ShapePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    const sw = 2.0;
     final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+      ..strokeWidth = sw;
     final c = Offset(size.width / 2, size.height / 2);
 
     switch (shape) {
@@ -231,14 +232,14 @@ class _ShapePainter extends CustomPainter {
         final thickStroke = Paint()
           ..color = color
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 3.0;
+          ..strokeWidth = sw;
         canvas.drawCircle(c, size.width / 2 - 2, thickStroke);
         // Cross inside.
         final xSize = size.width * 0.2;
         final xPaint = Paint()
           ..color = color
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0;
+          ..strokeWidth = sw;
         canvas.drawLine(
             Offset(c.dx - xSize, c.dy - xSize), Offset(c.dx + xSize, c.dy + xSize), xPaint);
         canvas.drawLine(

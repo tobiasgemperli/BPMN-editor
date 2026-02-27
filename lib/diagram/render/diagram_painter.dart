@@ -12,26 +12,27 @@ class DiagramPainter extends CustomPainter {
   static final _nodePaint = Paint()
     ..color = Colors.white
     ..style = PaintingStyle.fill;
+  static const double _strokeWidth = 2.0;
   static final _nodeStroke = Paint()
     ..color = Colors.black87
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.0;
+    ..strokeWidth = _strokeWidth;
   static final _endNodeStroke = Paint()
     ..color = Colors.black87
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 3.5;
+    ..strokeWidth = _strokeWidth;
   static final _selectedStroke = Paint()
     ..color = Colors.blue
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.5;
+    ..strokeWidth = _strokeWidth;
   static final _edgePaint = Paint()
     ..color = Colors.black87
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.8;
+    ..strokeWidth = _strokeWidth;
   static final _edgeSelectedPaint = Paint()
     ..color = Colors.blue
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.5;
+    ..strokeWidth = _strokeWidth;
   static final _arrowPaint = Paint()
     ..color = Colors.black87
     ..style = PaintingStyle.fill;
@@ -41,7 +42,7 @@ class DiagramPainter extends CustomPainter {
   static final _connectionPreviewPaint = Paint()
     ..color = Colors.blue.withValues(alpha: 0.5)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.0
+    ..strokeWidth = _strokeWidth
     ..strokeCap = StrokeCap.round;
   static final _handlePaint = Paint()
     ..color = Colors.blue
@@ -234,7 +235,7 @@ class DiagramPainter extends CustomPainter {
       final xPaint = Paint()
         ..color = Colors.black87
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5;
+        ..strokeWidth = _strokeWidth;
       canvas.drawLine(
           Offset(c.dx - xSize, c.dy - xSize), Offset(c.dx + xSize, c.dy + xSize), xPaint);
       canvas.drawLine(
@@ -341,7 +342,7 @@ class DiagramPainter extends CustomPainter {
       final arrowPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
+        ..strokeWidth = _strokeWidth
         ..strokeCap = StrokeCap.round;
 
       Offset dir;
