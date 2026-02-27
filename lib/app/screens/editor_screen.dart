@@ -107,64 +107,11 @@ class _EditorScreenState extends State<EditorScreen> {
           Expanded(
             child: DiagramCanvas(
               controller: _controller,
-              onLongPressPosition: (position) {
-                _showQuickAddMenu(context, position);
-              },
             ),
           ),
           EditorToolbar(controller: _controller),
         ],
       ),
-    );
-  }
-
-  void _showQuickAddMenu(BuildContext context, Offset canvasPosition) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Add Element',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _quickAddChip(context, 'Start', NodeType.startEvent,
-                        canvasPosition, Icons.circle_outlined),
-                    _quickAddChip(context, 'Step', NodeType.task,
-                        canvasPosition, Icons.check_box_outline_blank_rounded),
-                    _quickAddChip(context, 'Decision',
-                        NodeType.exclusiveGateway, canvasPosition, Icons.diamond_outlined),
-                    _quickAddChip(context, 'End', NodeType.endEvent,
-                        canvasPosition, Icons.radio_button_checked),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _quickAddChip(BuildContext context, String label, NodeType type,
-      Offset position, IconData icon) {
-    return ActionChip(
-      avatar: Icon(icon, size: 18),
-      label: Text(label),
-      onPressed: () {
-        Navigator.pop(context);
-        _controller.addNodeAtPosition(type, position);
-      },
     );
   }
 

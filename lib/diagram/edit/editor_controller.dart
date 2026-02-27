@@ -122,13 +122,6 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Called when a long-press occurs on empty space.
-  /// Returns true if no element was hit (for showing context menu).
-  bool onLongPress(Offset canvasPoint) {
-    final hit = _hitTester.test(canvasPoint, diagram);
-    return hit.hitNothing;
-  }
-
   /// Prepare for a potential drag. Actual dragging starts on first move.
   void onDragStart(Offset canvasPoint) {
     if (isConnecting) return;
