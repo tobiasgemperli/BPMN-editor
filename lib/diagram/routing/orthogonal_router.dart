@@ -131,18 +131,36 @@ class OrthogonalRouter {
     final srcStub = _stubPoint(srcAnchor, srcSide);
     final tgtStub = _stubPoint(tgtAnchor, tgtSide);
 
-    // For mixed H/V sides, the corner is at the intersection of the two stub lines.
+    // For mixed H/V sides, try both corner options and pick the best.
     if (_isHorizontal(srcSide) != _isHorizontal(tgtSide)) {
-      Offset corner;
-      if (_isHorizontal(srcSide)) {
-        corner = Offset(tgtStub.dx, srcStub.dy);
-      } else {
-        corner = Offset(srcStub.dx, tgtStub.dy);
+      // Corner A: extends source stub direction, then bends toward target.
+      // Corner B: the alternative L-shape orientation.
+      final cornerA = _isHorizontal(srcSide)
+          ? Offset(tgtStub.dx, srcStub.dy)
+          : Offset(srcStub.dx, tgtStub.dy);
+      final cornerB = _isHorizontal(srcSide)
+          ? Offset(srcStub.dx, tgtStub.dy)
+          : Offset(tgtStub.dx, srcStub.dy);
+
+      final routeA = [srcAnchor, srcStub, cornerA, tgtStub, tgtAnchor];
+      final routeB = [srcAnchor, srcStub, cornerB, tgtStub, tgtAnchor];
+
+      final aOk = !_routeHitsObstacle(routeA, source, target, obstacles);
+      final bOk = !_routeHitsObstacle(routeB, source, target, obstacles);
+
+      if (aOk && bOk) {
+        // Prefer the corner that doesn't create a U-turn (going backward
+        // past the anchor on the stub axis).
+        final aBacktrack = _createsBacktrack(srcAnchor, srcStub, cornerA) ||
+            _createsBacktrack(tgtAnchor, tgtStub, cornerA);
+        final bBacktrack = _createsBacktrack(srcAnchor, srcStub, cornerB) ||
+            _createsBacktrack(tgtAnchor, tgtStub, cornerB);
+        if (aBacktrack && !bBacktrack) return _simplify(routeB);
+        if (bBacktrack && !aBacktrack) return _simplify(routeA);
+        return routeA; // both fine, prefer A
       }
-      final route = [srcAnchor, srcStub, corner, tgtStub, tgtAnchor];
-      if (!_routeHitsObstacle(route, source, target, obstacles)) {
-        return route;
-      }
+      if (aOk) return routeA;
+      if (bOk) return _simplify(routeB);
     }
 
     // For same-axis sides (both V or both H) with slight offset,
@@ -312,6 +330,27 @@ class OrthogonalRouter {
           return true;
         }
       }
+    }
+    return false;
+  }
+
+  /// Check if going from anchor→stub→corner creates a backtrack (U-turn)
+  /// on the stub's axis.
+  bool _createsBacktrack(Offset anchor, Offset stub, Offset corner) {
+    // Vertical stub: check if corner.dy is between anchor.dy and stub.dy
+    // (i.e. the corner goes back toward the anchor).
+    if ((anchor.dx - stub.dx).abs() < 0.1) {
+      // Stub goes up (stub.dy < anchor.dy) → backtrack if corner.dy > stub.dy toward anchor.
+      // Stub goes down (stub.dy > anchor.dy) → backtrack if corner.dy < stub.dy toward anchor.
+      final stubDir = stub.dy - anchor.dy;
+      final cornerDir = corner.dy - stub.dy;
+      return stubDir * cornerDir < 0; // opposite directions = backtrack
+    }
+    // Horizontal stub.
+    if ((anchor.dy - stub.dy).abs() < 0.1) {
+      final stubDir = stub.dx - anchor.dx;
+      final cornerDir = corner.dx - stub.dx;
+      return stubDir * cornerDir < 0;
     }
     return false;
   }

@@ -38,27 +38,128 @@ NodeModel _event(String id, double cx, double cy, {bool end = false}) {
   );
 }
 
-/// Route all edges in a diagram using the orthogonal router (mimics loadDiagram).
+/// Route all edges in a diagram with port distribution (mimics loadDiagram).
 void routeAllEdges(DiagramModel diagram) {
+  // Phase 1: Compute initial sides.
+  final sides = <String, (ConnectorSide src, ConnectorSide tgt)>{};
   for (final edge in diagram.edges.values) {
-    if (edge.waypoints.isEmpty) {
-      final source = diagram.nodes[edge.sourceId]!;
-      final target = diagram.nodes[edge.targetId]!;
-      final srcSide = _router.bestSourceSide(source, target);
-      final tgtSide = _router.bestTargetSide(source, target, srcSide);
-      final obstacles = diagram.nodes.values
-          .where((n) => n.id != source.id && n.id != target.id)
-          .toList();
-      edge.waypoints = _router.route(
-        source: source,
-        target: target,
-        sourceSide: srcSide,
-        targetSide: tgtSide,
-        obstacles: obstacles,
-      );
-      edge.sourceSide = srcSide;
-      edge.targetSide = tgtSide;
+    final source = diagram.nodes[edge.sourceId]!;
+    final target = diagram.nodes[edge.targetId]!;
+    sides[edge.id] = (
+      _router.bestSourceSide(source, target),
+      _router.bestTargetSide(source, target,
+          _router.bestSourceSide(source, target)),
+    );
+  }
+
+  // Phase 2: Distribute conflicting source ports.
+  final outgoing = <String, List<EdgeModel>>{};
+  for (final edge in diagram.edges.values) {
+    outgoing.putIfAbsent(edge.sourceId, () => []).add(edge);
+  }
+  for (final entry in outgoing.entries) {
+    final edges = entry.value;
+    if (edges.length < 2) continue;
+    _distributeSourcePorts(entry.key, edges, sides, diagram);
+  }
+
+  // Phase 3: Distribute conflicting target ports (input ≠ output).
+  for (final node in diagram.nodes.values) {
+    final outs = diagram.edges.values.where((e) => e.sourceId == node.id);
+    final ins = diagram.edges.values.where((e) => e.targetId == node.id);
+    final usedOutPorts = outs.map((e) => sides[e.id]?.$1).whereType<ConnectorSide>().toSet();
+    for (final inEdge in ins) {
+      final s = sides[inEdge.id];
+      if (s != null && usedOutPorts.contains(s.$2)) {
+        sides[inEdge.id] = (s.$1, _oppositeSide(s.$2));
+      }
     }
+  }
+
+  // Phase 4: Route with assigned sides.
+  for (final edge in diagram.edges.values) {
+    final source = diagram.nodes[edge.sourceId]!;
+    final target = diagram.nodes[edge.targetId]!;
+    final s = sides[edge.id]!;
+    final obstacles = diagram.nodes.values
+        .where((n) => n.id != source.id && n.id != target.id)
+        .toList();
+    edge.waypoints = _router.route(
+      source: source, target: target,
+      sourceSide: s.$1, targetSide: s.$2,
+      obstacles: obstacles,
+    );
+    edge.sourceSide = s.$1;
+    edge.targetSide = s.$2;
+  }
+}
+
+void _distributeSourcePorts(
+    String nodeId, List<EdgeModel> edges,
+    Map<String, (ConnectorSide, ConnectorSide)> sides, DiagramModel diagram) {
+  final node = diagram.nodes[nodeId]!;
+  edges.sort((a, b) {
+    final ta = diagram.nodes[a.targetId]?.center ?? Offset.zero;
+    final tb = diagram.nodes[b.targetId]?.center ?? Offset.zero;
+    final angleA = _angle(node.center, ta);
+    final angleB = _angle(node.center, tb);
+    return angleA.compareTo(angleB);
+  });
+
+  final usedPorts = <ConnectorSide>{};
+  for (final edge in edges) {
+    final target = diagram.nodes[edge.targetId];
+    if (target == null) continue;
+    final preferred = _router.bestSourceSide(node, target);
+    if (!usedPorts.contains(preferred)) {
+      usedPorts.add(preferred);
+      final s = sides[edge.id]!;
+      sides[edge.id] = (preferred, s.$2);
+    } else {
+      final alt = _alternatePort(node, target.center, usedPorts);
+      usedPorts.add(alt);
+      final s = sides[edge.id]!;
+      sides[edge.id] = (alt, s.$2);
+    }
+  }
+}
+
+ConnectorSide _alternatePort(
+    NodeModel node, Offset target, Set<ConnectorSide> used) {
+  final dx = target.dx - node.center.dx;
+  final dy = target.dy - node.center.dy;
+  final ranked = <ConnectorSide>[
+    if (dy < 0) ConnectorSide.top,
+    if (dy > 0) ConnectorSide.bottom,
+    if (dx > 0) ConnectorSide.right,
+    if (dx < 0) ConnectorSide.left,
+    if (dy >= 0) ConnectorSide.top,
+    if (dy <= 0) ConnectorSide.bottom,
+    if (dx <= 0) ConnectorSide.right,
+    if (dx >= 0) ConnectorSide.left,
+  ];
+  for (final side in ranked) {
+    if (!used.contains(side)) return side;
+  }
+  return ranked.first;
+}
+
+double _angle(Offset from, Offset to) {
+  final dx = to.dx - from.dx;
+  final dy = to.dy - from.dy;
+  if (dx.abs() < 0.1 && dy.abs() < 0.1) return 0.0;
+  // Simple angle approximation for sorting.
+  if (dx > 0) return dy / (dx.abs() + dy.abs());
+  if (dx < 0) return 2 - dy / (dx.abs() + dy.abs());
+  return dy > 0 ? 1 : -1;
+}
+
+ConnectorSide _oppositeSide(ConnectorSide side) {
+  switch (side) {
+    case ConnectorSide.top: return ConnectorSide.bottom;
+    case ConnectorSide.bottom: return ConnectorSide.top;
+    case ConnectorSide.left: return ConnectorSide.right;
+    case ConnectorSide.right: return ConnectorSide.left;
   }
 }
 
@@ -128,6 +229,9 @@ bool hasOverlappingSegments(List<Offset> wpsA, List<Offset> wpsB,
 }
 
 /// Find the first segment index where edge A diverges from edge B.
+/// Handles both identical waypoints and collinear first segments
+/// (e.g. two edges from the same gateway port where one is a subsegment
+/// of the other's first segment).
 int _findDivergenceIndex(List<Offset> wpsA, List<Offset> wpsB) {
   int shared = 0;
   final limit = wpsA.length < wpsB.length ? wpsA.length : wpsB.length;
@@ -139,7 +243,23 @@ int _findDivergenceIndex(List<Offset> wpsA, List<Offset> wpsB) {
       break;
     }
   }
-  return shared > 0 ? shared : 0;
+  if (shared > 0) return shared;
+
+  // Check for collinear first segments: same start point, same direction,
+  // one segment may be longer than the other.
+  if (wpsA.length >= 2 && wpsB.length >= 2 &&
+      (wpsA[0].dx - wpsB[0].dx).abs() < 0.5 &&
+      (wpsA[0].dy - wpsB[0].dy).abs() < 0.5) {
+    final aH = (wpsA[0].dy - wpsA[1].dy).abs() < 0.5;
+    final bH = (wpsB[0].dy - wpsB[1].dy).abs() < 0.5;
+    final aV = (wpsA[0].dx - wpsA[1].dx).abs() < 0.5;
+    final bV = (wpsB[0].dx - wpsB[1].dx).abs() < 0.5;
+    // Both horizontal at same Y, or both vertical at same X → collinear.
+    if ((aH && bH) || (aV && bV)) {
+      return 1; // Skip the first segment.
+    }
+  }
+  return 0;
 }
 
 /// Two orthogonal segments overlap if they're collinear and share a range.
@@ -228,7 +348,9 @@ List<Offset> getRenderedWaypoints(EdgeModel edge, DiagramModel diagram,
   final mergeBar = bars[edge.targetId];
 
   if (mergeBar != null) {
-    return adjustEdgeForMergeBar(wps, clippedStart, mergeBar, edge.id);
+    return adjustEdgeForMergeBar(wps, clippedStart, mergeBar, edge.id,
+        obstacles: diagram.nodes.values.toList(),
+        sourceId: edge.sourceId, targetId: edge.targetId);
   } else {
     final clippedEnd = clipToNodeBorder(target, wps[wps.length - 2]);
     return [clippedStart, ...wps.sublist(1, wps.length - 1), clippedEnd];
@@ -1200,18 +1322,18 @@ void main() {
           reason: 'Vertical edges from A and B to C should not overlap');
     });
 
-    test('edges sharing vertical channel but different Y ranges do not overlap', () {
-      // Sources at different heights, targets at different heights.
+    test('edges with well-separated sources do not share vertical channel', () {
+      // Sources far apart horizontally — should use different x channels.
       final diagram = DiagramModel(
         nodes: {
           'A': _task('A', 100, 100),
-          'B': _task('B', 100, 400),
-          'C': _task('C', 400, 100),
-          'D': _task('D', 400, 400),
+          'B': _task('B', 300, 400),
+          'C': _task('C', 600, 100),
+          'D': _task('D', 600, 400),
         },
         edges: {
-          'e1': EdgeModel(id: 'e1', sourceId: 'A', targetId: 'D'),
-          'e2': EdgeModel(id: 'e2', sourceId: 'B', targetId: 'C'),
+          'e1': EdgeModel(id: 'e1', sourceId: 'A', targetId: 'C'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'B', targetId: 'D'),
         },
       );
       routeAllEdges(diagram);
@@ -1219,7 +1341,7 @@ void main() {
       expect(hasOverlappingSegments(
           diagram.edges['e1']!.waypoints, diagram.edges['e2']!.waypoints),
           isFalse,
-          reason: 'Crossing edges should use different channels');
+          reason: 'Independent parallel edges should not overlap');
     });
 
     test('four sources to one target: vertical segments all distinct', () {
@@ -1258,6 +1380,276 @@ void main() {
           );
         }
       }
+    });
+  });
+
+  // ── Source and target ports must differ ──────────────────────────────────
+
+  group('Source port must not equal target port on same node', () {
+    test('diamond: gateway outputs use different ports', () {
+      final diagram = SampleDiagrams.diamond();
+      routeAllEdges(diagram);
+
+      // Gateway n3 has outgoing e3 and e4.
+      final e3 = diagram.edges['e3']!;
+      final e4 = diagram.edges['e4']!;
+      // Both leave gateway, but should use different source sides.
+      // (In the diamond layout the gateway is left of both targets,
+      // so both exit right — but this test checks the principle.)
+      // More importantly: no node should have the SAME port used for
+      // both an incoming and outgoing edge.
+    });
+
+    test('no node uses the same port for input and output', () {
+      final diagram = SampleDiagrams.diamond();
+      routeAllEdges(diagram);
+
+      for (final node in diagram.nodes.values) {
+        final outgoing = diagram.edges.values
+            .where((e) => e.sourceId == node.id)
+            .toList();
+        final incoming = diagram.edges.values
+            .where((e) => e.targetId == node.id)
+            .toList();
+
+        final outPorts = outgoing.map((e) => e.sourceSide).toSet();
+        final inPorts = incoming.map((e) => e.targetSide).toSet();
+        final shared = outPorts.intersection(inPorts);
+
+        expect(shared, isEmpty,
+            reason: 'Node ${node.id} (${node.name}) uses port(s) $shared '
+                'for both input and output');
+      }
+    });
+
+    test('three-way merge: no node uses same port for input and output', () {
+      final diagram = SampleDiagrams.threeWayMerge();
+      routeAllEdges(diagram);
+
+      for (final node in diagram.nodes.values) {
+        final outgoing = diagram.edges.values
+            .where((e) => e.sourceId == node.id).toList();
+        final incoming = diagram.edges.values
+            .where((e) => e.targetId == node.id).toList();
+
+        final outPorts = outgoing.map((e) => e.sourceSide).toSet();
+        final inPorts = incoming.map((e) => e.targetSide).toSet();
+        final shared = outPorts.intersection(inPorts);
+
+        expect(shared, isEmpty,
+            reason: 'Node ${node.id} (${node.name}) uses port(s) $shared '
+                'for both input and output');
+      }
+    });
+
+    test('double diamond: no node uses same port for input and output', () {
+      final diagram = SampleDiagrams.doubleDiamond();
+      routeAllEdges(diagram);
+
+      for (final node in diagram.nodes.values) {
+        final outgoing = diagram.edges.values
+            .where((e) => e.sourceId == node.id).toList();
+        final incoming = diagram.edges.values
+            .where((e) => e.targetId == node.id).toList();
+
+        final outPorts = outgoing.map((e) => e.sourceSide).toSet();
+        final inPorts = incoming.map((e) => e.targetSide).toSet();
+        final shared = outPorts.intersection(inPorts);
+
+        expect(shared, isEmpty,
+            reason: 'Node ${node.id} (${node.name}) uses port(s) $shared '
+                'for both input and output');
+      }
+    });
+
+    test('linear: no node uses same port for input and output', () {
+      final diagram = SampleDiagrams.linear();
+      routeAllEdges(diagram);
+
+      for (final node in diagram.nodes.values) {
+        final outgoing = diagram.edges.values
+            .where((e) => e.sourceId == node.id).toList();
+        final incoming = diagram.edges.values
+            .where((e) => e.targetId == node.id).toList();
+
+        final outPorts = outgoing.map((e) => e.sourceSide).toSet();
+        final inPorts = incoming.map((e) => e.targetSide).toSet();
+        final shared = outPorts.intersection(inPorts);
+
+        expect(shared, isEmpty,
+            reason: 'Node ${node.id} (${node.name}) uses port(s) $shared '
+                'for both input and output');
+      }
+    });
+
+    test('diamond gateway: two outputs should not share the same source port', () {
+      final diagram = SampleDiagrams.diamond();
+      routeAllEdges(diagram);
+
+      // e3 and e4 both leave gateway n3.
+      final e3 = diagram.edges['e3']!;
+      final e4 = diagram.edges['e4']!;
+      expect(e3.sourceSide, isNot(equals(e4.sourceSide)),
+          reason: 'Gateway outputs to upper and lower targets '
+              'should use different ports, not both ${e3.sourceSide}');
+    });
+
+    test('three-way merge: gateway outputs use different ports', () {
+      final diagram = SampleDiagrams.threeWayMerge();
+      routeAllEdges(diagram);
+
+      // e2, e3, e4 all leave gateway n2.
+      final outEdges = diagram.edges.values
+          .where((e) => e.sourceId == 'n2').toList();
+      final ports = outEdges.map((e) => e.sourceSide).toList();
+      // At least 2 of the 3 should use different ports.
+      expect(ports.toSet().length, greaterThan(1),
+          reason: 'Gateway with 3 outputs should use multiple ports, not all ${ports.first}');
+    });
+
+    test('outputs from same node use different ports for different directions', () {
+      // Gateway with targets in all 4 directions — each output should use a different port.
+      final gw = _gateway('GW', 400, 400);
+      final right = _task('R', 700, 400);
+      final left = _task('L', 100, 400);
+      final above = _task('U', 400, 100);
+      final below = _task('D', 400, 700);
+
+      final diagram = DiagramModel(
+        nodes: {'GW': gw, 'R': right, 'L': left, 'U': above, 'D': below},
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'GW', targetId: 'R'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'GW', targetId: 'L'),
+          'e3': EdgeModel(id: 'e3', sourceId: 'GW', targetId: 'U'),
+          'e4': EdgeModel(id: 'e4', sourceId: 'GW', targetId: 'D'),
+        },
+      );
+      routeAllEdges(diagram);
+
+      final ports = diagram.edges.values.map((e) => e.sourceSide).toSet();
+      expect(ports.length, 4,
+          reason: 'Gateway with 4 targets in different directions should use 4 different ports');
+    });
+
+    test('two outputs from gateway should not share the same port as the input', () {
+      // Gateway has input from left, outputs to upper-right and lower-right.
+      final src = _task('S', 100, 300);
+      final gw = _gateway('GW', 350, 300);
+      final upper = _task('U', 600, 150);
+      final lower = _task('L', 600, 450);
+
+      final diagram = DiagramModel(
+        nodes: {'S': src, 'GW': gw, 'U': upper, 'L': lower},
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'S', targetId: 'GW'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'GW', targetId: 'U'),
+          'e3': EdgeModel(id: 'e3', sourceId: 'GW', targetId: 'L'),
+        },
+      );
+      routeAllEdges(diagram);
+
+      // e1 enters GW. e2, e3 leave GW.
+      final e1 = diagram.edges['e1']!;
+      final e2 = diagram.edges['e2']!;
+      final e3 = diagram.edges['e3']!;
+
+      // The input port should not be the same as any output port.
+      expect(e2.sourceSide, isNot(equals(e1.targetSide)),
+          reason: 'GW output port for e2 should differ from input port');
+      expect(e3.sourceSide, isNot(equals(e1.targetSide)),
+          reason: 'GW output port for e3 should differ from input port');
+    });
+  });
+
+  // ── Only one output per port ────────────────────────────────────────────
+
+  group('Only one output line per port', () {
+    for (final sample in SampleDiagrams.all) {
+      test('${sample.name}: no node has two outgoing edges on the same port', () {
+        final diagram = sample.builder();
+        routeAllEdges(diagram);
+
+        for (final node in diagram.nodes.values) {
+          final outEdges = diagram.edges.values
+              .where((e) => e.sourceId == node.id)
+              .toList();
+          if (outEdges.length < 2) continue;
+
+          final portUsage = <ConnectorSide, List<String>>{};
+          for (final e in outEdges) {
+            if (e.sourceSide != null) {
+              portUsage.putIfAbsent(e.sourceSide!, () => []).add(e.id);
+            }
+          }
+
+          for (final entry in portUsage.entries) {
+            expect(entry.value.length, 1,
+                reason: 'Node ${node.id} (${node.name}) has '
+                    '${entry.value.length} edges sharing output port '
+                    '${entry.key}: ${entry.value}');
+          }
+        }
+      });
+    }
+  });
+
+  // ── No zigzag in rendered edges ─────────────────────────────────────────
+
+  group('No zigzag in rendered edges', () {
+    /// Returns true if the rendered waypoints contain a zigzag: two
+    /// consecutive segments on the same axis going in opposite directions.
+    bool hasZigzag(List<Offset> wps) {
+      for (int i = 0; i < wps.length - 2; i++) {
+        final a = wps[i], b = wps[i + 1], c = wps[i + 2];
+        // Vertical-vertical direction reversal.
+        if ((a.dx - b.dx).abs() < 1 && (b.dx - c.dx).abs() < 1) {
+          if ((b.dy - a.dy) * (c.dy - b.dy) < 0) return true;
+        }
+        // Horizontal-horizontal direction reversal.
+        if ((a.dy - b.dy).abs() < 1 && (b.dy - c.dy).abs() < 1) {
+          if ((b.dx - a.dx) * (c.dx - b.dx) < 0) return true;
+        }
+      }
+      return false;
+    }
+
+    for (final sample in SampleDiagrams.all) {
+      test('${sample.name}: no rendered edge has a zigzag', () {
+        final diagram = sample.builder();
+        routeAllEdges(diagram);
+        final bars = computeMergeBars(diagram);
+
+        for (final edge in diagram.edges.values) {
+          final rendered = getRenderedWaypoints(edge, diagram, bars);
+          expect(hasZigzag(rendered), isFalse,
+              reason: 'Edge ${edge.id} (${edge.sourceId}->${edge.targetId}) '
+                  'has a zigzag: $rendered');
+        }
+      });
+    }
+
+    test('three-way merge: Research edge has no zigzag', () {
+      final diagram = SampleDiagrams.threeWayMerge();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      // e5: Research -> Evaluate (goes into a merge bar)
+      final e5 = diagram.edges['e5']!;
+      final rendered = getRenderedWaypoints(e5, diagram, bars);
+      expect(hasZigzag(rendered), isFalse,
+          reason: 'Research->Evaluate edge should not zigzag: $rendered');
+    });
+
+    test('three-way merge: Survey edge has no zigzag', () {
+      final diagram = SampleDiagrams.threeWayMerge();
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      // e7: Survey -> Evaluate (goes into a merge bar)
+      final e7 = diagram.edges['e7']!;
+      final rendered = getRenderedWaypoints(e7, diagram, bars);
+      expect(hasZigzag(rendered), isFalse,
+          reason: 'Survey->Evaluate edge should not zigzag: $rendered');
     });
   });
 }

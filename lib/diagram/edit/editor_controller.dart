@@ -334,7 +334,7 @@ class EditorController extends ChangeNotifier {
         } else {
           _exec(MoveNodeCommand(selectedNodeId!, totalDelta));
         }
-        _rerouteEdgesForNode(selectedNodeId!, log: true);
+        _rerouteEdgesForNode(selectedNodeId!);
       }
       _triggerBounce(selectedNodeId!);
     }
@@ -660,14 +660,59 @@ class EditorController extends ChangeNotifier {
 
   /// Reroute all edges in the diagram.
   void rerouteAllEdges() {
+    _assignPortsAndRoute();
+    notifyListeners();
+  }
+
+  /// Assign ports to all edges, distributing outputs from the same node
+  /// across different sides, then route each edge.
+  void _assignPortsAndRoute() {
+    // Phase 1: Compute initial sides for each edge.
+    final sides = <String, (ConnectorSide src, ConnectorSide tgt)>{};
+    for (final edge in diagram.edges.values) {
+      final source = diagram.nodes[edge.sourceId];
+      final target = diagram.nodes[edge.targetId];
+      if (source == null || target == null) continue;
+      sides[edge.id] = (
+        _router.bestSourceSide(source, target),
+        _router.bestTargetSide(source, target,
+            _router.bestSourceSide(source, target)),
+      );
+    }
+
+    // Phase 2: Distribute conflicting source ports.
+    // Group outgoing edges by source node.
+    final outgoing = <String, List<EdgeModel>>{};
+    for (final edge in diagram.edges.values) {
+      outgoing.putIfAbsent(edge.sourceId, () => []).add(edge);
+    }
+    for (final entry in outgoing.entries) {
+      final edges = entry.value;
+      if (edges.length < 2) continue;
+      _distributeSourcePorts(entry.key, edges, sides);
+    }
+
+    // Phase 3: Distribute conflicting target ports (input ≠ output).
+    for (final node in diagram.nodes.values) {
+      final outs = diagram.edges.values.where((e) => e.sourceId == node.id);
+      final ins = diagram.edges.values.where((e) => e.targetId == node.id);
+      final usedOutPorts = outs.map((e) => sides[e.id]?.$1).whereType<ConnectorSide>().toSet();
+      for (final inEdge in ins) {
+        final s = sides[inEdge.id];
+        if (s != null && usedOutPorts.contains(s.$2)) {
+          // Target port conflicts with an output port — pick opposite.
+          sides[inEdge.id] = (s.$1, _opposite(s.$2));
+        }
+      }
+    }
+
+    // Phase 4: Route each edge with its assigned sides.
     for (final edge in diagram.edges.values) {
       final source = diagram.nodes[edge.sourceId];
       final target = diagram.nodes[edge.targetId];
       if (source == null || target == null) continue;
 
-      final srcSide = _router.bestSourceSide(source, target);
-      final tgtSide = _router.bestTargetSide(source, target, srcSide);
-
+      final s = sides[edge.id]!;
       final obstacles = diagram.nodes.values
           .where((n) => n.id != source.id && n.id != target.id)
           .toList();
@@ -675,14 +720,100 @@ class EditorController extends ChangeNotifier {
       edge.waypoints = _router.route(
         source: source,
         target: target,
-        sourceSide: srcSide,
-        targetSide: tgtSide,
+        sourceSide: s.$1,
+        targetSide: s.$2,
         obstacles: obstacles,
       );
-      edge.sourceSide = srcSide;
-      edge.targetSide = tgtSide;
+      edge.sourceSide = s.$1;
+      edge.targetSide = s.$2;
     }
-    notifyListeners();
+  }
+
+  /// Distribute outgoing edges from a node across different source ports.
+  void _distributeSourcePorts(
+      String nodeId,
+      List<EdgeModel> edges,
+      Map<String, (ConnectorSide, ConnectorSide)> sides) {
+    final node = diagram.nodes[nodeId];
+    if (node == null) return;
+
+    // Sort by angle from node center to target center.
+    edges.sort((a, b) {
+      final ta = diagram.nodes[a.targetId]?.center ?? Offset.zero;
+      final tb = diagram.nodes[b.targetId]?.center ?? Offset.zero;
+      final angleA = _angle(node.center, ta);
+      final angleB = _angle(node.center, tb);
+      return angleA.compareTo(angleB);
+    });
+
+    // Assign each edge to the port closest to its target direction,
+    // avoiding duplicates when possible.
+    final usedPorts = <ConnectorSide>{};
+    for (final edge in edges) {
+      final target = diagram.nodes[edge.targetId];
+      if (target == null) continue;
+
+      final preferred = _router.bestSourceSide(node, target);
+      if (!usedPorts.contains(preferred)) {
+        usedPorts.add(preferred);
+        final s = sides[edge.id]!;
+        sides[edge.id] = (preferred, s.$2);
+      } else {
+        // Pick the next best unused port.
+        final alt = _alternatePort(node, target.center, usedPorts);
+        usedPorts.add(alt);
+        final s = sides[edge.id]!;
+        sides[edge.id] = (alt, s.$2);
+      }
+    }
+  }
+
+  /// Pick the best alternative port for a node→target that avoids [used] ports.
+  ConnectorSide _alternatePort(
+      NodeModel node, Offset target, Set<ConnectorSide> used) {
+    final dx = target.dx - node.center.dx;
+    final dy = target.dy - node.center.dy;
+
+    // Rank all 4 sides by how well they face the target.
+    final ranked = <ConnectorSide>[
+      if (dy < 0) ConnectorSide.top,
+      if (dy > 0) ConnectorSide.bottom,
+      if (dx > 0) ConnectorSide.right,
+      if (dx < 0) ConnectorSide.left,
+      // Fill in remaining sides.
+      if (dy >= 0) ConnectorSide.top,
+      if (dy <= 0) ConnectorSide.bottom,
+      if (dx <= 0) ConnectorSide.right,
+      if (dx >= 0) ConnectorSide.left,
+    ];
+
+    for (final side in ranked) {
+      if (!used.contains(side)) return side;
+    }
+    // All used — return primary direction.
+    return ranked.first;
+  }
+
+  double _angle(Offset from, Offset to) {
+    return (to.dy - from.dy).abs() < 0.1 && (to.dx - from.dx).abs() < 0.1
+        ? 0.0
+        : _atan2(to.dy - from.dy, to.dx - from.dx);
+  }
+
+  double _atan2(double y, double x) {
+    // Simple atan2 without importing dart:math in this file.
+    if (x > 0) return y / (x.abs() + y.abs());
+    if (x < 0) return 2 - y / (x.abs() + y.abs());
+    return y > 0 ? 1 : -1;
+  }
+
+  ConnectorSide _opposite(ConnectorSide side) {
+    switch (side) {
+      case ConnectorSide.top: return ConnectorSide.bottom;
+      case ConnectorSide.bottom: return ConnectorSide.top;
+      case ConnectorSide.left: return ConnectorSide.right;
+      case ConnectorSide.right: return ConnectorSide.left;
+    }
   }
 
   void _cancelConnection() {
@@ -701,29 +832,8 @@ class EditorController extends ChangeNotifier {
     selectedNodeId = null;
     selectedEdgeId = null;
     _idGen.seedFrom(diagram.nodes.keys.followedBy(diagram.edges.keys));
-    // Route any edges that don't have waypoints yet.
-    for (final edge in diagram.edges.values) {
-      if (edge.waypoints.isEmpty) {
-        final source = diagram.nodes[edge.sourceId];
-        final target = diagram.nodes[edge.targetId];
-        if (source != null && target != null) {
-          final srcSide = _router.bestSourceSide(source, target);
-          final tgtSide = _router.bestTargetSide(source, target, srcSide);
-          final obstacles = diagram.nodes.values
-              .where((n) => n.id != source.id && n.id != target.id)
-              .toList();
-          edge.waypoints = _router.route(
-            source: source,
-            target: target,
-            sourceSide: srcSide,
-            targetSide: tgtSide,
-            obstacles: obstacles,
-          );
-          edge.sourceSide = srcSide;
-          edge.targetSide = tgtSide;
-        }
-      }
-    }
+    // Route edges with port distribution.
+    _assignPortsAndRoute();
     notifyListeners();
   }
 }

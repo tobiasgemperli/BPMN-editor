@@ -118,7 +118,9 @@ class DiagramPainter extends CustomPainter {
       bool skipArrow;
 
       if (mergeBar != null) {
-        adjustedWps = adjustEdgeForMergeBar(wps, clippedStart, mergeBar, edge.id);
+        adjustedWps = adjustEdgeForMergeBar(wps, clippedStart, mergeBar, edge.id,
+            obstacles: diagram.nodes.values.toList(),
+            sourceId: edge.sourceId, targetId: edge.targetId);
         skipArrow = true;
       } else {
         final clippedEnd = clipToNodeBorder(target, wps[wps.length - 2]);

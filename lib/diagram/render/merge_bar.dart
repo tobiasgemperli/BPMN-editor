@@ -164,13 +164,30 @@ bool isPastBar(Offset wp, MergeBarInfo bar) {
   }
 }
 
-/// Adjusts edge waypoints for a merge bar target: trims past-bar waypoints,
-/// adds a perpendicular bend to the assigned slot.
+/// Adjusts edge waypoints for a merge bar target.
+///
+/// Tries a perpendicular bend approach first (best aesthetics). If that
+/// would cross any [obstacles], falls back to clipping at the bar line
+/// (preserves the router's obstacle-avoidance path).
 List<Offset> adjustEdgeForMergeBar(
-    List<Offset> rawWps, Offset clippedStart, MergeBarInfo bar, String edgeId) {
+    List<Offset> rawWps, Offset clippedStart, MergeBarInfo bar, String edgeId,
+    {List<NodeModel> obstacles = const [], String sourceId = '', String targetId = ''}) {
   final slotPoint = bar.edgeSlots[edgeId]!;
 
-  // Build waypoints, trimming any that extend past the bar.
+  // Try 1: Perpendicular bend (preferred aesthetics).
+  final perpPath = _perpendicularApproach(rawWps, clippedStart, bar, slotPoint);
+  if (!_pathCrossesObstacle(perpPath, obstacles, sourceId, targetId)) {
+    return perpPath;
+  }
+
+  // Try 2: Clip at bar crossing (preserves obstacle avoidance).
+  return _clipAtBar(rawWps, clippedStart, bar, slotPoint);
+}
+
+/// Build a perpendicular-approach path: keep non-past-bar waypoints, then
+/// add a bend so the final segment is perpendicular to the bar.
+List<Offset> _perpendicularApproach(
+    List<Offset> rawWps, Offset clippedStart, MergeBarInfo bar, Offset slotPoint) {
   final result = <Offset>[clippedStart];
   final inner = rawWps.sublist(1, rawWps.length - 1);
   for (final wp in inner) {
@@ -179,49 +196,147 @@ List<Offset> adjustEdgeForMergeBar(
     }
   }
 
-  // Add perpendicular approach: bend then slot.
-  var prev = result.last;
-  var bendPoint = bar.isHorizontal
-      ? Offset(slotPoint.dx, prev.dy)
-      : Offset(prev.dx, slotPoint.dy);
-
-  // Detect zigzag: if prev and bendPoint are on the same axis but the bend
-  // reverses direction compared to the segment before prev, pop prev and
-  // recompute from the new last waypoint.
+  // Truncate the last segment if it overshoots the slot's cross-axis position.
+  // e.g. a vertical segment going to y=300 when slot is at y=288 would zigzag.
   if (result.length >= 2) {
-    final before = result[result.length - 2];
-    final sameX = (prev.dx - bendPoint.dx).abs() < 1.0;
-    final sameY = (prev.dy - bendPoint.dy).abs() < 1.0;
-    if (sameX) {
-      // Vertical segment prev→bend; check if it reverses before→prev direction.
-      final dirPrev = prev.dy - before.dy;
-      final dirBend = bendPoint.dy - prev.dy;
-      if (dirPrev != 0 && dirBend != 0 && dirPrev.sign != dirBend.sign) {
-        result.removeLast();
-        prev = result.last;
-        bendPoint = bar.isHorizontal
-            ? Offset(slotPoint.dx, prev.dy)
-            : Offset(prev.dx, slotPoint.dy);
+    final prev2 = result[result.length - 2];
+    final last = result.last;
+    if (bar.isHorizontal) {
+      // Bar is horizontal: truncate horizontal overshoots on the slot's X.
+      if ((prev2.dy - last.dy).abs() < 0.5) {
+        // Horizontal segment — check if slotPoint.dx is between prev2.dx and last.dx.
+        final minX = prev2.dx < last.dx ? prev2.dx : last.dx;
+        final maxX = prev2.dx > last.dx ? prev2.dx : last.dx;
+        if (slotPoint.dx >= minX && slotPoint.dx <= maxX) {
+          result[result.length - 1] = Offset(slotPoint.dx, last.dy);
+        }
       }
-    } else if (sameY) {
-      final dirPrev = prev.dx - before.dx;
-      final dirBend = bendPoint.dx - prev.dx;
-      if (dirPrev != 0 && dirBend != 0 && dirPrev.sign != dirBend.sign) {
-        result.removeLast();
-        prev = result.last;
-        bendPoint = bar.isHorizontal
-            ? Offset(slotPoint.dx, prev.dy)
-            : Offset(prev.dx, slotPoint.dy);
+    } else {
+      // Bar is vertical: truncate vertical overshoots on the slot's Y.
+      if ((prev2.dx - last.dx).abs() < 0.5) {
+        // Vertical segment — check if slotPoint.dy is between prev2.dy and last.dy.
+        final minY = prev2.dy < last.dy ? prev2.dy : last.dy;
+        final maxY = prev2.dy > last.dy ? prev2.dy : last.dy;
+        if (slotPoint.dy >= minY && slotPoint.dy <= maxY) {
+          result[result.length - 1] = Offset(last.dx, slotPoint.dy);
+        }
       }
     }
   }
 
-  // Only add bend if it creates a meaningful segment.
+  final prev = result.last;
+  final bendPoint = bar.isHorizontal
+      ? Offset(slotPoint.dx, prev.dy)
+      : Offset(prev.dx, slotPoint.dy);
+
   if ((bendPoint - prev).distance > 1.0 && (bendPoint - slotPoint).distance > 1.0) {
     result.add(bendPoint);
   }
   result.add(slotPoint);
   return result;
+}
+
+/// Build a clip-at-bar path: follow the original route until it crosses the
+/// bar line, clip there, then go along the bar to the slot.
+List<Offset> _clipAtBar(
+    List<Offset> rawWps, Offset clippedStart, MergeBarInfo bar, Offset slotPoint) {
+  final result = <Offset>[clippedStart];
+
+  for (int i = 1; i < rawWps.length; i++) {
+    final prev = result.last;
+    final wp = rawWps[i];
+
+    final crossing = _segmentBarCrossing(prev, wp, bar);
+    if (crossing != null) {
+      if ((crossing - prev).distance > 1.0) {
+        result.add(crossing);
+      }
+      if ((result.last - slotPoint).distance > 1.0) {
+        result.add(slotPoint);
+      }
+      return result;
+    }
+
+    if (isPastBar(wp, bar)) {
+      _addBendToSlot(result, slotPoint, bar);
+      return result;
+    }
+
+    if ((wp - prev).distance > 0.5) {
+      result.add(wp);
+    }
+  }
+
+  _addBendToSlot(result, slotPoint, bar);
+  return result;
+}
+
+/// Check if any segment of a path crosses through an obstacle node rect.
+bool _pathCrossesObstacle(
+    List<Offset> path, List<NodeModel> obstacles, String sourceId, String targetId) {
+  for (final node in obstacles) {
+    if (node.id == sourceId || node.id == targetId) continue;
+    final r = node.rect.inflate(-2.0);
+    for (int i = 0; i < path.length - 1; i++) {
+      if (_segmentCrossesRect(path[i], path[i + 1], r)) return true;
+    }
+  }
+  return false;
+}
+
+bool _segmentCrossesRect(Offset a, Offset b, Rect rect) {
+  final isH = (a.dy - b.dy).abs() < 0.5;
+  final isV = (a.dx - b.dx).abs() < 0.5;
+  if (isH) {
+    final y = a.dy;
+    if (y <= rect.top || y >= rect.bottom) return false;
+    final minX = a.dx < b.dx ? a.dx : b.dx;
+    final maxX = a.dx > b.dx ? a.dx : b.dx;
+    return maxX > rect.left && minX < rect.right;
+  }
+  if (isV) {
+    final x = a.dx;
+    if (x <= rect.left || x >= rect.right) return false;
+    final minY = a.dy < b.dy ? a.dy : b.dy;
+    final maxY = a.dy > b.dy ? a.dy : b.dy;
+    return maxY > rect.top && minY < rect.bottom;
+  }
+  return false;
+}
+
+/// Find where an orthogonal segment crosses the bar line.
+Offset? _segmentBarCrossing(Offset a, Offset b, MergeBarInfo bar) {
+  if (bar.isHorizontal) {
+    if ((a.dx - b.dx).abs() < 0.5) {
+      final minY = a.dy < b.dy ? a.dy : b.dy;
+      final maxY = a.dy > b.dy ? a.dy : b.dy;
+      if (minY < bar.barPos && maxY > bar.barPos) {
+        return Offset(a.dx, bar.barPos);
+      }
+    }
+  } else {
+    if ((a.dy - b.dy).abs() < 0.5) {
+      final minX = a.dx < b.dx ? a.dx : b.dx;
+      final maxX = a.dx > b.dx ? a.dx : b.dx;
+      if (minX < bar.barPos && maxX > bar.barPos) {
+        return Offset(bar.barPos, a.dy);
+      }
+    }
+  }
+  return null;
+}
+
+/// Add a perpendicular bend from the last waypoint to the slot.
+void _addBendToSlot(List<Offset> result, Offset slotPoint, MergeBarInfo bar) {
+  final prev = result.last;
+  final bendPoint = bar.isHorizontal
+      ? Offset(slotPoint.dx, prev.dy)
+      : Offset(prev.dx, slotPoint.dy);
+
+  if ((bendPoint - prev).distance > 1.0 && (bendPoint - slotPoint).distance > 1.0) {
+    result.add(bendPoint);
+  }
+  result.add(slotPoint);
 }
 
 /// Clips a point to the border of a node shape.
