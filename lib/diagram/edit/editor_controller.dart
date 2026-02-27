@@ -76,6 +76,10 @@ class EditorController extends ChangeNotifier {
   String? blobNodeId;
   double blobScale = 1.0;
 
+  /// Lift (touch-down grow) state — separate from bounce.
+  String? liftNodeId;
+  double liftScale = 1.0;
+
   /// Trigger a bounce animation on a node.
   void _triggerBounce(String nodeId) {
     bounceNodeId = nodeId;
@@ -86,6 +90,24 @@ class EditorController extends ChangeNotifier {
   void updateBlobScale(double scale) {
     blobScale = scale;
     notifyListeners();
+  }
+
+  /// Update the lift scale and repaint. Called by the lift animation.
+  void updateLiftScale(double scale) {
+    liftScale = scale;
+    notifyListeners();
+  }
+
+  /// Start lift animation on a node (touch down on node body, not connector).
+  void startLift(String nodeId) {
+    liftNodeId = nodeId;
+    // liftScale will be animated by the canvas.
+  }
+
+  /// End lift (drop).
+  void endLift() {
+    liftNodeId = null;
+    liftScale = 1.0;
   }
 
   EditorController({DiagramModel? diagram})

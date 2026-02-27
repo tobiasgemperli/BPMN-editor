@@ -181,12 +181,16 @@ class DiagramPainter extends CustomPainter {
     for (final node in controller.diagram.nodes.values) {
       final isSelected = node.id == controller.selectedNodeId;
       final isBlob = node.id == controller.blobNodeId && controller.blobScale != 1.0;
+      final isLifted = node.id == controller.liftNodeId && controller.liftScale != 1.0;
 
-      if (isBlob) {
+      // Apply scale transforms (lift or blob, lift takes priority).
+      final needsScale = isLifted || isBlob;
+      if (needsScale) {
+        final scale = isLifted ? controller.liftScale : controller.blobScale;
         final c = node.center;
         canvas.save();
         canvas.translate(c.dx, c.dy);
-        canvas.scale(controller.blobScale);
+        canvas.scale(scale);
         canvas.translate(-c.dx, -c.dy);
       }
 
@@ -205,7 +209,7 @@ class DiagramPainter extends CustomPainter {
           break;
       }
 
-      if (isBlob) {
+      if (needsScale) {
         canvas.restore();
       }
     }
