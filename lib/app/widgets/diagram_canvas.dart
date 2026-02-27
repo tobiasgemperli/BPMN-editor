@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../diagram/edit/editor_controller.dart';
+import '../../diagram/edit/hit_test.dart';
 import '../../diagram/render/diagram_painter.dart';
 
 /// The interactive diagram canvas with pan/zoom support.
@@ -22,10 +23,13 @@ class DiagramCanvas extends StatefulWidget {
 class _DiagramCanvasState extends State<DiagramCanvas> {
   final TransformationController _transformController = TransformationController();
 
+  /// Whether the current gesture is dragging a node/connection (vs canvas pan).
+  bool _isDiagramDrag = false;
+  int? _activePointer;
+
   Offset _toCanvasPoint(Offset screenPoint) {
     final inv = Matrix4.inverted(_transformController.value);
-    final v = MatrixUtils.transformPoint(inv, screenPoint);
-    return v;
+    return MatrixUtils.transformPoint(inv, screenPoint);
   }
 
   @override
@@ -36,60 +40,99 @@ class _DiagramCanvasState extends State<DiagramCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Canvas is larger than viewport for scrolling.
-        const canvasSize = Size(4000, 4000);
+    const canvasSize = Size(4000, 4000);
 
-        return GestureDetector(
-          onLongPressStart: (details) {
-            final canvasPoint = _toCanvasPoint(details.localPosition);
-            final isEmpty = widget.controller.onLongPress(canvasPoint);
-            if (isEmpty) {
-              widget.onLongPressPosition?.call(canvasPoint);
+    return GestureDetector(
+      onLongPressStart: (details) {
+        final canvasPoint = _toCanvasPoint(details.localPosition);
+        final isEmpty = widget.controller.onLongPress(canvasPoint);
+        if (isEmpty) {
+          widget.onLongPressPosition?.call(canvasPoint);
+        }
+      },
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        constrained: false,
+        boundaryMargin: const EdgeInsets.all(2000),
+        minScale: 0.2,
+        maxScale: 3.0,
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: (event) {
+            final canvasPoint = event.localPosition;
+            _activePointer = event.pointer;
+
+            // Check if we're hitting a node or connector handle.
+            final ctrl = widget.controller;
+            final hitNode = ctrl.diagram.nodes.values.any((node) {
+              final inflated = node.rect.inflate(26);
+              return inflated.contains(canvasPoint);
+            });
+
+            // Check connector handles.
+            bool hitHandle = false;
+            if (ctrl.selectedNodeId != null) {
+              final selNode = ctrl.diagram.nodes[ctrl.selectedNodeId];
+              if (selNode != null) {
+                for (final side in ConnectorSide.values) {
+                  final center = connectorHandleCenter(selNode, side);
+                  if ((canvasPoint - center).distance <= 54) {
+                    hitHandle = true;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (hitNode || hitHandle) {
+              // We'll handle this as a diagram drag.
+              _isDiagramDrag = true;
+              ctrl.onTapDown(canvasPoint);
+              ctrl.onDragStart(canvasPoint);
+            } else {
+              // Let InteractiveViewer handle pan/zoom.
+              _isDiagramDrag = false;
+              ctrl.onTapDown(canvasPoint);
             }
           },
-          child: InteractiveViewer(
-            transformationController: _transformController,
-            constrained: false,
-            boundaryMargin: const EdgeInsets.all(2000),
-            minScale: 0.2,
-            maxScale: 3.0,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (details) {
-                widget.controller.onTapDown(details.localPosition);
-              },
-              onPanStart: (details) {
-                widget.controller.onDragStart(details.localPosition);
-              },
-              onPanUpdate: (details) {
-                widget.controller.onDragUpdate(details.localPosition);
-              },
-              onPanEnd: (details) {
-                widget.controller.onDragEnd(
-                  // Use the last known position.
-                  widget.controller.isConnecting
-                      ? (widget.controller.connectionEnd ?? Offset.zero)
-                      : (widget.controller.selectedNodeId != null
-                          ? widget.controller.diagram.nodes[widget.controller.selectedNodeId]!.center
-                          : Offset.zero),
-                );
-              },
-              child: SizedBox(
-                width: canvasSize.width,
-                height: canvasSize.height,
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: DiagramPainter(widget.controller),
-                    size: canvasSize,
-                  ),
-                ),
+          onPointerMove: (event) {
+            if (_isDiagramDrag && event.pointer == _activePointer) {
+              widget.controller.onDragUpdate(event.localPosition);
+            }
+          },
+          onPointerUp: (event) {
+            if (_isDiagramDrag && event.pointer == _activePointer) {
+              final ctrl = widget.controller;
+              ctrl.onDragEnd(
+                ctrl.isConnecting
+                    ? (ctrl.connectionEnd ?? Offset.zero)
+                    : (ctrl.selectedNodeId != null
+                        ? ctrl.diagram.nodes[ctrl.selectedNodeId]!.center
+                        : Offset.zero),
+              );
+            }
+            _isDiagramDrag = false;
+            _activePointer = null;
+          },
+          onPointerCancel: (event) {
+            if (_isDiagramDrag && event.pointer == _activePointer) {
+              widget.controller.onDragEnd(Offset.zero);
+            }
+            _isDiagramDrag = false;
+            _activePointer = null;
+          },
+          child: SizedBox(
+            width: canvasSize.width,
+            height: canvasSize.height,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: DiagramPainter(widget.controller),
+                size: canvasSize,
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

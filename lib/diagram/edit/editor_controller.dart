@@ -27,9 +27,30 @@ class EditorController extends ChangeNotifier {
 
   /// Connection drag state.
   bool isConnecting = false;
-  Offset? connectionStart;
   Offset? connectionEnd;
   String? connectionSourceId;
+  ConnectorSide? connectionSourceSide;
+
+  /// Connection start point — computed from the node border on the active side.
+  Offset? get connectionStart {
+    if (connectionSourceId == null || connectionSourceSide == null) return null;
+    final node = diagram.nodes[connectionSourceId!];
+    if (node == null) return null;
+    return _nodeBorderPoint(node, connectionSourceSide!);
+  }
+
+  static Offset _nodeBorderPoint(NodeModel node, ConnectorSide side) {
+    switch (side) {
+      case ConnectorSide.top:
+        return Offset(node.rect.center.dx, node.rect.top);
+      case ConnectorSide.right:
+        return Offset(node.rect.right, node.rect.center.dy);
+      case ConnectorSide.bottom:
+        return Offset(node.rect.center.dx, node.rect.bottom);
+      case ConnectorSide.left:
+        return Offset(node.rect.left, node.rect.center.dy);
+    }
+  }
 
   /// Node drag state.
   bool isDragging = false;
@@ -303,10 +324,7 @@ class EditorController extends ChangeNotifier {
   void _startConnection(Offset point, {ConnectorSide? side}) {
     isConnecting = true;
     connectionSourceId = selectedNodeId;
-    final node = diagram.nodes[selectedNodeId!]!;
-    connectionStart = side != null
-        ? connectorHandleCenter(node, side)
-        : Offset(node.rect.right + 18, node.rect.center.dy);
+    connectionSourceSide = side;
     connectionEnd = point;
     notifyListeners();
   }
@@ -333,9 +351,9 @@ class EditorController extends ChangeNotifier {
 
   void _cancelConnection() {
     isConnecting = false;
-    connectionStart = null;
     connectionEnd = null;
     connectionSourceId = null;
+    connectionSourceSide = null;
     notifyListeners();
   }
 
