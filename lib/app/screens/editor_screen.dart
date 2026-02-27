@@ -105,17 +105,22 @@ class _EditorScreenState extends State<EditorScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: DiagramCanvas(
-              controller: _controller,
-              transformationController: _transformController,
-            ),
-          ),
-          EditorToolbar(
+          DiagramCanvas(
             controller: _controller,
             transformationController: _transformController,
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+            child: Center(
+              child: EditorToolbar(
+                controller: _controller,
+                transformationController: _transformController,
+              ),
+            ),
           ),
         ],
       ),
