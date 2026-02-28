@@ -125,37 +125,36 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
-  /// Four inputs converge on one node.
+  /// Four parallel paths converge on one node (4 merge inputs).
   ///
   /// ```
-  /// Start1 -> Task A --\
-  /// Start2 -> Task B --+--> Consolidate -> End
-  /// Start3 -> Task C --/
-  /// Start4 -> Task D -/
+  /// Start -> [GW] --> Analyze Data --\
+  ///              \--> Build Model  --+--> Consolidate -> End
+  ///              \--> Run Tests    --/
+  ///              \--> Write Docs   -/
   /// ```
   static DiagramModel fourWayMerge() {
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Req 1', rect: _event(80, 120)),
-      'n2': NodeModel(id: 'n2', type: NodeType.startEvent, name: 'Req 2', rect: _event(80, 280)),
-      'n3': NodeModel(id: 'n3', type: NodeType.startEvent, name: 'Req 3', rect: _event(80, 440)),
-      'n4': NodeModel(id: 'n4', type: NodeType.startEvent, name: 'Req 4', rect: _event(80, 600)),
-      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Analyze Data', rect: _task(280, 120)),
-      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Build Model', rect: _task(280, 280)),
-      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Run Tests', rect: _task(280, 440)),
-      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Write Docs', rect: _task(280, 600)),
-      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Consolidate', rect: _task(560, 360)),
-      'n10': NodeModel(id: 'n10', type: NodeType.endEvent, name: 'Done', rect: _event(780, 360)),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(80, 360)),
+      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Split', rect: _gw(220, 360)),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Analyze Data', rect: _task(440, 120)),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Build Model', rect: _task(440, 280)),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Run Tests', rect: _task(440, 440)),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Write Docs', rect: _task(440, 600)),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Consolidate', rect: _task(720, 360)),
+      'n8': NodeModel(id: 'n8', type: NodeType.endEvent, name: 'Done', rect: _event(940, 360)),
     };
     final edges = <String, EdgeModel>{
-      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n5'),
-      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n6'),
-      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n7'),
-      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n8'),
-      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n9'),
-      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n9'),
-      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n9'),
-      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
-      'e9': EdgeModel(id: 'e9', sourceId: 'n9', targetId: 'n10'),
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n2', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n2', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n3', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n4', targetId: 'n7'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n5', targetId: 'n7'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n6', targetId: 'n7'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n7', targetId: 'n8'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
   }

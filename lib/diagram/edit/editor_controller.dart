@@ -632,6 +632,7 @@ class EditorController extends ChangeNotifier {
     }
 
     // Phase 3: Distribute conflicting target ports (input ≠ output).
+    // Only flip if the opposite side is free (not used by another output).
     for (final node in diagram.nodes.values) {
       final outs = diagram.edges.values.where((e) => e.sourceId == node.id);
       final ins = diagram.edges.values.where((e) => e.targetId == node.id);
@@ -639,8 +640,11 @@ class EditorController extends ChangeNotifier {
       for (final inEdge in ins) {
         final s = sides[inEdge.id];
         if (s != null && usedOutPorts.contains(s.$2)) {
-          // Target port conflicts with an output port — pick opposite.
-          sides[inEdge.id] = (s.$1, _opposite(s.$2));
+          final opp = _opposite(s.$2);
+          // Only flip if the opposite side isn't also occupied by an output.
+          if (!usedOutPorts.contains(opp)) {
+            sides[inEdge.id] = (s.$1, opp);
+          }
         }
       }
     }
@@ -715,6 +719,15 @@ class EditorController extends ChangeNotifier {
     final node = diagram.nodes[nodeId];
     if (node == null) return;
 
+    // Pre-reserve ports used by incoming edges so outputs avoid them.
+    final incomingPorts = <ConnectorSide>{};
+    for (final inEdge in diagram.edges.values) {
+      if (inEdge.targetId == nodeId) {
+        final s = sides[inEdge.id];
+        if (s != null) incomingPorts.add(s.$2);
+      }
+    }
+
     // Sort by angle from node center to target center.
     edges.sort((a, b) {
       final ta = diagram.nodes[a.targetId]?.center ?? Offset.zero;
@@ -725,20 +738,30 @@ class EditorController extends ChangeNotifier {
     });
 
     // Assign each edge to the port closest to its target direction,
-    // avoiding duplicates when possible.
+    // avoiding duplicates and incoming ports when possible.
     final usedPorts = <ConnectorSide>{};
     for (final edge in edges) {
       final target = diagram.nodes[edge.targetId];
       if (target == null) continue;
 
       final preferred = _router.bestSourceSide(node, target);
-      if (!usedPorts.contains(preferred)) {
+      if (!usedPorts.contains(preferred) && !incomingPorts.contains(preferred)) {
+        usedPorts.add(preferred);
+        final s = sides[edge.id]!;
+        sides[edge.id] = (preferred, s.$2);
+      } else if (!usedPorts.contains(preferred)) {
+        // Port is used by incoming but not by another outgoing — use it as fallback.
         usedPorts.add(preferred);
         final s = sides[edge.id]!;
         sides[edge.id] = (preferred, s.$2);
       } else {
-        // Pick the next best unused port.
-        final alt = _alternatePort(node, target.center, usedPorts);
+        // Pick the next best unused port, preferring non-incoming ports.
+        final avoidSet = <ConnectorSide>{...usedPorts, ...incomingPorts};
+        var alt = _alternatePort(node, target.center, avoidSet);
+        // If all non-incoming ports are used, fall back to any unused port.
+        if (usedPorts.contains(alt)) {
+          alt = _alternatePort(node, target.center, usedPorts);
+        }
         usedPorts.add(alt);
         final s = sides[edge.id]!;
         sides[edge.id] = (alt, s.$2);
