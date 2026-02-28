@@ -27,6 +27,18 @@ class _EditorScreenState extends State<EditorScreen> {
   void initState() {
     super.initState();
     _controller = EditorController();
+    _loadSampleOnStart();
+  }
+
+  Future<void> _loadSampleOnStart() async {
+    try {
+      final content = await rootBundle.loadString('assets/sample.bpmn');
+      final parser = BpmnParser();
+      final diagram = parser.parse(content);
+      _controller.loadDiagram(diagram);
+    } catch (_) {
+      // Silently ignore — start with empty diagram.
+    }
   }
 
   @override
@@ -71,6 +83,12 @@ class _EditorScreenState extends State<EditorScreen> {
                           showPropertiesSheet(context, _controller),
                       tooltip: 'Properties',
                     ),
+                  IconButton(
+                    icon: const Icon(Icons.clear_all),
+                    onPressed: () =>
+                        _controller.loadDiagram(DiagramModel()),
+                    tooltip: 'Clear',
+                  ),
                   PopupMenuButton<String>(
                     onSelected: _handleMenuAction,
                     itemBuilder: (context) => [

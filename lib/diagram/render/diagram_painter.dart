@@ -303,22 +303,23 @@ class DiagramPainter extends CustomPainter {
   }
 
   void _drawSnapGuides(Canvas canvas, Size size) {
-    if (!controller.isDragging) return;
-
-    if (controller.snapGuideX != null) {
-      canvas.drawLine(
-        Offset(controller.snapGuideX!, 0),
-        Offset(controller.snapGuideX!, size.height),
-        _snapGuidePaint,
-      );
-    }
-    if (controller.snapGuideY != null) {
-      canvas.drawLine(
-        Offset(0, controller.snapGuideY!),
-        Offset(size.width, controller.snapGuideY!),
-        _snapGuidePaint,
-      );
-    }
+    // Snap guide lines disabled.
+    // if (!controller.isDragging) return;
+    //
+    // if (controller.snapGuideX != null) {
+    //   canvas.drawLine(
+    //     Offset(controller.snapGuideX!, 0),
+    //     Offset(controller.snapGuideX!, size.height),
+    //     _snapGuidePaint,
+    //   );
+    // }
+    // if (controller.snapGuideY != null) {
+    //   canvas.drawLine(
+    //     Offset(0, controller.snapGuideY!),
+    //     Offset(size.width, controller.snapGuideY!),
+    //     _snapGuidePaint,
+    //   );
+    // }
   }
 
   void _drawConnectionPreview(Canvas canvas) {

@@ -159,43 +159,55 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
-  /// Agile sprint cycle with loop-back on failed user tests.
+  /// Agile sprint cycle: concept, decision, 7 sprints, user tests,
+  /// optional improvement sprints.
   ///
   /// ```
-  /// Start -> Workshop -> [Feasible?] --Yes-> S1 -> S2 -> S3 -> S4 -> S5
-  ///                          |No         ^                           |
-  ///                          v           |                    [User Tests]
-  ///                         End          +--Not Good-----------/  |
-  ///                                                          Good |
-  ///                                                               v
-  ///                                                              End
+  /// Start -> Sprint 1 -> [Proceed?] --No-> End
+  ///                           |Yes
+  ///          S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8
+  ///                                               |
+  ///                                        [User Tests]
+  ///                                         /        \
+  ///                                    Good        Needs Improvement
+  ///                                     |            |
+  ///                              Product Launch   S9 -> S10 -> Product Launch
   /// ```
   static DiagramModel sprintCycle() {
     final nodes = <String, NodeModel>{
       'n1':  NodeModel(id: 'n1',  type: NodeType.startEvent,       name: 'Start',           rect: _event(80, 300)),
-      'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Rapid Prototyping Workshop', rect: _task(300, 300)),
-      'n3':  NodeModel(id: 'n3',  type: NodeType.exclusiveGateway, name: 'Feasible?',       rect: _gw(500, 300)),
-      'n4':  NodeModel(id: 'n4',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(680, 300)),
-      'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(880, 300)),
-      'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(1080, 300)),
-      'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(1280, 300)),
-      'n8':  NodeModel(id: 'n8',  type: NodeType.task,             name: 'Sprint 5',        rect: _task(1480, 300)),
-      'n9':  NodeModel(id: 'n9',  type: NodeType.exclusiveGateway, name: 'User Tests',      rect: _gw(1680, 300)),
-      'n10': NodeModel(id: 'n10', type: NodeType.endEvent,         name: 'Launch',          rect: _event(1880, 300)),
-      'n11': NodeModel(id: 'n11', type: NodeType.endEvent,         name: 'Cancelled',       rect: _event(500, 500)),
+      'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(280, 300)),
+      'n3':  NodeModel(id: 'n3',  type: NodeType.exclusiveGateway, name: 'Proceed?',        rect: _gw(470, 300)),
+      'n4':  NodeModel(id: 'n4',  type: NodeType.endEvent,         name: 'End',             rect: _event(470, 480)),
+      'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(650, 300)),
+      'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(850, 300)),
+      'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(1050, 300)),
+      'n8':  NodeModel(id: 'n8',  type: NodeType.task,             name: 'Sprint 5',        rect: _task(1250, 300)),
+      'n9':  NodeModel(id: 'n9',  type: NodeType.task,             name: 'Sprint 6',        rect: _task(1450, 300)),
+      'n10': NodeModel(id: 'n10', type: NodeType.task,             name: 'Sprint 7',        rect: _task(1650, 300)),
+      'n11': NodeModel(id: 'n11', type: NodeType.task,             name: 'Sprint 8',        rect: _task(1850, 300)),
+      'n12': NodeModel(id: 'n12', type: NodeType.exclusiveGateway, name: 'User Tests',      rect: _gw(2040, 300)),
+      'n13': NodeModel(id: 'n13', type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(2240, 300)),
+      'n14': NodeModel(id: 'n14', type: NodeType.task,             name: 'Sprint 9',        rect: _task(2040, 500)),
+      'n15': NodeModel(id: 'n15', type: NodeType.task,             name: 'Sprint 10',       rect: _task(2240, 500)),
+      'n16': NodeModel(id: 'n16', type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(2440, 500)),
     };
     final edges = <String, EdgeModel>{
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
       'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
-      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'Yes'),
-      'e4':  EdgeModel(id: 'e4',  sourceId: 'n3',  targetId: 'n11', name: 'No'),
-      'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n5'),
-      'e6':  EdgeModel(id: 'e6',  sourceId: 'n5',  targetId: 'n6'),
-      'e7':  EdgeModel(id: 'e7',  sourceId: 'n6',  targetId: 'n7'),
-      'e8':  EdgeModel(id: 'e8',  sourceId: 'n7',  targetId: 'n8'),
-      'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n9'),
-      'e10': EdgeModel(id: 'e10', sourceId: 'n9',  targetId: 'n10', name: 'Good'),
-      'e11': EdgeModel(id: 'e11', sourceId: 'n9',  targetId: 'n4',  name: 'Not Good'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'No'),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n3',  targetId: 'n5',  name: 'Yes'),
+      'e5':  EdgeModel(id: 'e5',  sourceId: 'n5',  targetId: 'n6'),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n6',  targetId: 'n7'),
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n7',  targetId: 'n8'),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n8',  targetId: 'n9'),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n9',  targetId: 'n10'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n10', targetId: 'n11'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n11', targetId: 'n12'),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n12', targetId: 'n13', name: 'Good'),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n12', targetId: 'n14', name: 'Needs Improvement'),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n14', targetId: 'n15'),
+      'e15': EdgeModel(id: 'e15', sourceId: 'n15', targetId: 'n16'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
   }
