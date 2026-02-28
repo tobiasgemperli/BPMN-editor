@@ -1674,6 +1674,68 @@ void main() {
       expect(e3.sourceSide, isNot(equals(e1.targetSide)),
           reason: 'GW output port for e3 should differ from input port');
     });
+
+    test('moved four-way merge: no node uses same port for input and output', () {
+      // Consolidate moved to upper-right, Done moved to lower-right.
+      // Tests that Consolidate's output port differs from all input ports.
+      final diagram = DiagramModel(
+        nodes: {
+          'n1': _event('n1', 80, 360),
+          'n2': _gateway('n2', 220, 360),
+          'n3': _task('n3', 440, 120),    // Analyze Data
+          'n4': _task('n4', 440, 280),    // Build Model
+          'n5': _task('n5', 673.9, 360),  // Run Tests (moved right)
+          'n6': _task('n6', 440, 600),    // Write Docs
+          'n7': _task('n7', 825.4, 17.5), // Consolidate (moved up-right)
+          'n8': _event('n8', 973.5, 170.5, end: true), // Done (moved)
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+          'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4'),
+          'e4': EdgeModel(id: 'e4', sourceId: 'n2', targetId: 'n5'),
+          'e5': EdgeModel(id: 'e5', sourceId: 'n2', targetId: 'n6'),
+          'e6': EdgeModel(id: 'e6', sourceId: 'n3', targetId: 'n7'),
+          'e7': EdgeModel(id: 'e7', sourceId: 'n4', targetId: 'n7'),
+          'e8': EdgeModel(id: 'e8', sourceId: 'n5', targetId: 'n7'),
+          'e9': EdgeModel(id: 'e9', sourceId: 'n6', targetId: 'n7'),
+          'e10': EdgeModel(id: 'e10', sourceId: 'n7', targetId: 'n8'),
+        },
+      );
+      routeAllEdges(diagram);
+
+      for (final node in diagram.nodes.values) {
+        // Skip nodes with more connections than ports (4) — sharing is inevitable.
+        final totalConnections = diagram.edges.values
+            .where((e) => e.sourceId == node.id || e.targetId == node.id)
+            .length;
+        if (totalConnections > 4) continue;
+
+        final outPorts = diagram.edges.values
+            .where((e) => e.sourceId == node.id)
+            .map((e) => e.sourceSide).toSet();
+        final inPorts = diagram.edges.values
+            .where((e) => e.targetId == node.id)
+            .map((e) => e.targetSide).toSet();
+        final shared = outPorts.intersection(inPorts);
+        expect(shared, isEmpty,
+            reason: 'Node ${node.id} (${node.name}) uses port(s) $shared '
+                'for both input and output');
+      }
+    });
+
+    test('four-way merge: Build Model exits RIGHT toward Consolidate', () {
+      // Build Model is to the left of Consolidate at similar Y —
+      // output should exit RIGHT, not straight down.
+      final diagram = SampleDiagrams.fourWayMerge();
+      routeAllEdges(diagram);
+
+      // e7 is Build Model (n4) → Consolidate (n7).
+      final e7 = diagram.edges['e7']!;
+      expect(e7.sourceSide, equals(ConnectorSide.right),
+          reason: 'Build Model should exit RIGHT toward Consolidate, '
+              'not ${e7.sourceSide}');
+    });
   });
 
   // ── Only one output per port ────────────────────────────────────────────
