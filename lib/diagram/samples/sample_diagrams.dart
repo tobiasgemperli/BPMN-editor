@@ -159,8 +159,50 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// Agile sprint cycle with loop-back on failed user tests.
+  ///
+  /// ```
+  /// Start -> Workshop -> [Feasible?] --Yes-> S1 -> S2 -> S3 -> S4 -> S5
+  ///                          |No         ^                           |
+  ///                          v           |                    [User Tests]
+  ///                         End          +--Not Good-----------/  |
+  ///                                                          Good |
+  ///                                                               v
+  ///                                                              End
+  /// ```
+  static DiagramModel sprintCycle() {
+    final nodes = <String, NodeModel>{
+      'n1':  NodeModel(id: 'n1',  type: NodeType.startEvent,       name: 'Start',           rect: _event(80, 300)),
+      'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Rapid Prototyping Workshop', rect: _task(300, 300)),
+      'n3':  NodeModel(id: 'n3',  type: NodeType.exclusiveGateway, name: 'Feasible?',       rect: _gw(500, 300)),
+      'n4':  NodeModel(id: 'n4',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(680, 300)),
+      'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(880, 300)),
+      'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(1080, 300)),
+      'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(1280, 300)),
+      'n8':  NodeModel(id: 'n8',  type: NodeType.task,             name: 'Sprint 5',        rect: _task(1480, 300)),
+      'n9':  NodeModel(id: 'n9',  type: NodeType.exclusiveGateway, name: 'User Tests',      rect: _gw(1680, 300)),
+      'n10': NodeModel(id: 'n10', type: NodeType.endEvent,         name: 'Launch',          rect: _event(1880, 300)),
+      'n11': NodeModel(id: 'n11', type: NodeType.endEvent,         name: 'Cancelled',       rect: _event(500, 500)),
+    };
+    final edges = <String, EdgeModel>{
+      'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
+      'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'Yes'),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n3',  targetId: 'n11', name: 'No'),
+      'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n5'),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n5',  targetId: 'n6'),
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n6',  targetId: 'n7'),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n7',  targetId: 'n8'),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n9'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n9',  targetId: 'n10', name: 'Good'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n9',  targetId: 'n4',  name: 'Not Good'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names.
   static final List<({String name, DiagramModel Function() builder})> all = [
+    (name: 'Sprint Cycle', builder: sprintCycle),
     (name: 'Linear Flow', builder: linear),
     (name: 'Diamond (2 merge)', builder: diamond),
     (name: 'Three-Way Merge', builder: threeWayMerge),
