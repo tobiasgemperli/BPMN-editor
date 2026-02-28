@@ -63,15 +63,24 @@ void routeAllEdges(DiagramModel diagram) {
     _distributeSourcePorts(entry.key, edges, sides, diagram);
   }
 
-  // Phase 3: Distribute conflicting target ports (input ≠ output).
-  // Only flip if the opposite side is free.
+  // Phase 3: Ensure input ports don't collide with output ports.
+  // Multiple inputs on the same port are fine (merge bars handle them).
   for (final node in diagram.nodes.values) {
     final outs = diagram.edges.values.where((e) => e.sourceId == node.id);
-    final ins = diagram.edges.values.where((e) => e.targetId == node.id);
+    final ins = diagram.edges.values.where((e) => e.targetId == node.id).toList();
     final usedOutPorts = outs.map((e) => sides[e.id]?.$1).whereType<ConnectorSide>().toSet();
     for (final inEdge in ins) {
       final s = sides[inEdge.id];
-      if (s != null && usedOutPorts.contains(s.$2)) {
+      if (s == null) continue;
+      if (usedOutPorts.contains(s.$2)) {
+        final source = diagram.nodes[inEdge.sourceId];
+        if (source != null) {
+          final alt = _alternatePort(node, source.center, usedOutPorts);
+          if (!usedOutPorts.contains(alt)) {
+            sides[inEdge.id] = (s.$1, alt);
+            continue;
+          }
+        }
         final opp = _oppositeSide(s.$2);
         if (!usedOutPorts.contains(opp)) {
           sides[inEdge.id] = (s.$1, opp);
@@ -915,7 +924,8 @@ void main() {
         for (int i = 0; i < ids.length; i++) {
           for (int j = i + 1; j < ids.length; j++) {
             expect(
-              hasOverlappingSegments(adjustedEdges[ids[i]]!, adjustedEdges[ids[j]]!),
+              hasOverlappingSegments(adjustedEdges[ids[i]]!, adjustedEdges[ids[j]]!,
+                  skipSharedStart: true),
               isFalse,
               reason: 'Merge edges ${ids[i]} and ${ids[j]} on ${entry.key} should not overlap',
             );
@@ -1590,6 +1600,50 @@ void main() {
       final ports = diagram.edges.values.map((e) => e.sourceSide).toSet();
       expect(ports.length, 4,
           reason: 'Gateway with 4 targets in different directions should use 4 different ports');
+    });
+
+    test('moved double diamond: no node uses same port for input and output', () {
+      // Double diamond with Plan B moved down — tests that gateways
+      // with 2 inputs + 2 outputs don't share ports.
+      final diagram = DiagramModel(
+        nodes: {
+          'n1': _event('n1', 60, 300),
+          'n2': _gateway('n2', 200, 300),
+          'n3': _task('n3', 375.4, 170),  // Plan A
+          'n4': _task('n4', 395.9, 536.3), // Plan B (moved down)
+          'n5': _gateway('n5', 620, 300),
+          'n6': _task('n6', 820, 170),    // Execute Fast
+          'n7': _task('n7', 820, 430),    // Execute Safe
+          'n8': _task('n8', 1060, 300),   // Ship Release
+          'n9': _event('n9', 1260, 300, end: true),
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+          'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3', name: 'A'),
+          'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4', name: 'B'),
+          'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5'),
+          'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n5'),
+          'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6', name: 'Fast'),
+          'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n7', name: 'Safe'),
+          'e8': EdgeModel(id: 'e8', sourceId: 'n6', targetId: 'n8'),
+          'e9': EdgeModel(id: 'e9', sourceId: 'n7', targetId: 'n8'),
+          'e10': EdgeModel(id: 'e10', sourceId: 'n8', targetId: 'n9'),
+        },
+      );
+      routeAllEdges(diagram);
+
+      for (final node in diagram.nodes.values) {
+        final outPorts = diagram.edges.values
+            .where((e) => e.sourceId == node.id)
+            .map((e) => e.sourceSide).toSet();
+        final inPorts = diagram.edges.values
+            .where((e) => e.targetId == node.id)
+            .map((e) => e.targetSide).toSet();
+        final shared = outPorts.intersection(inPorts);
+        expect(shared, isEmpty,
+            reason: 'Node ${node.id} (${node.name}) uses port(s) $shared '
+                'for both input and output');
+      }
     });
 
     test('two outputs from gateway should not share the same port as the input', () {

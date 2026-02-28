@@ -108,8 +108,10 @@ class DiagramPainter extends CustomPainter {
 
       if (wps.length < 2) continue;
 
-      // Clip start to source node boundary.
-      final clippedStart = clipToNodeBorder(source, wps[1]);
+      // Clip start/end to node boundary, accounting for lift scale.
+      final scaledSource = _applyLiftScale(source);
+      final scaledTarget = _applyLiftScale(target);
+      final clippedStart = clipToNodeBorder(scaledSource, wps[1]);
 
       // Check if target has a merge bar.
       final mergeBar = mergeBars[edge.targetId];
@@ -123,7 +125,7 @@ class DiagramPainter extends CustomPainter {
             sourceId: edge.sourceId, targetId: edge.targetId);
         skipArrow = true;
       } else {
-        final clippedEnd = clipToNodeBorder(target, wps[wps.length - 2]);
+        final clippedEnd = clipToNodeBorder(scaledTarget, wps[wps.length - 2]);
         adjustedWps = [clippedStart, ...wps.sublist(1, wps.length - 1), clippedEnd];
         skipArrow = false;
       }
@@ -387,8 +389,28 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
+  /// Returns a node with its rect scaled by the lift factor if it's being lifted.
+  NodeModel _applyLiftScale(NodeModel node) {
+    if (node.id != controller.liftNodeId || controller.liftScale == 1.0) {
+      return node;
+    }
+    final s = controller.liftScale;
+    final c = node.center;
+    final scaledRect = Rect.fromCenter(
+      center: c,
+      width: node.rect.width * s,
+      height: node.rect.height * s,
+    );
+    return NodeModel(
+      id: node.id,
+      type: node.type,
+      name: node.name,
+      rect: scaledRect,
+    );
+  }
+
   static final _labelBgPaint = Paint()
-    ..color = Colors.white
+    ..color = Colors.white.withValues(alpha: 0.75)
     ..style = PaintingStyle.fill;
   static const _labelPadH = 6.0;
   static const _labelPadV = 2.0;

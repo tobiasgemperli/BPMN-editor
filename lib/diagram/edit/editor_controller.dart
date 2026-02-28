@@ -631,17 +631,27 @@ class EditorController extends ChangeNotifier {
       _distributeSourcePorts(entry.key, edges, sides);
     }
 
-    // Phase 3: Distribute conflicting target ports (input ≠ output).
-    // Only flip if the opposite side is free (not used by another output).
+    // Phase 3: Ensure input ports don't collide with output ports.
+    // Multiple inputs on the same port are fine (merge bars handle them).
     for (final node in diagram.nodes.values) {
       final outs = diagram.edges.values.where((e) => e.sourceId == node.id);
-      final ins = diagram.edges.values.where((e) => e.targetId == node.id);
+      final ins = diagram.edges.values.where((e) => e.targetId == node.id).toList();
       final usedOutPorts = outs.map((e) => sides[e.id]?.$1).whereType<ConnectorSide>().toSet();
       for (final inEdge in ins) {
         final s = sides[inEdge.id];
-        if (s != null && usedOutPorts.contains(s.$2)) {
+        if (s == null) continue;
+        if (usedOutPorts.contains(s.$2)) {
+          // Try best alternate side facing the source, avoiding output ports.
+          final source = diagram.nodes[inEdge.sourceId];
+          if (source != null) {
+            final alt = _alternatePort(node, source.center, usedOutPorts);
+            if (!usedOutPorts.contains(alt)) {
+              sides[inEdge.id] = (s.$1, alt);
+              continue;
+            }
+          }
+          // Fallback: try opposite side.
           final opp = _opposite(s.$2);
-          // Only flip if the opposite side isn't also occupied by an output.
           if (!usedOutPorts.contains(opp)) {
             sides[inEdge.id] = (s.$1, opp);
           }
