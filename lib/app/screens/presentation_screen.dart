@@ -4,7 +4,6 @@ import '../../diagram/model/diagram_model.dart';
 import '../widgets/process_card.dart';
 
 /// Full-screen presentation mode — swipe vertically through process steps.
-/// No app bar — just a minimal close button and step counter overlay.
 class PresentationScreen extends StatefulWidget {
   final DiagramModel diagram;
 
@@ -19,6 +18,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
   bool _showSwipeHint = true;
+  bool _showChooseHint = false;
 
   @override
   void initState() {
@@ -31,6 +31,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  bool _isGatewayPage(int index) {
+    if (index < 0 || index >= _steps.length) return false;
+    return _steps[index].type == NodeType.exclusiveGateway &&
+        widget.diagram.outgoingEdges(_steps[index].id).isNotEmpty;
   }
 
   List<NodeModel> _buildStepOrder(DiagramModel diagram) {
@@ -79,7 +85,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
     final outgoing = widget.diagram.outgoingEdges(gatewayNode.id);
     if (optionIndex >= outgoing.length) return;
     final targetId = outgoing[optionIndex].targetId;
-    // Find the target in the steps list.
     final targetIndex = _steps.indexWhere((n) => n.id == targetId);
     if (targetIndex >= 0) {
       _pageController.animateToPage(
@@ -88,6 +93,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
         curve: Curves.easeInOut,
       );
     }
+  }
+
+  void _onSwipeAttemptOnGateway() {
+    if (_showChooseHint) return;
+    setState(() => _showChooseHint = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _showChooseHint = false);
+    });
   }
 
   bool _isDarkBg(NodeModel node) {
@@ -117,6 +130,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
     final topPad = MediaQuery.of(context).padding.top;
     final bottomPad = MediaQuery.of(context).padding.bottom;
     final dark = _isDarkBg(_steps[_currentPage]);
+    final onGateway = _isGatewayPage(_currentPage);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
@@ -124,13 +138,25 @@ class _PresentationScreenState extends State<PresentationScreen> {
         backgroundColor: dark ? Colors.black : Colors.white,
         body: Stack(
           children: [
+            // Swipe detector layer — catches swipe attempts on gateway pages.
+            if (onGateway)
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragUpdate: (_) => _onSwipeAttemptOnGateway(),
+                child: const SizedBox.expand(),
+              ),
+            // The PageView — disabled physics on gateway pages.
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
+              physics: onGateway
+                  ? const NeverScrollableScrollPhysics()
+                  : const PageScrollPhysics(),
               itemCount: _steps.length,
               onPageChanged: (i) {
                 setState(() {
                   _currentPage = i;
+                  _showChooseHint = false;
                   if (i > 0) _showSwipeHint = false;
                 });
               },
@@ -175,12 +201,20 @@ class _PresentationScreenState extends State<PresentationScreen> {
               ),
             ),
             // Swipe hint on first card.
-            if (_showSwipeHint && _steps.length > 1)
+            if (_showSwipeHint && _steps.length > 1 && !onGateway)
               Positioned(
                 bottom: bottomPad + 32,
                 left: 0,
                 right: 0,
                 child: _SwipeHintArrow(dark: dark),
+              ),
+            // "Choose an option" hint on gateway pages.
+            if (_showChooseHint)
+              Positioned(
+                bottom: bottomPad + 32,
+                left: 0,
+                right: 0,
+                child: const _ChooseOptionHint(),
               ),
           ],
         ),
@@ -267,6 +301,74 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
                 ),
                 const SizedBox(height: 4),
                 Icon(Icons.keyboard_arrow_down, size: 28, color: color),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Hint shown when user tries to swipe on a gateway card.
+/// Arrow points up toward the option buttons.
+class _ChooseOptionHint extends StatefulWidget {
+  const _ChooseOptionHint();
+
+  @override
+  State<_ChooseOptionHint> createState() => _ChooseOptionHintState();
+}
+
+class _ChooseOptionHintState extends State<_ChooseOptionHint>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<double> _offset;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+    _opacity = Tween(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _offset = Tween(begin: 0.0, end: -6.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _offset.value),
+          child: Opacity(
+            opacity: _opacity.value,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.keyboard_arrow_up,
+                    size: 28, color: Colors.amber[800]),
+                const SizedBox(height: 2),
+                Text(
+                  'Please choose an option',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.amber[800],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
