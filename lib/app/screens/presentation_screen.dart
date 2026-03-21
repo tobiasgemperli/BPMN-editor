@@ -18,6 +18,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
   late final List<NodeModel> _steps;
   late final PageController _pageController;
   int _currentPage = 0;
+  bool _showSwipeHint = true;
 
   @override
   void initState() {
@@ -99,6 +100,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
     }
 
     final topPad = MediaQuery.of(context).padding.top;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     final dark = _isDarkBg(_steps[_currentPage]);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -111,7 +113,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
               controller: _pageController,
               scrollDirection: Axis.vertical,
               itemCount: _steps.length,
-              onPageChanged: (i) => setState(() => _currentPage = i),
+              onPageChanged: (i) {
+                setState(() {
+                  _currentPage = i;
+                  if (i > 0) _showSwipeHint = false;
+                });
+              },
               itemBuilder: (context, index) {
                 return ProcessCard.fromNode(_steps[index],
                     diagram: widget.diagram);
@@ -146,6 +153,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 ],
               ),
             ),
+            // Swipe hint on first card.
+            if (_showSwipeHint && _steps.length > 1)
+              Positioned(
+                bottom: bottomPad + 32,
+                left: 0,
+                right: 0,
+                child: _SwipeHintArrow(dark: dark),
+              ),
           ],
         ),
       ),
@@ -171,6 +186,71 @@ class _CloseCircleButton extends StatelessWidget {
         ),
         child: const Icon(Icons.close, size: 20, color: Colors.black54),
       ),
+    );
+  }
+}
+
+/// Blinking down-arrow hint shown on the first card only.
+class _SwipeHintArrow extends StatefulWidget {
+  final bool dark;
+
+  const _SwipeHintArrow({required this.dark});
+
+  @override
+  State<_SwipeHintArrow> createState() => _SwipeHintArrowState();
+}
+
+class _SwipeHintArrowState extends State<_SwipeHintArrow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<double> _offset;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _opacity = Tween(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _offset = Tween(begin: 0.0, end: 8.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.dark ? Colors.white : Colors.black54;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _offset.value),
+          child: Opacity(
+            opacity: _opacity.value,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Swipe up',
+                  style: TextStyle(fontSize: 12, color: color),
+                ),
+                const SizedBox(height: 4),
+                Icon(Icons.keyboard_arrow_down, size: 28, color: color),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
