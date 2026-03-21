@@ -75,6 +75,21 @@ class _PresentationScreenState extends State<PresentationScreen> {
     return ordered;
   }
 
+  void _jumpToGatewayTarget(NodeModel gatewayNode, int optionIndex) {
+    final outgoing = widget.diagram.outgoingEdges(gatewayNode.id);
+    if (optionIndex >= outgoing.length) return;
+    final targetId = outgoing[optionIndex].targetId;
+    // Find the target in the steps list.
+    final targetIndex = _steps.indexWhere((n) => n.id == targetId);
+    if (targetIndex >= 0) {
+      _pageController.animateToPage(
+        targetIndex,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   bool _isDarkBg(NodeModel node) {
     return node.content?.videoPath != null;
   }
@@ -120,8 +135,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 });
               },
               itemBuilder: (context, index) {
-                return ProcessCard.fromNode(_steps[index],
-                    diagram: widget.diagram);
+                final node = _steps[index];
+                return ProcessCard.fromNode(
+                  node,
+                  diagram: widget.diagram,
+                  onOptionSelected: (optionIndex) {
+                    _jumpToGatewayTarget(node, optionIndex);
+                  },
+                );
               },
             ),
             // Minimal overlay: close + counter.

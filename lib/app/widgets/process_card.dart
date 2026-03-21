@@ -34,18 +34,28 @@ class ProcessCard extends StatelessWidget {
     this.isEvent = false,
     this.isGateway = false,
     this.gatewayOptions = const [],
+    this.gatewayTargetIds = const [],
     this.onOptionSelected,
     this.nodeName = '',
     this.imageIsAsset = false,
   });
 
-  factory ProcessCard.fromNode(NodeModel node, {DiagramModel? diagram}) {
+  /// The outgoing edge target IDs, parallel to [gatewayOptions].
+  final List<String> gatewayTargetIds;
+
+  factory ProcessCard.fromNode(
+    NodeModel node, {
+    DiagramModel? diagram,
+    ValueChanged<int>? onOptionSelected,
+  }) {
     final content = node.content;
     List<String> options = [];
+    List<String> targetIds = [];
     if (node.type == NodeType.exclusiveGateway && diagram != null) {
       final outgoing = diagram.outgoingEdges(node.id);
       options =
           outgoing.map((e) => e.name.isNotEmpty ? e.name : 'Option').toList();
+      targetIds = outgoing.map((e) => e.targetId).toList();
     }
     return ProcessCard(
       title: content?.title,
@@ -58,6 +68,8 @@ class ProcessCard extends StatelessWidget {
           node.type == NodeType.endEvent,
       isGateway: node.type == NodeType.exclusiveGateway,
       gatewayOptions: options,
+      gatewayTargetIds: targetIds,
+      onOptionSelected: onOptionSelected,
       nodeName: node.name,
     );
   }
