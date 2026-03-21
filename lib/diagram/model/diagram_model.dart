@@ -4,18 +4,52 @@ import '../edit/hit_test.dart';
 /// The types of BPMN nodes we support.
 enum NodeType { startEvent, endEvent, task, exclusiveGateway }
 
+/// Content attached to a Task node.
+class TaskContent {
+  String? title;
+  String? text;        // plain text → <bpmn:documentation>
+  String? imagePath;   // local file path (later: URL)
+  String? videoPath;   // local file path (later: URL)
+  String? linkUrl;
+  String? linkLabel;
+
+  TaskContent({
+    this.title,
+    this.text,
+    this.imagePath,
+    this.videoPath,
+    this.linkUrl,
+    this.linkLabel,
+  });
+
+  bool get hasMedia => imagePath != null || videoPath != null;
+  bool get isEmpty =>
+      title == null && text == null && !hasMedia && linkUrl == null;
+
+  TaskContent copy() => TaskContent(
+        title: title,
+        text: text,
+        imagePath: imagePath,
+        videoPath: videoPath,
+        linkUrl: linkUrl,
+        linkLabel: linkLabel,
+      );
+}
+
 /// A single BPMN node with position and size.
 class NodeModel {
   String id;
   NodeType type;
   String name;
   Rect rect;
+  TaskContent? content; // only meaningful for NodeType.task
 
   NodeModel({
     required this.id,
     required this.type,
     this.name = '',
     required this.rect,
+    this.content,
   });
 
   NodeModel copy() => NodeModel(
@@ -23,6 +57,7 @@ class NodeModel {
         type: type,
         name: name,
         rect: rect,
+        content: content?.copy(),
       );
 
   Offset get center => rect.center;

@@ -174,15 +174,41 @@ class SampleDiagrams {
   static DiagramModel sprintCycle() {
     final nodes = <String, NodeModel>{
       'n1':  NodeModel(id: 'n1',  type: NodeType.startEvent,       name: 'Start',           rect: _event(80, 300)),
-      'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(280, 300)),
+      'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(280, 300),
+        content: TaskContent(
+          title: 'Discovery & Planning',
+          text: 'Define the product vision and identify key user stories. '
+              'Set up the development environment and establish coding standards. '
+              'Create the initial backlog with prioritized features.',
+        )),
       'n3':  NodeModel(id: 'n3',  type: NodeType.exclusiveGateway, name: 'Proceed?',        rect: _gw(470, 300)),
       'n4':  NodeModel(id: 'n4',  type: NodeType.endEvent,         name: 'End',             rect: _event(470, 480)),
-      'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(650, 300)),
-      'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(850, 300)),
-      'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(1050, 300)),
+      'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(650, 300),
+        content: TaskContent(
+          title: 'Core Feature Development',
+          text: 'Implement the primary user-facing features identified in Sprint 1. '
+              'Focus on building a working MVP that can be demonstrated to stakeholders.',
+        )),
+      'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(850, 300),
+        content: TaskContent(
+          title: 'Integration & Polish',
+          text: 'Connect all components and ensure end-to-end flows work correctly. '
+              'Address UI/UX feedback and fix critical bugs found during development.',
+        )),
+      'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(1050, 300),
+        content: TaskContent(
+          title: 'Testing & Stabilization',
+          text: 'Run comprehensive test suites including integration and performance tests. '
+              'Prepare release documentation and deployment scripts.',
+        )),
       'n8':  NodeModel(id: 'n8',  type: NodeType.exclusiveGateway, name: 'User Tests',      rect: _gw(1240, 300)),
       'n9':  NodeModel(id: 'n9',  type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(1440, 300)),
-      'n10': NodeModel(id: 'n10', type: NodeType.task,             name: 'Sprint 5',        rect: _task(1240, 500)),
+      'n10': NodeModel(id: 'n10', type: NodeType.task,             name: 'Sprint 5',        rect: _task(1240, 500),
+        content: TaskContent(
+          title: 'Improvement Sprint',
+          text: 'Address issues found during user testing. '
+              'Implement high-priority improvements and re-validate with users.',
+        )),
       'n11': NodeModel(id: 'n11', type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(1440, 500)),
     };
     final edges = <String, EdgeModel>{

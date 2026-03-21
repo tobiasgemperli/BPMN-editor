@@ -157,6 +157,35 @@ class CompositeCommand extends Command {
   String get description => _description;
 }
 
+/// Updates the content of a task node.
+class UpdateTaskContentCommand extends Command {
+  final String nodeId;
+  final TaskContent? newContent;
+  TaskContent? _oldContent;
+
+  UpdateTaskContentCommand(this.nodeId, this.newContent);
+
+  @override
+  void execute(DiagramModel model) {
+    final node = model.nodes[nodeId];
+    if (node != null) {
+      _oldContent = node.content?.copy();
+      node.content = newContent?.copy();
+    }
+  }
+
+  @override
+  void undo(DiagramModel model) {
+    final node = model.nodes[nodeId];
+    if (node != null) {
+      node.content = _oldContent?.copy();
+    }
+  }
+
+  @override
+  String get description => 'Update task content';
+}
+
 /// Renames a node.
 class RenameNodeCommand extends Command {
   final String nodeId;

@@ -8,6 +8,7 @@ class BpmnSerializer {
   static const _nsBpmnDi = 'http://www.omg.org/spec/BPMN/20100524/DI';
   static const _nsDc = 'http://www.omg.org/spec/DD/20100524/DC';
   static const _nsDi = 'http://www.omg.org/spec/DD/20100524/DI';
+  static const _nsEd = 'http://bpmn-editor.app/extensions';
 
   String serialize(DiagramModel model) {
     final defId = model.definitionsId ?? 'definitions_1';
@@ -37,7 +38,18 @@ class BpmnSerializer {
             final tag = _bpmnTag(node.type);
             final attrs = <String, String>{'id': node.id};
             if (node.name.isNotEmpty) attrs['name'] = node.name;
-            builder.element('bpmn:$tag', attributes: attrs);
+            final content = node.content;
+            if (content != null && !content.isEmpty) {
+              builder.element('bpmn:$tag', attributes: attrs, nest: () {
+                if (content.text != null) {
+                  builder.element('bpmn:documentation',
+                      nest: content.text);
+                }
+                _serializeExtensionElements(builder, content);
+              });
+            } else {
+              builder.element('bpmn:$tag', attributes: attrs);
+            }
           }
 
           // Sequence flows.
@@ -99,6 +111,37 @@ class BpmnSerializer {
 
     final doc = builder.buildDocument();
     return doc.toXmlString(pretty: true);
+  }
+
+  void _serializeExtensionElements(XmlBuilder builder, TaskContent content) {
+    final hasExtensions = content.title != null ||
+        content.imagePath != null ||
+        content.videoPath != null ||
+        content.linkUrl != null;
+    if (!hasExtensions) return;
+
+    builder.element('bpmn:extensionElements', nest: () {
+      builder.element('ed:content', attributes: {
+        'xmlns:ed': _nsEd,
+      }, nest: () {
+        if (content.title != null) {
+          builder.element('ed:title', nest: content.title);
+        }
+        if (content.imagePath != null) {
+          builder.element('ed:image',
+              attributes: {'src': content.imagePath!});
+        }
+        if (content.videoPath != null) {
+          builder.element('ed:video',
+              attributes: {'src': content.videoPath!});
+        }
+        if (content.linkUrl != null) {
+          final attrs = <String, String>{'href': content.linkUrl!};
+          if (content.linkLabel != null) attrs['label'] = content.linkLabel!;
+          builder.element('ed:url', attributes: attrs);
+        }
+      });
+    });
   }
 
   String _bpmnTag(NodeType type) {

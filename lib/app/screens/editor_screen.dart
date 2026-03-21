@@ -8,6 +8,8 @@ import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
+import 'presentation_screen.dart';
+import 'component_library_screen.dart';
 
 /// The main editor screen.
 class EditorScreen extends StatefulWidget {
@@ -84,6 +86,17 @@ class _EditorScreenState extends State<EditorScreen> {
                       tooltip: 'Properties',
                     ),
                   IconButton(
+                    icon: const Icon(Icons.play_arrow),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PresentationScreen(
+                            diagram: _controller.diagram),
+                      ),
+                    ),
+                    tooltip: 'Presentation Mode',
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.clear_all),
                     onPressed: () =>
                         _controller.loadDiagram(DiagramModel()),
@@ -108,6 +121,15 @@ class _EditorScreenState extends State<EditorScreen> {
                             title: Text(entry.value.name),
                             contentPadding: EdgeInsets.zero,
                           ),
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'component_library',
+                        child: ListTile(
+                          leading: Icon(Icons.widgets_outlined),
+                          title: Text('Component Library'),
+                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
                       const PopupMenuDivider(),
@@ -172,6 +194,16 @@ class _EditorScreenState extends State<EditorScreen> {
         break;
       case 'export':
         _showExportedXml();
+        break;
+      case 'component_library':
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ComponentLibraryScreen(),
+            ),
+          );
+        }
         break;
       case 'clear':
         _controller.loadDiagram(DiagramModel());

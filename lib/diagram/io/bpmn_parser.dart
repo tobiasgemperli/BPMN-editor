@@ -9,6 +9,7 @@ class BpmnParser {
   static const _nsDc = 'http://www.omg.org/spec/DD/20100524/DC';
   // ignore: unused_field
   static const _nsDi = 'http://www.omg.org/spec/DD/20100524/DI';
+  static const _nsEd = 'http://bpmn-editor.app/extensions';
 
   DiagramModel parse(String xmlString) {
     final doc = XmlDocument.parse(xmlString);
@@ -56,11 +57,13 @@ class BpmnParser {
 
       final id = child.getAttribute('id') ?? '';
       final name = child.getAttribute('name') ?? '';
+      final content = type == NodeType.task ? _parseTaskContent(child) : null;
       model.nodes[id] = NodeModel(
         id: id,
         type: type,
         name: name,
         rect: Rect.zero, // Will be set from DI or auto-layout.
+        content: content,
       );
     }
 
@@ -146,6 +149,56 @@ class BpmnParser {
         x += spacing;
       }
     }
+  }
+
+  TaskContent? _parseTaskContent(XmlElement taskEl) {
+    String? text;
+    String? title;
+    String? imagePath;
+    String? videoPath;
+    String? linkUrl;
+    String? linkLabel;
+
+    for (final child in taskEl.children.whereType<XmlElement>()) {
+      if (child.name.local == 'documentation') {
+        text = child.innerText.isNotEmpty ? child.innerText : null;
+      } else if (child.name.local == 'extensionElements') {
+        for (final ext in child.children.whereType<XmlElement>()) {
+          if (ext.name.local == 'content') {
+            for (final item in ext.children.whereType<XmlElement>()) {
+              switch (item.name.local) {
+                case 'title':
+                  title = item.innerText.isNotEmpty ? item.innerText : null;
+                  break;
+                case 'image':
+                  imagePath = item.getAttribute('src');
+                  break;
+                case 'video':
+                  videoPath = item.getAttribute('src');
+                  break;
+                case 'url':
+                  linkUrl = item.getAttribute('href');
+                  linkLabel = item.getAttribute('label');
+                  break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (text == null && title == null && imagePath == null &&
+        videoPath == null && linkUrl == null) {
+      return null;
+    }
+    return TaskContent(
+      title: title,
+      text: text,
+      imagePath: imagePath,
+      videoPath: videoPath,
+      linkUrl: linkUrl,
+      linkLabel: linkLabel,
+    );
   }
 
   XmlElement? _findElement(

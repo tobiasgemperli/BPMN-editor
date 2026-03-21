@@ -541,6 +541,10 @@ class EditorController extends ChangeNotifier {
     _exec(RenameNodeCommand(nodeId, newName));
   }
 
+  void updateTaskContent(String nodeId, TaskContent? content) {
+    _exec(UpdateTaskContentCommand(nodeId, content));
+  }
+
   void _startConnection(Offset point, {ConnectorSide? side}) {
     isConnecting = true;
     connectionSourceId = selectedNodeId;

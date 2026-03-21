@@ -271,14 +271,54 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
+  static final _iconPaint = Paint()
+    ..color = Colors.black45
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5;
+
   void _drawTaskNode(Canvas canvas, NodeModel node, bool selected, Paint fill) {
     final rr = RRect.fromRectAndRadius(node.rect, const Radius.circular(8));
     canvas.drawRRect(rr, fill);
     canvas.drawRRect(rr, selected ? _selectedStroke : _nodeStroke);
 
     // Draw name centered.
-    final label = node.name.isNotEmpty ? node.name : 'Task';
+    final content = node.content;
+    final label = (content?.title ?? node.name).isNotEmpty
+        ? (content?.title ?? node.name)
+        : 'Task';
     _drawText(canvas, label, node.center, fontSize: 13, maxWidth: node.rect.width - 12);
+
+    // Draw content type indicators in bottom-right corner.
+    if (content != null && !content.isEmpty) {
+      double iconX = node.rect.right - 10;
+      final iconY = node.rect.bottom - 10;
+      const iconSize = 8.0;
+
+      if (content.imagePath != null) {
+        // Small image icon (rectangle with mountain).
+        canvas.drawRect(
+          Rect.fromCenter(center: Offset(iconX, iconY), width: iconSize, height: iconSize),
+          _iconPaint,
+        );
+        iconX -= 14;
+      }
+      if (content.videoPath != null) {
+        // Small play triangle.
+        final path = Path()
+          ..moveTo(iconX - 4, iconY - 4)
+          ..lineTo(iconX + 4, iconY)
+          ..lineTo(iconX - 4, iconY + 4)
+          ..close();
+        canvas.drawPath(path, _iconPaint);
+        iconX -= 14;
+      }
+      if (content.text != null) {
+        // Small text lines icon.
+        canvas.drawLine(Offset(iconX - 4, iconY - 3), Offset(iconX + 4, iconY - 3), _iconPaint);
+        canvas.drawLine(Offset(iconX - 4, iconY + 1), Offset(iconX + 3, iconY + 1), _iconPaint);
+        iconX -= 14;
+      }
+    }
   }
 
   void _drawGatewayNode(Canvas canvas, NodeModel node, bool selected, Paint fill) {
@@ -407,6 +447,7 @@ class DiagramPainter extends CustomPainter {
       type: node.type,
       name: node.name,
       rect: scaledRect,
+      content: node.content,
     );
   }
 
