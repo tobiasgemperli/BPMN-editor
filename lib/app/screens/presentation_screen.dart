@@ -87,11 +87,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
     final targetId = outgoing[optionIndex].targetId;
     final targetIndex = _steps.indexWhere((n) => n.id == targetId);
     if (targetIndex >= 0) {
-      _pageController.animateToPage(
-        targetIndex,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+      _pageController.jumpToPage(targetIndex);
     }
   }
 
