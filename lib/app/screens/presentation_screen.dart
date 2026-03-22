@@ -99,10 +99,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
     });
   }
 
-  bool _isDarkBg(NodeModel node) {
-    return node.content?.videoPath != null;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_steps.isEmpty) {
@@ -125,13 +121,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
 
     final topPad = MediaQuery.of(context).padding.top;
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    final dark = _isDarkBg(_steps[_currentPage]);
     final onGateway = _isGatewayPage(_currentPage);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: dark ? Colors.black : Colors.white,
+        backgroundColor: Colors.black,
         body: Stack(
           children: [
             // Swipe detector layer — catches swipe attempts on gateway pages.
@@ -202,7 +197,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 bottom: bottomPad + 32,
                 left: 0,
                 right: 0,
-                child: _SwipeHintArrow(dark: dark),
+                child: const _SwipeHintArrow(),
               ),
             // "Choose an option" hint on gateway pages.
             if (_showChooseHint)
@@ -243,9 +238,7 @@ class _CloseCircleButton extends StatelessWidget {
 
 /// Blinking down-arrow hint shown on the first card only.
 class _SwipeHintArrow extends StatefulWidget {
-  final bool dark;
-
-  const _SwipeHintArrow({required this.dark});
+  const _SwipeHintArrow();
 
   @override
   State<_SwipeHintArrow> createState() => _SwipeHintArrowState();
@@ -280,7 +273,7 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.dark ? Colors.white : Colors.black54;
+    const color = Colors.white;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -355,13 +348,13 @@ class _ChooseOptionHintState extends State<_ChooseOptionHint>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.keyboard_arrow_up,
-                    size: 28, color: Colors.amber[800]),
+                    size: 28, color: Colors.amber[300]),
                 const SizedBox(height: 2),
                 Text(
                   'Please choose an option',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.amber[800],
+                    color: Colors.amber[300],
                     fontWeight: FontWeight.w500,
                   ),
                 ),
