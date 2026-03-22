@@ -124,9 +124,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
     final onGateway = _isGatewayPage(_currentPage);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white,
         body: Stack(
           children: [
             // Swipe detector layer — catches swipe attempts on gateway pages.
@@ -162,7 +162,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Minimal overlay: close + counter.
+            // Minimal overlay: close + mini process map.
             Positioned(
               top: topPad + 8,
               left: 12,
@@ -172,20 +172,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
                   _CloseCircleButton(
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${_currentPage + 1} / ${_steps.length}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black54,
-                      ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _MiniProcessMap(
+                      steps: _steps,
+                      diagram: widget.diagram,
+                      currentIndex: _currentPage,
                     ),
                   ),
                 ],
@@ -207,11 +199,169 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 right: 0,
                 child: const _ChooseOptionHint(),
               ),
+            // Close button on last step.
+            if (_currentPage == _steps.length - 1)
+              Positioned(
+                bottom: bottomPad + 32,
+                left: 32,
+                right: 32,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Close',
+                        style: TextStyle(fontSize: 17)),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Mini flowchart using the actual diagram node positions, scaled to fit.
+class _MiniProcessMap extends StatelessWidget {
+  final List<NodeModel> steps;
+  final DiagramModel diagram;
+  final int currentIndex;
+
+  const _MiniProcessMap({
+    required this.steps,
+    required this.diagram,
+    required this.currentIndex,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (steps.isEmpty) return const SizedBox.shrink();
+
+    // Compute bounding box of all step nodes.
+    double minX = double.infinity, minY = double.infinity;
+    double maxX = -double.infinity, maxY = -double.infinity;
+    for (final node in steps) {
+      final c = node.rect.center;
+      if (c.dx < minX) minX = c.dx;
+      if (c.dy < minY) minY = c.dy;
+      if (c.dx > maxX) maxX = c.dx;
+      if (c.dy > maxY) maxY = c.dy;
+    }
+
+    final diagramW = (maxX - minX).clamp(1.0, double.infinity);
+    final diagramH = (maxY - minY).clamp(1.0, double.infinity);
+    const mapHeight = 28.0;
+    final scale = mapHeight / diagramH;
+    final mapWidth = (diagramW * scale).clamp(40.0, 200.0);
+
+    return Container(
+      height: 36,
+      alignment: Alignment.centerRight,
+      child: CustomPaint(
+        size: Size(mapWidth, mapHeight),
+        painter: _MiniFlowPainter(
+          steps: steps,
+          diagram: diagram,
+          currentIndex: currentIndex,
+          originX: minX,
+          originY: minY,
+          scaleX: (mapWidth - 8) / diagramW,
+          scaleY: (mapHeight - 8) / diagramH,
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniFlowPainter extends CustomPainter {
+  final List<NodeModel> steps;
+  final DiagramModel diagram;
+  final int currentIndex;
+  final double originX, originY, scaleX, scaleY;
+
+  _MiniFlowPainter({
+    required this.steps,
+    required this.diagram,
+    required this.currentIndex,
+    required this.originX,
+    required this.originY,
+    required this.scaleX,
+    required this.scaleY,
+  });
+
+  Offset _map(Offset center) => Offset(
+        (center.dx - originX) * scaleX + 4,
+        (center.dy - originY) * scaleY + 4,
+      );
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dotRadius = 3.0;
+    const diamondSize = 4.0;
+
+    final linePaint = Paint()
+      ..color = Colors.black26
+      ..strokeWidth = 1;
+
+    final visitedPaint = Paint()..color = Colors.black54;
+    final currentPaint = Paint()..color = Colors.black;
+    final futurePaint = Paint()..color = Colors.black26;
+
+    final stepIds = {for (final s in steps) s.id};
+
+    // Draw edges using waypoints.
+    for (final edge in diagram.edges.values) {
+      if (!stepIds.contains(edge.sourceId) ||
+          !stepIds.contains(edge.targetId)) {
+        continue;
+      }
+      if (edge.waypoints.length >= 2) {
+        for (int i = 0; i < edge.waypoints.length - 1; i++) {
+          canvas.drawLine(
+              _map(edge.waypoints[i]), _map(edge.waypoints[i + 1]), linePaint);
+        }
+      } else {
+        final srcNode = diagram.nodes[edge.sourceId];
+        final tgtNode = diagram.nodes[edge.targetId];
+        if (srcNode == null || tgtNode == null) continue;
+        canvas.drawLine(
+            _map(srcNode.rect.center), _map(tgtNode.rect.center), linePaint);
+      }
+    }
+
+    // Draw nodes on top.
+    for (int i = 0; i < steps.length; i++) {
+      final node = steps[i];
+      final center = _map(node.rect.center);
+      final paint = i == currentIndex
+          ? currentPaint
+          : (i < currentIndex ? visitedPaint : futurePaint);
+
+      if (node.type == NodeType.exclusiveGateway) {
+        final path = Path()
+          ..moveTo(center.dx, center.dy - diamondSize)
+          ..lineTo(center.dx + diamondSize, center.dy)
+          ..lineTo(center.dx, center.dy + diamondSize)
+          ..lineTo(center.dx - diamondSize, center.dy)
+          ..close();
+        canvas.drawPath(path, paint);
+      } else {
+        canvas.drawCircle(center, dotRadius, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MiniFlowPainter oldDelegate) =>
+      oldDelegate.currentIndex != currentIndex;
 }
 
 class _CloseCircleButton extends StatelessWidget {
@@ -273,7 +423,6 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
 
   @override
   Widget build(BuildContext context) {
-    const color = Colors.white;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -281,16 +430,27 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
           offset: Offset(0, _offset.value),
           child: Opacity(
             opacity: _opacity.value,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Swipe up',
-                  style: TextStyle(fontSize: 12, color: color),
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(height: 4),
-                Icon(Icons.keyboard_arrow_down, size: 28, color: color),
-              ],
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Swipe up',
+                      style: TextStyle(fontSize: 12, color: Colors.white),
+                    ),
+                    SizedBox(height: 2),
+                    Icon(Icons.keyboard_arrow_down,
+                        size: 24, color: Colors.white),
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -348,13 +508,13 @@ class _ChooseOptionHintState extends State<_ChooseOptionHint>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.keyboard_arrow_up,
-                    size: 28, color: Colors.amber[300]),
+                    size: 28, color: Colors.amber[800]),
                 const SizedBox(height: 2),
                 Text(
                   'Please choose an option',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.amber[300],
+                    color: Colors.amber[800],
                     fontWeight: FontWeight.w500,
                   ),
                 ),

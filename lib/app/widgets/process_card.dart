@@ -96,7 +96,7 @@ class ProcessCard extends StatelessWidget {
       child: Text(
         nodeName.isNotEmpty ? nodeName : 'Event',
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white54,
+              color: Colors.grey[400],
               fontWeight: FontWeight.w300,
             ),
       ),
@@ -116,13 +116,12 @@ class ProcessCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.call_split, size: 32, color: Colors.amber[300]),
+            Icon(Icons.call_split, size: 32, color: Colors.amber[700]),
             const SizedBox(height: 20),
             Text(
               question,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
                   ),
               textAlign: TextAlign.center,
             ),
@@ -138,8 +137,6 @@ class ProcessCard extends StatelessWidget {
                               ? () => onOptionSelected!(entry.key)
                               : null,
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white38),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -159,8 +156,6 @@ class ProcessCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => _showOptionsModal(context),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white38),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -323,7 +318,6 @@ class ProcessCard extends StatelessWidget {
               displayTitle,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
                   ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -342,7 +336,7 @@ class ProcessCard extends StatelessWidget {
                   text!,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         height: 1.6,
-                        color: Colors.white70,
+                        color: Colors.grey[800],
                       ),
                   overflow: TextOverflow.fade,
                 ),
@@ -353,7 +347,7 @@ class ProcessCard extends StatelessWidget {
               Text(
                 'Tap to read more',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 13,
                 ),
               ),
@@ -383,12 +377,12 @@ class ProcessCard extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.link, size: 16, color: Colors.white38),
+                Icon(Icons.link, size: 16, color: Colors.grey[500]),
                 const SizedBox(width: 6),
                 Text(
                   linkLabel ?? linkUrl!,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: Theme.of(context).colorScheme.primary,
                     fontSize: 14,
                   ),
                 ),
