@@ -91,18 +91,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
     }
   }
 
-  /// Follow the first outgoing edge from the current node.
-  void _navigateToNext() {
-    final current = _steps[_currentPage];
-    final outgoing = widget.diagram.outgoingEdges(current.id);
-    if (outgoing.isEmpty) return;
-    final targetId = outgoing.first.targetId;
-    final targetIndex = _steps.indexWhere((n) => n.id == targetId);
-    if (targetIndex >= 0) {
-      _pageController.jumpToPage(targetIndex);
-    }
-  }
-
   void _onSwipeAttemptOnGateway() {
     if (_showChooseHint) return;
     setState(() => _showChooseHint = true);
@@ -141,13 +129,36 @@ class _PresentationScreenState extends State<PresentationScreen> {
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // The PageView — physics always disabled; navigation is edge-based.
+            // The PageView — normal physics for swipe feel.
+            // Gateway pages block swiping; onPageChanged redirects to
+            // the correct edge target if the PageView lands on the wrong page.
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: onGateway
+                  ? const NeverScrollableScrollPhysics()
+                  : const PageScrollPhysics(),
               itemCount: _steps.length,
               onPageChanged: (i) {
+                // Check if this is the correct next node via edges.
+                final prevNode = _steps[_currentPage];
+                final outgoing = widget.diagram.outgoingEdges(prevNode.id);
+                if (outgoing.isNotEmpty) {
+                  final validTargets =
+                      outgoing.map((e) => e.targetId).toSet();
+                  final landedId = _steps[i].id;
+                  if (!validTargets.contains(landedId)) {
+                    // Landed on wrong page — redirect to edge target.
+                    final targetId = outgoing.first.targetId;
+                    final correctIndex =
+                        _steps.indexWhere((n) => n.id == targetId);
+                    if (correctIndex >= 0) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _pageController.jumpToPage(correctIndex);
+                      });
+                    }
+                  }
+                }
                 setState(() {
                   _currentPage = i;
                   _showChooseHint = false;
@@ -165,22 +176,13 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Swipe detector — follows outgoing edge or shows gateway hint.
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragEnd: (details) {
-                if (details.primaryVelocity == null) return;
-                // Swipe up (negative velocity) → go to next.
-                if (details.primaryVelocity! < -100) {
-                  if (onGateway) {
-                    _onSwipeAttemptOnGateway();
-                  } else {
-                    _navigateToNext();
-                  }
-                }
-              },
-              child: const SizedBox.expand(),
-            ),
+            // Swipe detector for gateway pages only.
+            if (onGateway)
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragUpdate: (_) => _onSwipeAttemptOnGateway(),
+                child: const SizedBox.expand(),
+              ),
             // Close button top-left.
             Positioned(
               top: topPad + 8,
