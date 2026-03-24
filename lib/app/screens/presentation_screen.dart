@@ -91,6 +91,18 @@ class _PresentationScreenState extends State<PresentationScreen> {
     }
   }
 
+  /// Follow the first outgoing edge from the current node.
+  void _navigateToNext() {
+    final current = _steps[_currentPage];
+    final outgoing = widget.diagram.outgoingEdges(current.id);
+    if (outgoing.isEmpty) return;
+    final targetId = outgoing.first.targetId;
+    final targetIndex = _steps.indexWhere((n) => n.id == targetId);
+    if (targetIndex >= 0) {
+      _pageController.jumpToPage(targetIndex);
+    }
+  }
+
   void _onSwipeAttemptOnGateway() {
     if (_showChooseHint) return;
     setState(() => _showChooseHint = true);
@@ -129,20 +141,11 @@ class _PresentationScreenState extends State<PresentationScreen> {
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // Swipe detector layer — catches swipe attempts on gateway pages.
-            if (onGateway)
-              GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onVerticalDragUpdate: (_) => _onSwipeAttemptOnGateway(),
-                child: const SizedBox.expand(),
-              ),
-            // The PageView — disabled physics on gateway pages.
+            // The PageView — physics always disabled; navigation is edge-based.
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
-              physics: onGateway
-                  ? const NeverScrollableScrollPhysics()
-                  : const PageScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: _steps.length,
               onPageChanged: (i) {
                 setState(() {
@@ -162,25 +165,38 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Minimal overlay: close + mini process map.
+            // Swipe detector — follows outgoing edge or shows gateway hint.
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity == null) return;
+                // Swipe up (negative velocity) → go to next.
+                if (details.primaryVelocity! < -100) {
+                  if (onGateway) {
+                    _onSwipeAttemptOnGateway();
+                  } else {
+                    _navigateToNext();
+                  }
+                }
+              },
+              child: const SizedBox.expand(),
+            ),
+            // Close button top-left.
             Positioned(
               top: topPad + 8,
               left: 12,
+              child: _CloseCircleButton(
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            // Mini process map bottom-right.
+            Positioned(
+              bottom: bottomPad + 16,
               right: 16,
-              child: Row(
-                children: [
-                  _CloseCircleButton(
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MiniProcessMap(
-                      steps: _steps,
-                      diagram: widget.diagram,
-                      currentIndex: _currentPage,
-                    ),
-                  ),
-                ],
+              child: _MiniProcessMap(
+                steps: _steps,
+                diagram: widget.diagram,
+                currentIndex: _currentPage,
               ),
             ),
             // Swipe hint on first card.
