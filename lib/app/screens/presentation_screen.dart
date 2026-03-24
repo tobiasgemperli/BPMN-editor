@@ -14,7 +14,12 @@ class PresentationScreen extends StatefulWidget {
 }
 
 class _PresentationScreenState extends State<PresentationScreen> {
-  late final List<NodeModel> _steps;
+  /// The path the user has taken — grows dynamically as they swipe.
+  final List<NodeModel> _path = [];
+
+  /// All diagram nodes, for the mini-map.
+  late final List<NodeModel> _allNodes;
+
   late final PageController _pageController;
   int _currentPage = 0;
   bool _showSwipeHint = true;
@@ -23,7 +28,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
   @override
   void initState() {
     super.initState();
-    _steps = _buildStepOrder(widget.diagram);
+    _allNodes = _collectAllNodes(widget.diagram);
+    final start = _findStart(widget.diagram);
+    if (start != null) {
+      _path.add(start);
+      _extendPath(start);
+    }
     _pageController = PageController();
   }
 
@@ -33,21 +43,17 @@ class _PresentationScreenState extends State<PresentationScreen> {
     super.dispose();
   }
 
-  bool _isGatewayPage(int index) {
-    if (index < 0 || index >= _steps.length) return false;
-    return _steps[index].type == NodeType.exclusiveGateway &&
-        widget.diagram.outgoingEdges(_steps[index].id).isNotEmpty;
+  /// Find the start event node.
+  NodeModel? _findStart(DiagramModel diagram) {
+    for (final node in diagram.nodes.values) {
+      if (node.type == NodeType.startEvent) return node;
+    }
+    return diagram.nodes.values.firstOrNull;
   }
 
-  List<NodeModel> _buildStepOrder(DiagramModel diagram) {
-    NodeModel? start;
-    for (final node in diagram.nodes.values) {
-      if (node.type == NodeType.startEvent) {
-        start = node;
-        break;
-      }
-    }
-
+  /// Collect all nodes via BFS (for the mini-map).
+  List<NodeModel> _collectAllNodes(DiagramModel diagram) {
+    final start = _findStart(diagram);
     if (start == null) return diagram.nodes.values.toList();
 
     final ordered = <NodeModel>[];
@@ -58,11 +64,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
       final id = queue.removeAt(0);
       if (visited.contains(id)) continue;
       visited.add(id);
-
       final node = diagram.nodes[id];
       if (node == null) continue;
       ordered.add(node);
-
       final outgoing = diagram.outgoingEdges(id);
       outgoing.sort((a, b) => a.name.compareTo(b.name));
       for (final edge in outgoing) {
@@ -71,24 +75,60 @@ class _PresentationScreenState extends State<PresentationScreen> {
         }
       }
     }
-
     for (final node in diagram.nodes.values) {
       if (!visited.contains(node.id)) {
         ordered.add(node);
       }
     }
-
     return ordered;
+  }
+
+  /// If the node has exactly one outgoing edge (non-gateway), append
+  /// the target so the PageView has a next page to swipe to.
+  void _extendPath(NodeModel node) {
+    if (node.type == NodeType.exclusiveGateway) return;
+    final outgoing = widget.diagram.outgoingEdges(node.id);
+    if (outgoing.length == 1) {
+      final target = widget.diagram.nodes[outgoing.first.targetId];
+      if (target != null) {
+        _path.add(target);
+      }
+    }
+  }
+
+  bool _isGatewayPage(int index) {
+    if (index < 0 || index >= _path.length) return false;
+    return _path[index].type == NodeType.exclusiveGateway &&
+        widget.diagram.outgoingEdges(_path[index].id).isNotEmpty;
+  }
+
+  /// True if the current page is the last node in the path with no
+  /// outgoing edges (end event or dead end).
+  bool _isLastStep(int index) {
+    if (index < 0 || index >= _path.length) return false;
+    return widget.diagram.outgoingEdges(_path[index].id).isEmpty;
   }
 
   void _jumpToGatewayTarget(NodeModel gatewayNode, int optionIndex) {
     final outgoing = widget.diagram.outgoingEdges(gatewayNode.id);
     if (optionIndex >= outgoing.length) return;
-    final targetId = outgoing[optionIndex].targetId;
-    final targetIndex = _steps.indexWhere((n) => n.id == targetId);
-    if (targetIndex >= 0) {
-      _pageController.jumpToPage(targetIndex);
-    }
+    final target = widget.diagram.nodes[outgoing[optionIndex].targetId];
+    if (target == null) return;
+
+    setState(() {
+      // Trim any pages after the gateway and append the chosen target.
+      final gatewayIndex = _path.indexOf(gatewayNode);
+      if (gatewayIndex >= 0) {
+        _path.removeRange(gatewayIndex + 1, _path.length);
+      }
+      _path.add(target);
+      _extendPath(target);
+    });
+
+    final targetIndex = _path.length - 2; // the target we just appended
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pageController.jumpToPage(targetIndex + 1);
+    });
   }
 
   void _onSwipeAttemptOnGateway() {
@@ -101,7 +141,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_steps.isEmpty) {
+    if (_path.isEmpty) {
       return Scaffold(
         body: Center(
           child: Column(
@@ -129,44 +169,28 @@ class _PresentationScreenState extends State<PresentationScreen> {
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // The PageView — normal physics for swipe feel.
-            // Gateway pages block swiping; onPageChanged redirects to
-            // the correct edge target if the PageView lands on the wrong page.
+            // The PageView — pages are the user's path through the graph.
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
               physics: onGateway
                   ? const NeverScrollableScrollPhysics()
                   : const PageScrollPhysics(),
-              itemCount: _steps.length,
+              itemCount: _path.length,
               onPageChanged: (i) {
-                // Check if this is the correct next node via edges.
-                final prevNode = _steps[_currentPage];
-                final outgoing = widget.diagram.outgoingEdges(prevNode.id);
-                if (outgoing.isNotEmpty) {
-                  final validTargets =
-                      outgoing.map((e) => e.targetId).toSet();
-                  final landedId = _steps[i].id;
-                  if (!validTargets.contains(landedId)) {
-                    // Landed on wrong page — redirect to edge target.
-                    final targetId = outgoing.first.targetId;
-                    final correctIndex =
-                        _steps.indexWhere((n) => n.id == targetId);
-                    if (correctIndex >= 0) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _pageController.jumpToPage(correctIndex);
-                      });
-                    }
-                  }
-                }
                 setState(() {
                   _currentPage = i;
                   _showChooseHint = false;
                   if (i > 0) _showSwipeHint = false;
+                  // When arriving at a new page, extend the path so
+                  // there's always a next page to swipe to.
+                  if (i == _path.length - 1) {
+                    _extendPath(_path[i]);
+                  }
                 });
               },
               itemBuilder: (context, index) {
-                final node = _steps[index];
+                final node = _path[index];
                 return ProcessCard.fromNode(
                   node,
                   diagram: widget.diagram,
@@ -196,13 +220,13 @@ class _PresentationScreenState extends State<PresentationScreen> {
               bottom: bottomPad + 16,
               right: 16,
               child: _MiniProcessMap(
-                steps: _steps,
+                steps: _allNodes,
                 diagram: widget.diagram,
-                currentIndex: _currentPage,
+                currentNodeId: _path[_currentPage].id,
               ),
             ),
             // Swipe hint on first card.
-            if (_showSwipeHint && _steps.length > 1 && !onGateway)
+            if (_showSwipeHint && _path.length > 1 && !onGateway)
               Positioned(
                 bottom: bottomPad + 32,
                 left: 0,
@@ -218,7 +242,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 child: const _ChooseOptionHint(),
               ),
             // Close button on last step.
-            if (_currentPage == _steps.length - 1)
+            if (_isLastStep(_currentPage))
               Positioned(
                 bottom: bottomPad + 32,
                 left: 32,
@@ -251,12 +275,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
 class _MiniProcessMap extends StatelessWidget {
   final List<NodeModel> steps;
   final DiagramModel diagram;
-  final int currentIndex;
+  final String currentNodeId;
 
   const _MiniProcessMap({
     required this.steps,
     required this.diagram,
-    required this.currentIndex,
+    required this.currentNodeId,
   });
 
   @override
@@ -288,7 +312,7 @@ class _MiniProcessMap extends StatelessWidget {
         painter: _MiniFlowPainter(
           steps: steps,
           diagram: diagram,
-          currentIndex: currentIndex,
+          currentNodeId: currentNodeId,
           originX: minX,
           originY: minY,
           scaleX: (mapWidth - 8) / diagramW,
@@ -302,13 +326,13 @@ class _MiniProcessMap extends StatelessWidget {
 class _MiniFlowPainter extends CustomPainter {
   final List<NodeModel> steps;
   final DiagramModel diagram;
-  final int currentIndex;
+  final String currentNodeId;
   final double originX, originY, scaleX, scaleY;
 
   _MiniFlowPainter({
     required this.steps,
     required this.diagram,
-    required this.currentIndex,
+    required this.currentNodeId,
     required this.originX,
     required this.originY,
     required this.scaleX,
@@ -329,7 +353,6 @@ class _MiniFlowPainter extends CustomPainter {
       ..color = Colors.black26
       ..strokeWidth = 1;
 
-    final visitedPaint = Paint()..color = Colors.black54;
     final currentPaint = Paint()..color = Colors.black;
     final futurePaint = Paint()..color = Colors.black26;
 
@@ -356,12 +379,9 @@ class _MiniFlowPainter extends CustomPainter {
     }
 
     // Draw nodes on top.
-    for (int i = 0; i < steps.length; i++) {
-      final node = steps[i];
+    for (final node in steps) {
       final center = _map(node.rect.center);
-      final paint = i == currentIndex
-          ? currentPaint
-          : (i < currentIndex ? visitedPaint : futurePaint);
+      final paint = node.id == currentNodeId ? currentPaint : futurePaint;
 
       if (node.type == NodeType.exclusiveGateway) {
         final path = Path()
@@ -379,7 +399,7 @@ class _MiniFlowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MiniFlowPainter oldDelegate) =>
-      oldDelegate.currentIndex != currentIndex;
+      oldDelegate.currentNodeId != currentNodeId;
 }
 
 class _CloseCircleButton extends StatelessWidget {
