@@ -60,6 +60,12 @@ Map<String, MergeBarInfo> computeMergeBars(DiagramModel diagram) {
       }
     }
 
+    // Skip merge bar when no side has a clear majority — edges approach
+    // from too many different directions for a single bar to look right.
+    if (maxCount < 2) {
+      continue;
+    }
+
     final isHorizontal = barSide == ConnectorSide.top || barSide == ConnectorSide.bottom;
     final nodeCenter = node.center;
 

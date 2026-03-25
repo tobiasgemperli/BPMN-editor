@@ -379,11 +379,26 @@ class _MiniProcessMap extends StatelessWidget {
     final mapWidth = diagramW * scale + padding;
     final mapHeight = diagramH * scale + padding;
 
+    final clampedW = mapWidth.clamp(12.0, maxMapW);
+    final clampedH = mapHeight.clamp(12.0, maxMapH);
+
     return Container(
-      height: mapHeight.clamp(12.0, maxMapH),
-      alignment: Alignment.centerRight,
+      width: clampedW + 12,
+      height: clampedH + 12,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
       child: CustomPaint(
-        size: Size(mapWidth.clamp(12.0, maxMapW), mapHeight.clamp(12.0, maxMapH)),
+        size: Size(clampedW, clampedH),
         painter: _MiniFlowPainter(
           steps: steps,
           diagram: diagram,
@@ -431,27 +446,31 @@ class _MiniFlowPainter extends CustomPainter {
 
     final stepIds = {for (final s in steps) s.id};
 
-    // Draw edges using waypoints.
+    // Draw edges — always start/end at node centers so lines touch dots.
     for (final edge in diagram.edges.values) {
       if (!stepIds.contains(edge.sourceId) ||
           !stepIds.contains(edge.targetId)) {
         continue;
       }
-      if (edge.waypoints.length >= 2) {
-        for (int i = 0; i < edge.waypoints.length - 1; i++) {
-          canvas.drawLine(
-              _map(edge.waypoints[i]), _map(edge.waypoints[i + 1]), linePaint);
-        }
-      } else {
-        final srcNode = diagram.nodes[edge.sourceId];
-        final tgtNode = diagram.nodes[edge.targetId];
-        if (srcNode == null || tgtNode == null) continue;
-        canvas.drawLine(
-            _map(srcNode.rect.center), _map(tgtNode.rect.center), linePaint);
+      final srcNode = diagram.nodes[edge.sourceId];
+      final tgtNode = diagram.nodes[edge.targetId];
+      if (srcNode == null || tgtNode == null) continue;
+
+      final points = <Offset>[
+        _map(srcNode.rect.center),
+        // Interior waypoints (skip first/last which are unclipped node centers).
+        if (edge.waypoints.length >= 3)
+          for (int i = 1; i < edge.waypoints.length - 1; i++)
+            _map(edge.waypoints[i]),
+        _map(tgtNode.rect.center),
+      ];
+      for (int i = 0; i < points.length - 1; i++) {
+        canvas.drawLine(points[i], points[i + 1], linePaint);
       }
     }
 
-    // Draw nodes on top.
+    // Draw nodes on top — white background to fully occlude lines.
+    final bgPaint = Paint()..color = Colors.white;
     for (final node in steps) {
       final center = _map(node.rect.center);
       final paint = node.id == currentNodeId ? currentPaint : futurePaint;
@@ -463,8 +482,10 @@ class _MiniFlowPainter extends CustomPainter {
           ..lineTo(center.dx, center.dy + diamondSize)
           ..lineTo(center.dx - diamondSize, center.dy)
           ..close();
+        canvas.drawPath(path, bgPaint);
         canvas.drawPath(path, paint);
       } else {
+        canvas.drawCircle(center, dotRadius, bgPaint);
         canvas.drawCircle(center, dotRadius, paint);
       }
     }
@@ -576,27 +597,30 @@ class _FullDiagramPainter extends CustomPainter {
 
     final stepIds = {for (final s in steps) s.id};
 
-    // Draw edges.
+    // Draw edges — always start/end at node centers so lines touch dots.
     for (final edge in diagram.edges.values) {
       if (!stepIds.contains(edge.sourceId) ||
           !stepIds.contains(edge.targetId)) {
         continue;
       }
-      if (edge.waypoints.length >= 2) {
-        for (int i = 0; i < edge.waypoints.length - 1; i++) {
-          canvas.drawLine(
-              _map(edge.waypoints[i]), _map(edge.waypoints[i + 1]), linePaint);
-        }
-      } else {
-        final srcNode = diagram.nodes[edge.sourceId];
-        final tgtNode = diagram.nodes[edge.targetId];
-        if (srcNode == null || tgtNode == null) continue;
-        canvas.drawLine(
-            _map(srcNode.rect.center), _map(tgtNode.rect.center), linePaint);
+      final srcNode = diagram.nodes[edge.sourceId];
+      final tgtNode = diagram.nodes[edge.targetId];
+      if (srcNode == null || tgtNode == null) continue;
+
+      final points = <Offset>[
+        _map(srcNode.rect.center),
+        if (edge.waypoints.length >= 3)
+          for (int i = 1; i < edge.waypoints.length - 1; i++)
+            _map(edge.waypoints[i]),
+        _map(tgtNode.rect.center),
+      ];
+      for (int i = 0; i < points.length - 1; i++) {
+        canvas.drawLine(points[i], points[i + 1], linePaint);
       }
     }
 
-    // Draw nodes with labels.
+    // Draw nodes with labels — white background to occlude lines.
+    final bgPaint = Paint()..color = Colors.white;
     for (final node in steps) {
       final center = _map(node.rect.center);
       final isCurrent = node.id == currentNodeId;
@@ -609,8 +633,10 @@ class _FullDiagramPainter extends CustomPainter {
           ..lineTo(center.dx, center.dy + diamondSize)
           ..lineTo(center.dx - diamondSize, center.dy)
           ..close();
+        canvas.drawPath(path, bgPaint);
         canvas.drawPath(path, paint);
       } else {
+        canvas.drawCircle(center, dotRadius, bgPaint);
         canvas.drawCircle(center, dotRadius, paint);
       }
 
@@ -651,7 +677,14 @@ class _CloseCircleButton extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.7),
+          color: Colors.white.withValues(alpha: 0.9),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: const Icon(Icons.close, size: 20, color: Colors.black54),
       ),
@@ -780,14 +813,14 @@ class _ChooseOptionHintState extends State<_ChooseOptionHint>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.keyboard_arrow_up,
-                    size: 28, color: Colors.amber[800]),
+                const Icon(Icons.keyboard_arrow_up,
+                    size: 28, color: Colors.black54),
                 const SizedBox(height: 2),
-                Text(
+                const Text(
                   'Please choose an option',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.amber[800],
+                    color: Colors.black54,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

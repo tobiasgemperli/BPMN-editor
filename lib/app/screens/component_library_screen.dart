@@ -40,29 +40,8 @@ class _ComponentLibraryScreenState extends State<ComponentLibraryScreen> {
             Positioned(
               top: topPad + 8,
               left: 8,
-              right: 16,
-              child: Row(
-                children: [
-                  _CloseCircleButton(
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${_currentPage + 1}/${_cards.length}  ${_cards[_currentPage].label}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ),
-                ],
+              child: _CloseCircleButton(
+                onPressed: () => Navigator.pop(context),
               ),
             ),
           ],

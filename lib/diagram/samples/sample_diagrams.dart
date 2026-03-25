@@ -568,8 +568,136 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// Content showcase: every card variation in one flow.
+  static DiagramModel contentShowcase() {
+    const img = 'assets/sample_image.jpg';
+    const video = '/tmp/bpmn_sample_video.mp4';
+
+    const longText =
+        'This is a detailed description that exceeds 200 characters to trigger '
+        'the "tap to read more" behaviour in the presentation view. '
+        'It contains multiple paragraphs worth of content so we can verify '
+        'the scrollable text modal works correctly when tapped.\n\n'
+        'The second paragraph continues with additional details about the task, '
+        'ensuring the text is long enough to overflow the card.';
+
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
+
+    final nodes = <String, NodeModel>{
+      // Row 0: Start
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Start', rect: _event(_cx, _row(0))),
+
+      // Row 1: Title only
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Title Only', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Welcome to the Training')),
+
+      // Row 2: Title + short text
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Title + Text', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            title: 'Safety Briefing',
+            text: 'Review the safety guidelines before proceeding. '
+                'Ensure all protective equipment is available.',
+          )),
+
+      // Row 3: Gateway — "What format?"
+      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway,
+          name: 'What format?', rect: _gw(_cx, _row(3))),
+
+      // Row 4: Three branches
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Read Instructions', rect: _task(left, _row(4)),
+          content: TaskContent(
+            title: 'Detailed Written Guide',
+            text: longText,
+          )),
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'View Photo', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            title: 'Visual Reference',
+            text: 'Check the image below for correct positioning.',
+            imagePath: img,
+          )),
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Watch Video', rect: _task(right, _row(4)),
+          content: TaskContent(
+            title: 'Video Demonstration',
+            text: 'Watch the full procedure before attempting it yourself.',
+            videoPath: video,
+          )),
+
+      // Row 5: Merge task
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Confirm Understanding', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'Knowledge Check',
+            imagePath: img,
+          )),
+
+      // Row 6: Gateway — "Need more info?"
+      'n9': NodeModel(id: 'n9', type: NodeType.exclusiveGateway,
+          name: 'Need more info?', rect: _gw(_cx, _row(6))),
+
+      // Row 7: Two branches
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Open Manual', rect: _task(left, _row(7)),
+          content: TaskContent(
+            title: 'Reference Manual',
+            text: 'Full documentation with diagrams and specifications.',
+            imagePath: img,
+            linkUrl: 'https://example.com/manual',
+            linkLabel: 'Open Manual PDF',
+          )),
+      'n11': NodeModel(id: 'n11', type: NodeType.task,
+          name: 'Proceed', rect: _task(right, _row(7)),
+          content: TaskContent(
+            title: 'All Clear',
+            text: 'You have completed the training module successfully.',
+          )),
+
+      // Row 8: End
+      'n12': NodeModel(id: 'n12', type: NodeType.endEvent,
+          name: 'Complete', rect: _event(_cx, _row(8))),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
+      'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4'),
+      // 3-way split from gateway
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n5',  name: 'Text',
+          waypoints: _hv(_cx, _row(3), left, _row(4))),
+      'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n6',  name: 'Image'),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n4',  targetId: 'n7',  name: 'Video',
+          waypoints: _hv(_cx, _row(3), right, _row(4))),
+      // 3-way merge
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n5',  targetId: 'n8',
+          waypoints: _hv(left, _row(4), _cx, _row(5))),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n6',  targetId: 'n8'),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n7',  targetId: 'n8',
+          waypoints: _hv(right, _row(4), _cx, _row(5))),
+      // Second gateway
+      'e10': EdgeModel(id: 'e10', sourceId: 'n8',  targetId: 'n9'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n9',  targetId: 'n10', name: 'Yes',
+          waypoints: _hv(_cx, _row(6), left, _row(7))),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n9',  targetId: 'n11', name: 'No',
+          waypoints: _hv(_cx, _row(6), right, _row(7))),
+      // Both paths to end
+      'e13': EdgeModel(id: 'e13', sourceId: 'n10', targetId: 'n12',
+          waypoints: _hv(left, _row(7), _cx, _row(8))),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n11', targetId: 'n12',
+          waypoints: _hv(right, _row(7), _cx, _row(8))),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names.
   static final List<({String name, DiagramModel Function() builder})> all = [
+    (name: 'Content Showcase', builder: contentShowcase),
     (name: 'IKEA KALLAX Assembly', builder: ikeaAssembly),
     (name: 'Emergency: Fire Evacuation', builder: emergencyProcedure),
     (name: 'Debug: API 500 Errors', builder: technicalDebugging),

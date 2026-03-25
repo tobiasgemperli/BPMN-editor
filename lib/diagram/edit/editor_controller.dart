@@ -702,24 +702,28 @@ class EditorController extends ChangeNotifier {
     }
 
     // Phase 5: Route each edge with its assigned sides and channel bias.
+    // Skip edges that already have manually defined waypoints.
     for (final edge in diagram.edges.values) {
       final source = diagram.nodes[edge.sourceId];
       final target = diagram.nodes[edge.targetId];
       if (source == null || target == null) continue;
 
       final s = sides[edge.id]!;
-      final obstacles = diagram.nodes.values
-          .where((n) => n.id != source.id && n.id != target.id)
-          .toList();
 
-      edge.waypoints = _router.route(
-        source: source,
-        target: target,
-        sourceSide: s.$1,
-        targetSide: s.$2,
-        obstacles: obstacles,
-        channelBias: channelBias[edge.id] ?? 0.0,
-      );
+      if (edge.waypoints.isEmpty) {
+        final obstacles = diagram.nodes.values
+            .where((n) => n.id != source.id && n.id != target.id)
+            .toList();
+
+        edge.waypoints = _router.route(
+          source: source,
+          target: target,
+          sourceSide: s.$1,
+          targetSide: s.$2,
+          obstacles: obstacles,
+          channelBias: channelBias[edge.id] ?? 0.0,
+        );
+      }
       edge.sourceSide = s.$1;
       edge.targetSide = s.$2;
     }

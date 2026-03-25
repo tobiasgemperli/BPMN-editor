@@ -57,10 +57,11 @@ class ProcessCard extends StatelessWidget {
           outgoing.map((e) => e.name.isNotEmpty ? e.name : 'Option').toList();
       targetIds = outgoing.map((e) => e.targetId).toList();
     }
+    final imgPath = content?.imagePath;
     return ProcessCard(
       title: content?.title,
       text: content?.text,
-      imagePath: content?.imagePath,
+      imagePath: imgPath,
       videoPath: content?.videoPath,
       linkUrl: content?.linkUrl,
       linkLabel: content?.linkLabel,
@@ -71,6 +72,7 @@ class ProcessCard extends StatelessWidget {
       gatewayTargetIds: targetIds,
       onOptionSelected: onOptionSelected,
       nodeName: node.name,
+      imageIsAsset: imgPath != null && imgPath.startsWith('assets/'),
     );
   }
 
@@ -116,7 +118,7 @@ class ProcessCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.call_split, size: 32, color: Colors.amber[700]),
+            const Icon(Icons.call_split, size: 32, color: Colors.black54),
             const SizedBox(height: 20),
             Text(
               question,
