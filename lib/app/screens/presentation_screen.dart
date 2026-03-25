@@ -294,23 +294,45 @@ class _MiniProcessMap extends StatelessWidget {
 
     final diagramW = (maxX - minX).clamp(1.0, double.infinity);
     final diagramH = (maxY - minY).clamp(1.0, double.infinity);
-    const mapHeight = 28.0;
-    final scale = mapHeight / diagramH;
-    final mapWidth = (diagramW * scale).clamp(40.0, 200.0);
+
+    // Use uniform scale so dots don't get squashed.
+    // Fit within max bounds, then derive the other dimension.
+    const maxMapH = 60.0;
+    const maxMapW = 120.0;
+    const padding = 8.0;
+    const minDotSpacing = 10.0;
+
+    // Find the minimum spacing in the diagram to ensure dots don't overlap.
+    double minNodeDist = double.infinity;
+    for (int i = 0; i < steps.length; i++) {
+      for (int j = i + 1; j < steps.length; j++) {
+        final d = (steps[i].rect.center - steps[j].rect.center).distance;
+        if (d > 0 && d < minNodeDist) minNodeDist = d;
+      }
+    }
+
+    // Scale so the closest pair of dots is at least minDotSpacing apart.
+    double scale = minDotSpacing / (minNodeDist.isFinite ? minNodeDist : 1.0);
+    // But also fit within max bounds.
+    final scaleForW = (maxMapW - padding) / diagramW;
+    final scaleForH = (maxMapH - padding) / diagramH;
+    scale = scale.clamp(0.0, scaleForW.clamp(0.0, scaleForH));
+
+    final mapWidth = diagramW * scale + padding;
+    final mapHeight = diagramH * scale + padding;
 
     return Container(
-      height: 36,
+      height: mapHeight.clamp(12.0, maxMapH),
       alignment: Alignment.centerRight,
       child: CustomPaint(
-        size: Size(mapWidth, mapHeight),
+        size: Size(mapWidth.clamp(12.0, maxMapW), mapHeight.clamp(12.0, maxMapH)),
         painter: _MiniFlowPainter(
           steps: steps,
           diagram: diagram,
           currentNodeId: currentNodeId,
           originX: minX,
           originY: minY,
-          scaleX: (mapWidth - 8) / diagramW,
-          scaleY: (mapHeight - 8) / diagramH,
+          scale: scale,
         ),
       ),
     );
@@ -321,7 +343,7 @@ class _MiniFlowPainter extends CustomPainter {
   final List<NodeModel> steps;
   final DiagramModel diagram;
   final String currentNodeId;
-  final double originX, originY, scaleX, scaleY;
+  final double originX, originY, scale;
 
   _MiniFlowPainter({
     required this.steps,
@@ -329,13 +351,12 @@ class _MiniFlowPainter extends CustomPainter {
     required this.currentNodeId,
     required this.originX,
     required this.originY,
-    required this.scaleX,
-    required this.scaleY,
+    required this.scale,
   });
 
   Offset _map(Offset center) => Offset(
-        (center.dx - originX) * scaleX + 4,
-        (center.dy - originY) * scaleY + 4,
+        (center.dx - originX) * scale + 4,
+        (center.dy - originY) * scale + 4,
       );
 
   @override
