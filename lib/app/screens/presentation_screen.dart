@@ -23,7 +23,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
   bool _showSwipeHint = true;
-  bool _showChooseHint = false;
 
   @override
   void initState() {
@@ -115,28 +114,31 @@ class _PresentationScreenState extends State<PresentationScreen> {
     final target = widget.diagram.nodes[outgoing[optionIndex].targetId];
     if (target == null) return;
 
+    final gatewayIndex = _path.indexOf(gatewayNode);
+    if (gatewayIndex < 0) return;
+
     setState(() {
       // Trim any pages after the gateway and append the chosen target.
-      final gatewayIndex = _path.indexOf(gatewayNode);
-      if (gatewayIndex >= 0) {
-        _path.removeRange(gatewayIndex + 1, _path.length);
-      }
+      _path.removeRange(gatewayIndex + 1, _path.length);
       _path.add(target);
       _extendPath(target);
     });
 
-    final targetIndex = _path.length - 2; // the target we just appended
+    // Animate to the next page (the chosen target).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _pageController.jumpToPage(targetIndex + 1);
+      _pageController.animateToPage(
+        gatewayIndex + 1,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
-  void _onSwipeAttemptOnGateway() {
-    if (_showChooseHint) return;
-    setState(() => _showChooseHint = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _showChooseHint = false);
-    });
+  /// True if the user is on a gateway that hasn't been resolved yet
+  /// (no pages after it in the path).
+  bool _isUnresolvedGateway(int index) {
+    if (!_isGatewayPage(index)) return false;
+    return index == _path.length - 1;
   }
 
   @override
@@ -161,7 +163,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
 
     final topPad = MediaQuery.of(context).padding.top;
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    final onGateway = _isGatewayPage(_currentPage);
+    final unresolvedGateway = _isUnresolvedGateway(_currentPage);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -170,17 +172,16 @@ class _PresentationScreenState extends State<PresentationScreen> {
         body: Stack(
           children: [
             // The PageView — pages are the user's path through the graph.
+            // Gateway pages without a chosen option are the last page,
+            // so PageView naturally prevents swiping forward.
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
-              physics: onGateway
-                  ? const NeverScrollableScrollPhysics()
-                  : const PageScrollPhysics(),
+              physics: const PageScrollPhysics(),
               itemCount: _path.length,
               onPageChanged: (i) {
                 setState(() {
                   _currentPage = i;
-                  _showChooseHint = false;
                   if (i > 0) _showSwipeHint = false;
                   // When arriving at a new page, extend the path so
                   // there's always a next page to swipe to.
@@ -200,13 +201,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Swipe detector for gateway pages only.
-            if (onGateway)
-              GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onVerticalDragUpdate: (_) => _onSwipeAttemptOnGateway(),
-                child: const SizedBox.expand(),
-              ),
             // Close button top-left.
             Positioned(
               top: topPad + 8,
@@ -226,15 +220,15 @@ class _PresentationScreenState extends State<PresentationScreen> {
               ),
             ),
             // Swipe hint on first card.
-            if (_showSwipeHint && _path.length > 1 && !onGateway)
+            if (_showSwipeHint && _path.length > 1 && !unresolvedGateway)
               Positioned(
                 bottom: bottomPad + 32,
                 left: 0,
                 right: 0,
                 child: const _SwipeHintArrow(),
               ),
-            // "Choose an option" hint on gateway pages.
-            if (_showChooseHint)
+            // "Choose an option" hint on unresolved gateway pages.
+            if (unresolvedGateway)
               Positioned(
                 bottom: bottomPad + 32,
                 left: 0,
