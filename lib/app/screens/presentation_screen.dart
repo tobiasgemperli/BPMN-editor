@@ -297,10 +297,10 @@ class _MiniProcessMap extends StatelessWidget {
 
     // Use uniform scale so dots don't get squashed.
     // Fit within max bounds, then derive the other dimension.
-    const maxMapH = 60.0;
-    const maxMapW = 120.0;
+    const maxMapH = 90.0;
+    const maxMapW = 180.0;
     const padding = 8.0;
-    const minDotSpacing = 10.0;
+    const minDotSpacing = 15.0;
 
     // Find the minimum spacing in the diagram to ensure dots don't overlap.
     double minNodeDist = double.infinity;
@@ -361,8 +361,8 @@ class _MiniFlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const dotRadius = 3.0;
-    const diamondSize = 4.0;
+    const dotRadius = 4.5;
+    const diamondSize = 6.0;
 
     final linePaint = Paint()
       ..color = Colors.black26
