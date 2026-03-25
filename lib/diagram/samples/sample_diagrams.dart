@@ -25,6 +25,14 @@ class SampleDiagrams {
 
   static double _row(int r) => 80.0 + r * _rowH;
 
+  /// L-shaped waypoints: go horizontal first, then vertical.
+  static List<Offset> _hv(double x1, double y1, double x2, double y2) =>
+      [Offset(x1, y1), Offset(x2, y1), Offset(x2, y2)];
+
+  /// L-shaped waypoints: go vertical first, then horizontal.
+  static List<Offset> _vh(double x1, double y1, double x2, double y2) =>
+      [Offset(x1, y1), Offset(x1, y2), Offset(x2, y2)];
+
   /// Simple linear: Start -> A -> B -> C -> End
   static DiagramModel linear() {
     final nodes = <String, NodeModel>{
@@ -59,10 +67,14 @@ class SampleDiagrams {
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
       'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
-      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4', name: 'Yes'),
-      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5', name: 'No'),
-      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6'),
-      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4', name: 'Yes',
+        waypoints: _hv(_cx, _row(2), left, _row(3))),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5', name: 'No',
+        waypoints: _hv(_cx, _row(2), right, _row(3))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6',
+        waypoints: _vh(left, _row(3), _cx, _row(4))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6',
+        waypoints: _vh(right, _row(3), _cx, _row(4))),
       'e7': EdgeModel(id: 'e7', sourceId: 'n6', targetId: 'n7'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
@@ -83,12 +95,16 @@ class SampleDiagrams {
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
-      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3',
+        waypoints: _hv(_cx, _row(1), left, _row(2))),
       'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4'),
-      'e4': EdgeModel(id: 'e4', sourceId: 'n2', targetId: 'n5'),
-      'e5': EdgeModel(id: 'e5', sourceId: 'n3', targetId: 'n6'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n2', targetId: 'n5',
+        waypoints: _hv(_cx, _row(1), right, _row(2))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n3', targetId: 'n6',
+        waypoints: _vh(left, _row(2), _cx, _row(3))),
       'e6': EdgeModel(id: 'e6', sourceId: 'n4', targetId: 'n6'),
-      'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n6'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n6',
+        waypoints: _vh(right, _row(2), _cx, _row(3))),
       'e8': EdgeModel(id: 'e8', sourceId: 'n6', targetId: 'n7'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
@@ -111,14 +127,22 @@ class SampleDiagrams {
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
-      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3', name: 'A'),
-      'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4', name: 'B'),
-      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5'),
-      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n5'),
-      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6', name: 'Fast'),
-      'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n7', name: 'Safe'),
-      'e8': EdgeModel(id: 'e8', sourceId: 'n6', targetId: 'n8'),
-      'e9': EdgeModel(id: 'e9', sourceId: 'n7', targetId: 'n8'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3', name: 'A',
+        waypoints: _hv(_cx, _row(1), left, _row(2))),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4', name: 'B',
+        waypoints: _hv(_cx, _row(1), right, _row(2))),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5',
+        waypoints: _vh(left, _row(2), _cx, _row(3))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n5',
+        waypoints: _vh(right, _row(2), _cx, _row(3))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6', name: 'Fast',
+        waypoints: _hv(_cx, _row(3), left, _row(4))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n5', targetId: 'n7', name: 'Safe',
+        waypoints: _hv(_cx, _row(3), right, _row(4))),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n6', targetId: 'n8',
+        waypoints: _vh(left, _row(4), _cx, _row(5))),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n7', targetId: 'n8',
+        waypoints: _vh(right, _row(4), _cx, _row(5))),
       'e10': EdgeModel(id: 'e10', sourceId: 'n8', targetId: 'n9'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
@@ -142,14 +166,22 @@ class SampleDiagrams {
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
-      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
-      'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4'),
-      'e4': EdgeModel(id: 'e4', sourceId: 'n2', targetId: 'n5'),
-      'e5': EdgeModel(id: 'e5', sourceId: 'n2', targetId: 'n6'),
-      'e6': EdgeModel(id: 'e6', sourceId: 'n3', targetId: 'n7'),
-      'e7': EdgeModel(id: 'e7', sourceId: 'n4', targetId: 'n7'),
-      'e8': EdgeModel(id: 'e8', sourceId: 'n5', targetId: 'n7'),
-      'e9': EdgeModel(id: 'e9', sourceId: 'n6', targetId: 'n7'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3',
+        waypoints: _hv(_cx, _row(1), x1, _row(2))),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n2', targetId: 'n4',
+        waypoints: _hv(_cx, _row(1), x2, _row(2))),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n2', targetId: 'n5',
+        waypoints: _hv(_cx, _row(1), x3, _row(2))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n2', targetId: 'n6',
+        waypoints: _hv(_cx, _row(1), x4, _row(2))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n3', targetId: 'n7',
+        waypoints: _vh(x1, _row(2), _cx, _row(3))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n4', targetId: 'n7',
+        waypoints: _vh(x2, _row(2), _cx, _row(3))),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n5', targetId: 'n7',
+        waypoints: _vh(x3, _row(2), _cx, _row(3))),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n6', targetId: 'n7',
+        waypoints: _vh(x4, _row(2), _cx, _row(3))),
       'e10': EdgeModel(id: 'e10', sourceId: 'n7', targetId: 'n8'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
@@ -201,13 +233,16 @@ class SampleDiagrams {
     final edges = <String, EdgeModel>{
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
       'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
-      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'No'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'No',
+        waypoints: _hv(_cx, _row(2), right, _row(2))),
       'e4':  EdgeModel(id: 'e4',  sourceId: 'n3',  targetId: 'n5',  name: 'Yes'),
       'e5':  EdgeModel(id: 'e5',  sourceId: 'n5',  targetId: 'n6'),
       'e6':  EdgeModel(id: 'e6',  sourceId: 'n6',  targetId: 'n7'),
       'e7':  EdgeModel(id: 'e7',  sourceId: 'n7',  targetId: 'n8'),
-      'e8':  EdgeModel(id: 'e8',  sourceId: 'n8',  targetId: 'n9',  name: 'Good'),
-      'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n10', name: 'Needs Improvement'),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n8',  targetId: 'n9',  name: 'Good',
+        waypoints: _hv(_cx, _row(6), left, _row(7))),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n10', name: 'Needs Improvement',
+        waypoints: _hv(_cx, _row(6), right, _row(7))),
       'e10': EdgeModel(id: 'e10', sourceId: 'n10', targetId: 'n11'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
@@ -300,15 +335,19 @@ class SampleDiagrams {
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
       'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
       'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4'),
-      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n5',  name: 'Database'),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n5',  name: 'Database',
+        waypoints: _hv(_cx, _row(3), left, _row(4))),
       'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n7',  name: 'Auth'),
-      'e6':  EdgeModel(id: 'e6',  sourceId: 'n4',  targetId: 'n9',  name: 'Timeout'),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n4',  targetId: 'n9',  name: 'Timeout',
+        waypoints: _hv(_cx, _row(3), right, _row(4))),
       'e7':  EdgeModel(id: 'e7',  sourceId: 'n5',  targetId: 'n6'),
       'e8':  EdgeModel(id: 'e8',  sourceId: 'n7',  targetId: 'n8'),
       'e9':  EdgeModel(id: 'e9',  sourceId: 'n9',  targetId: 'n10'),
-      'e10': EdgeModel(id: 'e10', sourceId: 'n6',  targetId: 'n11'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n6',  targetId: 'n11',
+        waypoints: _vh(left, _row(5), _cx, _row(6))),
       'e11': EdgeModel(id: 'e11', sourceId: 'n8',  targetId: 'n11'),
-      'e12': EdgeModel(id: 'e12', sourceId: 'n10', targetId: 'n11'),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n10', targetId: 'n11',
+        waypoints: _vh(right, _row(5), _cx, _row(6))),
       'e13': EdgeModel(id: 'e13', sourceId: 'n11', targetId: 'n12'),
     };
     return DiagramModel(nodes: nodes, edges: edges);
@@ -399,19 +438,27 @@ class SampleDiagrams {
     final edges = <String, EdgeModel>{
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
       'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
-      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'Small'),
-      'e4':  EdgeModel(id: 'e4',  sourceId: 'n3',  targetId: 'n8',  name: 'Large'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'Small',
+        waypoints: _hv(_cx, _row(2), left, _row(3))),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n3',  targetId: 'n8',  name: 'Large',
+        waypoints: _hv(_cx, _row(2), right, _row(3))),
       'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n5'),
-      'e6':  EdgeModel(id: 'e6',  sourceId: 'n5',  targetId: 'n6',  name: 'Yes'),
-      'e7':  EdgeModel(id: 'e7',  sourceId: 'n5',  targetId: 'n8',  name: 'No'),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n5',  targetId: 'n6',  name: 'Yes',
+        waypoints: _hv(left, _row(4), left - _branchX * 0.6, _row(5))),
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n5',  targetId: 'n8',  name: 'No',
+        waypoints: _hv(left, _row(4), right, _row(3))),
       'e8':  EdgeModel(id: 'e8',  sourceId: 'n6',  targetId: 'n7'),
       'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n9'),
       'e10': EdgeModel(id: 'e10', sourceId: 'n9',  targetId: 'n10'),
       'e11': EdgeModel(id: 'e11', sourceId: 'n10', targetId: 'n11'),
-      'e12': EdgeModel(id: 'e12', sourceId: 'n11', targetId: 'n12', name: 'Yes'),
-      'e13': EdgeModel(id: 'e13', sourceId: 'n11', targetId: 'n13', name: 'No'),
-      'e14': EdgeModel(id: 'e14', sourceId: 'n12', targetId: 'n14'),
-      'e15': EdgeModel(id: 'e15', sourceId: 'n13', targetId: 'n14'),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n11', targetId: 'n12', name: 'Yes',
+        waypoints: _hv(right, _row(6), right - _branchX * 0.6, _row(7))),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n11', targetId: 'n13', name: 'No',
+        waypoints: _hv(right, _row(6), right + _branchX * 0.6, _row(7))),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n12', targetId: 'n14',
+        waypoints: _vh(right - _branchX * 0.6, _row(7), right, _row(8))),
+      'e15': EdgeModel(id: 'e15', sourceId: 'n13', targetId: 'n14',
+        waypoints: _vh(right + _branchX * 0.6, _row(7), right, _row(8))),
     };
     return DiagramModel(nodes: nodes, edges: edges);
   }
@@ -504,7 +551,13 @@ class SampleDiagrams {
       'e1': EdgeModel(id: 'e1', sourceId: 'n1',  targetId: 'n2'),
       'e2': EdgeModel(id: 'e2', sourceId: 'n2',  targetId: 'n3'),
       'e3': EdgeModel(id: 'e3', sourceId: 'n3',  targetId: 'n4'),
-      'e4': EdgeModel(id: 'e4', sourceId: 'n4',  targetId: 'n5',  name: 'No'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4',  targetId: 'n5',  name: 'No',
+        waypoints: [
+          Offset(_cx, _row(3)),                        // gateway center
+          Offset(_cx, _row(3) + _rowH * 0.35),        // down from gateway
+          Offset(_cx + _branchX, _row(3) + _rowH * 0.35), // right
+          Offset(_cx + _branchX, _row(4)),             // down to task
+        ]),
       'e5': EdgeModel(id: 'e5', sourceId: 'n4',  targetId: 'n7',  name: 'Yes'),
       'e6': EdgeModel(id: 'e6', sourceId: 'n5',  targetId: 'n6'),
       'e7': EdgeModel(id: 'e7', sourceId: 'n7',  targetId: 'n8'),

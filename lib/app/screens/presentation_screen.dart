@@ -134,6 +134,56 @@ class _PresentationScreenState extends State<PresentationScreen> {
     });
   }
 
+  void _showFullDiagram(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                // Drag handle.
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                // Full diagram view.
+                Expanded(
+                  child: InteractiveViewer(
+                    boundaryMargin: const EdgeInsets.all(40),
+                    minScale: 0.5,
+                    maxScale: 3.0,
+                    child: _FullDiagramView(
+                      steps: _allNodes,
+                      diagram: widget.diagram,
+                      currentNodeId: _path[_currentPage].id,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   /// True if the user is on a gateway that hasn't been resolved yet
   /// (no pages after it in the path).
   bool _isUnresolvedGateway(int index) {
@@ -183,6 +233,11 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 setState(() {
                   _currentPage = i;
                   if (i > 0) _showSwipeHint = false;
+                  // When swiping back to a gateway, trim the path after it
+                  // so the user must choose again.
+                  if (_isGatewayPage(i) && i < _path.length - 1) {
+                    _path.removeRange(i + 1, _path.length);
+                  }
                   // When arriving at a new page, extend the path so
                   // there's always a next page to swipe to.
                   if (i == _path.length - 1) {
@@ -209,14 +264,17 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-            // Mini process map bottom-right.
+            // Mini process map bottom-right — tap to open full view.
             Positioned(
               bottom: bottomPad + 16,
               right: 16,
-              child: _MiniProcessMap(
-                steps: _allNodes,
-                diagram: widget.diagram,
-                currentNodeId: _path[_currentPage].id,
+              child: GestureDetector(
+                onTap: () => _showFullDiagram(context),
+                child: _MiniProcessMap(
+                  steps: _allNodes,
+                  diagram: widget.diagram,
+                  currentNodeId: _path[_currentPage].id,
+                ),
               ),
             ),
             // Swipe hint on first card.
@@ -414,6 +472,168 @@ class _MiniFlowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MiniFlowPainter oldDelegate) =>
+      oldDelegate.currentNodeId != currentNodeId;
+}
+
+/// Full-size diagram view for the modal, with node labels.
+class _FullDiagramView extends StatelessWidget {
+  final List<NodeModel> steps;
+  final DiagramModel diagram;
+  final String currentNodeId;
+
+  const _FullDiagramView({
+    required this.steps,
+    required this.diagram,
+    required this.currentNodeId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (steps.isEmpty) return const SizedBox.shrink();
+
+    // Compute bounding box.
+    double minX = double.infinity, minY = double.infinity;
+    double maxX = -double.infinity, maxY = -double.infinity;
+    for (final node in steps) {
+      final c = node.rect.center;
+      if (c.dx < minX) minX = c.dx;
+      if (c.dy < minY) minY = c.dy;
+      if (c.dx > maxX) maxX = c.dx;
+      if (c.dy > maxY) maxY = c.dy;
+    }
+
+    final diagramW = (maxX - minX).clamp(1.0, double.infinity);
+    final diagramH = (maxY - minY).clamp(1.0, double.infinity);
+    const padding = 40.0;
+
+    // Scale to fit within a reasonable widget size.
+    final screenW = MediaQuery.of(context).size.width;
+    final scale = (screenW - padding * 2) / diagramW;
+    final viewW = diagramW * scale + padding * 2;
+    final viewH = diagramH * scale + padding * 2;
+
+    return SizedBox(
+      width: viewW,
+      height: viewH,
+      child: CustomPaint(
+        size: Size(viewW, viewH),
+        painter: _FullDiagramPainter(
+          steps: steps,
+          diagram: diagram,
+          currentNodeId: currentNodeId,
+          originX: minX,
+          originY: minY,
+          scale: scale,
+          padding: padding,
+        ),
+      ),
+    );
+  }
+}
+
+class _FullDiagramPainter extends CustomPainter {
+  final List<NodeModel> steps;
+  final DiagramModel diagram;
+  final String currentNodeId;
+  final double originX, originY, scale, padding;
+
+  _FullDiagramPainter({
+    required this.steps,
+    required this.diagram,
+    required this.currentNodeId,
+    required this.originX,
+    required this.originY,
+    required this.scale,
+    required this.padding,
+  });
+
+  Offset _map(Offset center) => Offset(
+        (center.dx - originX) * scale + padding,
+        (center.dy - originY) * scale + padding,
+      );
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dotRadius = 8.0;
+    const diamondSize = 11.0;
+
+    final linePaint = Paint()
+      ..color = Colors.black26
+      ..strokeWidth = 1.5;
+
+    final defaultPaint = Paint()..color = Colors.black38;
+    final currentPaint = Paint()..color = Colors.black;
+
+    final labelStyle = TextStyle(
+      fontSize: 11,
+      color: Colors.grey[700],
+    );
+    final currentLabelStyle = const TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      color: Colors.black,
+    );
+
+    final stepIds = {for (final s in steps) s.id};
+
+    // Draw edges.
+    for (final edge in diagram.edges.values) {
+      if (!stepIds.contains(edge.sourceId) ||
+          !stepIds.contains(edge.targetId)) {
+        continue;
+      }
+      if (edge.waypoints.length >= 2) {
+        for (int i = 0; i < edge.waypoints.length - 1; i++) {
+          canvas.drawLine(
+              _map(edge.waypoints[i]), _map(edge.waypoints[i + 1]), linePaint);
+        }
+      } else {
+        final srcNode = diagram.nodes[edge.sourceId];
+        final tgtNode = diagram.nodes[edge.targetId];
+        if (srcNode == null || tgtNode == null) continue;
+        canvas.drawLine(
+            _map(srcNode.rect.center), _map(tgtNode.rect.center), linePaint);
+      }
+    }
+
+    // Draw nodes with labels.
+    for (final node in steps) {
+      final center = _map(node.rect.center);
+      final isCurrent = node.id == currentNodeId;
+      final paint = isCurrent ? currentPaint : defaultPaint;
+
+      if (node.type == NodeType.exclusiveGateway) {
+        final path = Path()
+          ..moveTo(center.dx, center.dy - diamondSize)
+          ..lineTo(center.dx + diamondSize, center.dy)
+          ..lineTo(center.dx, center.dy + diamondSize)
+          ..lineTo(center.dx - diamondSize, center.dy)
+          ..close();
+        canvas.drawPath(path, paint);
+      } else {
+        canvas.drawCircle(center, dotRadius, paint);
+      }
+
+      // Label below the node.
+      if (node.name.isNotEmpty) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: node.name,
+            style: isCurrent ? currentLabelStyle : labelStyle,
+          ),
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.center,
+        )..layout(maxWidth: 100);
+        tp.paint(
+          canvas,
+          Offset(center.dx - tp.width / 2, center.dy + dotRadius + 4),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FullDiagramPainter oldDelegate) =>
       oldDelegate.currentNodeId != currentNodeId;
 }
 
