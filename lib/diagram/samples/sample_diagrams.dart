@@ -2,11 +2,19 @@ import 'dart:ui';
 import '../model/diagram_model.dart';
 
 /// Collection of sample diagrams for the editor.
+/// All layouts are top-down, optimized for portrait mode.
 class SampleDiagrams {
   static const _taskW = 140.0;
   static const _taskH = 70.0;
   static const _eventS = 48.0;
   static const _gwS = 56.0;
+
+  // Center column for portrait layout.
+  static const _cx = 200.0;
+  // Vertical spacing between rows.
+  static const _rowH = 130.0;
+  // Horizontal offset for branches.
+  static const _branchX = 170.0;
 
   static Rect _task(double x, double y) =>
       Rect.fromCenter(center: Offset(x, y), width: _taskW, height: _taskH);
@@ -15,14 +23,16 @@ class SampleDiagrams {
   static Rect _gw(double x, double y) =>
       Rect.fromCenter(center: Offset(x, y), width: _gwS, height: _gwS);
 
+  static double _row(int r) => 80.0 + r * _rowH;
+
   /// Simple linear: Start -> A -> B -> C -> End
   static DiagramModel linear() {
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(100, 250)),
-      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Gather Requirements', rect: _task(300, 250)),
-      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Design Solution', rect: _task(520, 250)),
-      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Implement', rect: _task(740, 250)),
-      'n5': NodeModel(id: 'n5', type: NodeType.endEvent, name: 'Done', rect: _event(940, 250)),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Gather Requirements', rect: _task(_cx, _row(1))),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Design Solution', rect: _task(_cx, _row(2))),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Implement', rect: _task(_cx, _row(3))),
+      'n5': NodeModel(id: 'n5', type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(4))),
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
@@ -34,20 +44,17 @@ class SampleDiagrams {
   }
 
   /// Diamond: gateway splits into two paths that merge back.
-  ///
-  /// ```
-  /// Start -> Check -> [GW] --Yes--> Approve --\
-  ///                       \--No---> Reject ---+--> Notify -> End
-  /// ```
   static DiagramModel diamond() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(80, 300)),
-      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Review Request', rect: _task(260, 300)),
-      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Approved?', rect: _gw(450, 300)),
-      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Process Approval', rect: _task(650, 170)),
-      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Send Rejection', rect: _task(650, 430)),
-      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Notify Customer', rect: _task(900, 300)),
-      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'End', rect: _event(1100, 300)),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Review Request', rect: _task(_cx, _row(1))),
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Approved?', rect: _gw(_cx, _row(2))),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Process Approval', rect: _task(left, _row(3))),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Send Rejection', rect: _task(right, _row(3))),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Notify Customer', rect: _task(_cx, _row(4))),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'End', rect: _event(_cx, _row(5))),
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
@@ -61,22 +68,18 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
-  /// Three parallel paths converge onto a single task (3 merge inputs).
-  ///
-  /// ```
-  /// Start -> [GW] --> Research  --\
-  ///              \--> Prototype --+--> Evaluate -> End
-  ///              \--> Survey    --/
-  /// ```
+  /// Three parallel paths converge onto a single task.
   static DiagramModel threeWayMerge() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(80, 300)),
-      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Split', rect: _gw(240, 300)),
-      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Research', rect: _task(460, 120)),
-      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Prototype', rect: _task(460, 300)),
-      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Survey Users', rect: _task(460, 480)),
-      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Evaluate Results', rect: _task(740, 300)),
-      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'End', rect: _event(960, 300)),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Split', rect: _gw(_cx, _row(1))),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Research', rect: _task(left, _row(2))),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Prototype', rect: _task(_cx, _row(2))),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Survey Users', rect: _task(right, _row(2))),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Evaluate Results', rect: _task(_cx, _row(3))),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'End', rect: _event(_cx, _row(4))),
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
@@ -92,23 +95,19 @@ class SampleDiagrams {
   }
 
   /// Multiple merge points: two diamonds chained.
-  ///
-  /// ```
-  /// Start -> [GW1] -> A --\        /-- D --\
-  ///                -> B --+->[GW2]-+-- E --+--> Final -> End
-  ///                                        /
-  /// ```
   static DiagramModel doubleDiamond() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(60, 300)),
-      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Phase?', rect: _gw(200, 300)),
-      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Plan A', rect: _task(400, 170)),
-      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Plan B', rect: _task(400, 430)),
-      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway, name: 'Route?', rect: _gw(620, 300)),
-      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Execute Fast', rect: _task(820, 170)),
-      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Execute Safe', rect: _task(820, 430)),
-      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Ship Release', rect: _task(1060, 300)),
-      'n9': NodeModel(id: 'n9', type: NodeType.endEvent, name: 'End', rect: _event(1260, 300)),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Phase?', rect: _gw(_cx, _row(1))),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Plan A', rect: _task(left, _row(2))),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Plan B', rect: _task(right, _row(2))),
+      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway, name: 'Route?', rect: _gw(_cx, _row(3))),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Execute Fast', rect: _task(left, _row(4))),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Execute Safe', rect: _task(right, _row(4))),
+      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Ship Release', rect: _task(_cx, _row(5))),
+      'n9': NodeModel(id: 'n9', type: NodeType.endEvent, name: 'End', rect: _event(_cx, _row(6))),
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
@@ -125,24 +124,21 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
-  /// Four parallel paths converge on one node (4 merge inputs).
-  ///
-  /// ```
-  /// Start -> [GW] --> Analyze Data --\
-  ///              \--> Build Model  --+--> Consolidate -> End
-  ///              \--> Run Tests    --/
-  ///              \--> Write Docs   -/
-  /// ```
+  /// Four parallel paths converge on one node.
   static DiagramModel fourWayMerge() {
+    const x1 = 30.0;
+    const x2 = x1 + _branchX * 2 / 3;
+    const x3 = x2 + _branchX * 2 / 3;
+    const x4 = x3 + _branchX * 2 / 3;
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(80, 360)),
-      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Split', rect: _gw(220, 360)),
-      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Analyze Data', rect: _task(440, 120)),
-      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Build Model', rect: _task(440, 280)),
-      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Run Tests', rect: _task(440, 440)),
-      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Write Docs', rect: _task(440, 600)),
-      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Consolidate', rect: _task(720, 360)),
-      'n8': NodeModel(id: 'n8', type: NodeType.endEvent, name: 'Done', rect: _event(940, 360)),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.exclusiveGateway, name: 'Split', rect: _gw(_cx, _row(1))),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Analyze Data', rect: _task(x1, _row(2))),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Build Model', rect: _task(x2, _row(2))),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Run Tests', rect: _task(x3, _row(2))),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Write Docs', rect: _task(x4, _row(2))),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Consolidate', rect: _task(_cx, _row(3))),
+      'n8': NodeModel(id: 'n8', type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(4))),
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
@@ -159,57 +155,48 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
-  /// Agile sprint cycle: concept, decision, 3 sprints, user tests,
-  /// optional improvement sprint.
-  ///
-  /// ```
-  /// Start -> Sprint 1 -> [Proceed?] --No-> End
-  ///                           |Yes
-  ///                S2 -> S3 -> S4 -> [User Tests]
-  ///                                   /        \
-  ///                              Good        Needs Improvement
-  ///                               |                |
-  ///                        Product Launch    S5 -> Product Launch
-  /// ```
+  /// Agile sprint cycle.
   static DiagramModel sprintCycle() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
     final nodes = <String, NodeModel>{
-      'n1':  NodeModel(id: 'n1',  type: NodeType.startEvent,       name: 'Start',           rect: _event(80, 300)),
-      'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(280, 300),
+      'n1':  NodeModel(id: 'n1',  type: NodeType.startEvent,       name: 'Start',           rect: _event(_cx, _row(0))),
+      'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(_cx, _row(1)),
         content: TaskContent(
           title: 'Discovery & Planning',
           text: 'Define the product vision and identify key user stories. '
               'Set up the development environment and establish coding standards. '
               'Create the initial backlog with prioritized features.',
         )),
-      'n3':  NodeModel(id: 'n3',  type: NodeType.exclusiveGateway, name: 'Proceed?',        rect: _gw(470, 300)),
-      'n4':  NodeModel(id: 'n4',  type: NodeType.endEvent,         name: 'End',             rect: _event(470, 480)),
-      'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(650, 300),
+      'n3':  NodeModel(id: 'n3',  type: NodeType.exclusiveGateway, name: 'Proceed?',        rect: _gw(_cx, _row(2))),
+      'n4':  NodeModel(id: 'n4',  type: NodeType.endEvent,         name: 'End',             rect: _event(right, _row(2))),
+      'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(_cx, _row(3)),
         content: TaskContent(
           title: 'Core Feature Development',
           text: 'Implement the primary user-facing features identified in Sprint 1. '
               'Focus on building a working MVP that can be demonstrated to stakeholders.',
         )),
-      'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(850, 300),
+      'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(_cx, _row(4)),
         content: TaskContent(
           title: 'Integration & Polish',
           text: 'Connect all components and ensure end-to-end flows work correctly. '
               'Address UI/UX feedback and fix critical bugs found during development.',
         )),
-      'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(1050, 300),
+      'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(_cx, _row(5)),
         content: TaskContent(
           title: 'Testing & Stabilization',
           text: 'Run comprehensive test suites including integration and performance tests. '
               'Prepare release documentation and deployment scripts.',
         )),
-      'n8':  NodeModel(id: 'n8',  type: NodeType.exclusiveGateway, name: 'User Tests',      rect: _gw(1240, 300)),
-      'n9':  NodeModel(id: 'n9',  type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(1440, 300)),
-      'n10': NodeModel(id: 'n10', type: NodeType.task,             name: 'Sprint 5',        rect: _task(1240, 500),
+      'n8':  NodeModel(id: 'n8',  type: NodeType.exclusiveGateway, name: 'User Tests',      rect: _gw(_cx, _row(6))),
+      'n9':  NodeModel(id: 'n9',  type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(left, _row(7))),
+      'n10': NodeModel(id: 'n10', type: NodeType.task,             name: 'Sprint 5',        rect: _task(right, _row(7)),
         content: TaskContent(
           title: 'Improvement Sprint',
           text: 'Address issues found during user testing. '
               'Implement high-priority improvements and re-validate with users.',
         )),
-      'n11': NodeModel(id: 'n11', type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(1440, 500)),
+      'n11': NodeModel(id: 'n11', type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(right, _row(8))),
     };
     final edges = <String, EdgeModel>{
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
@@ -227,17 +214,12 @@ class SampleDiagrams {
   }
 
   /// Technical debugging: API returning 500 errors.
-  ///
-  /// ```
-  /// Start -> Reproduce -> Check Logs -> [Error Type?]
-  ///   --DB--> Check DB -> Fix Query -> Verify -> End
-  ///   --Auth-> Check Tokens -> Refresh Auth -> Verify -> End
-  ///   --Timeout-> Check Load -> Scale/Optimize -> Verify -> End
-  /// ```
   static DiagramModel technicalDebugging() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Bug Report', rect: _event(80, 300)),
-      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Reproduce', rect: _task(260, 300),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Bug Report', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Reproduce', rect: _task(_cx, _row(1)),
         content: TaskContent(
           title: 'Reproduce the Issue',
           text: 'Open the API endpoint in question using the exact parameters from the bug report. '
@@ -245,7 +227,7 @@ class SampleDiagrams {
               'and timestamp. Check if the issue is environment-specific (staging vs production). '
               'Try with different user accounts to determine if it is user-specific.',
         )),
-      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Check Logs', rect: _task(460, 300),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Check Logs', rect: _task(_cx, _row(2)),
         content: TaskContent(
           title: 'Analyze Server Logs',
           text: 'SSH into the production server or open the logging dashboard. '
@@ -254,9 +236,9 @@ class SampleDiagrams {
               'Check application logs, web server logs (nginx/Apache), and system logs. '
               'Note the exact exception type and the line number where it occurs.',
         )),
-      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Error Type?', rect: _gw(660, 300)),
+      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Error Type?', rect: _gw(_cx, _row(3))),
       // DB path
-      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Check DB', rect: _task(880, 140),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Check DB', rect: _task(left, _row(4)),
         content: TaskContent(
           title: 'Inspect Database State',
           text: 'Connect to the database and run the failing query manually. '
@@ -264,7 +246,7 @@ class SampleDiagrams {
               'Verify that recent migrations have been applied correctly. '
               'Look at the slow query log for performance issues.',
         )),
-      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Fix Query', rect: _task(1100, 140),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Fix Query', rect: _task(left, _row(5)),
         content: TaskContent(
           title: 'Apply Database Fix',
           text: 'Fix the query, add the missing index, or repair the data. '
@@ -272,7 +254,7 @@ class SampleDiagrams {
               'Document the root cause in the ticket.',
         )),
       // Auth path
-      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Check Tokens', rect: _task(880, 300),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Check Tokens', rect: _task(_cx, _row(4)),
         content: TaskContent(
           title: 'Validate Authentication',
           text: 'Decode the JWT token and check expiry, issuer, and audience claims. '
@@ -280,7 +262,7 @@ class SampleDiagrams {
               'Check if the user\'s session exists in the session store (Redis/DB). '
               'Look for clock skew between servers.',
         )),
-      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Fix Auth', rect: _task(1100, 300),
+      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Fix Auth', rect: _task(_cx, _row(5)),
         content: TaskContent(
           title: 'Refresh Auth Configuration',
           text: 'Rotate the signing keys if compromised. Update the token expiry settings. '
@@ -288,7 +270,7 @@ class SampleDiagrams {
               'Deploy the auth fix and monitor for recurring failures.',
         )),
       // Timeout path
-      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Check Load', rect: _task(880, 460),
+      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Check Load', rect: _task(right, _row(4)),
         content: TaskContent(
           title: 'Analyze System Resources',
           text: 'Check CPU, memory, and disk usage on the affected server. '
@@ -296,7 +278,7 @@ class SampleDiagrams {
               'Check if any background jobs or cron tasks are consuming excessive resources. '
               'Look at the request queue depth and average response times.',
         )),
-      'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Optimize', rect: _task(1100, 460),
+      'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Optimize', rect: _task(right, _row(5)),
         content: TaskContent(
           title: 'Scale or Optimize',
           text: 'Add caching for expensive queries. Increase connection pool size. '
@@ -304,7 +286,7 @@ class SampleDiagrams {
               'Set appropriate timeouts on upstream service calls.',
         )),
       // Merge
-      'n11': NodeModel(id: 'n11', type: NodeType.task, name: 'Verify Fix', rect: _task(1320, 300),
+      'n11': NodeModel(id: 'n11', type: NodeType.task, name: 'Verify Fix', rect: _task(_cx, _row(6)),
         content: TaskContent(
           title: 'Verify the Fix',
           text: 'Re-run the exact reproduction steps from step 1. '
@@ -312,7 +294,7 @@ class SampleDiagrams {
               'Monitor production logs for 30 minutes after deployment. '
               'Update the bug ticket with the root cause and resolution.',
         )),
-      'n12': NodeModel(id: 'n12', type: NodeType.endEvent, name: 'Resolved', rect: _event(1520, 300)),
+      'n12': NodeModel(id: 'n12', type: NodeType.endEvent, name: 'Resolved', rect: _event(_cx, _row(7))),
     };
     final edges = <String, EdgeModel>{
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
@@ -333,19 +315,12 @@ class SampleDiagrams {
   }
 
   /// Emergency procedure: building fire evacuation.
-  ///
-  /// ```
-  /// Alarm -> Alert Others -> [Fire Size?]
-  ///   --Small-> Use Extinguisher -> [Fire Out?] --Yes-> Report -> End
-  ///                                              --No-> Evacuate
-  ///   --Large-> Evacuate -> Assembly Point -> Headcount -> [All Accounted?]
-  ///     --Yes-> Wait for FD -> End
-  ///     --No-> Inform FD -> Wait -> End
-  /// ```
   static DiagramModel emergencyProcedure() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Fire Alarm', rect: _event(80, 300)),
-      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Alert Others', rect: _task(260, 300),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Fire Alarm', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Alert Others', rect: _task(_cx, _row(1)),
         content: TaskContent(
           title: 'Alert Nearby Personnel',
           text: 'Immediately shout "FIRE" to alert people in the vicinity. '
@@ -353,9 +328,9 @@ class SampleDiagrams {
               'Do NOT use elevators. Do NOT attempt to collect personal belongings. '
               'If safe to do so, close doors and windows behind you to slow fire spread.',
         )),
-      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Fire Size?', rect: _gw(460, 300)),
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Fire Size?', rect: _gw(_cx, _row(2))),
       // Small fire path
-      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Extinguisher', rect: _task(660, 140),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Extinguisher', rect: _task(left, _row(3)),
         content: TaskContent(
           title: 'Use Fire Extinguisher',
           text: 'Only attempt this if the fire is small (wastebasket size or smaller) '
@@ -368,8 +343,8 @@ class SampleDiagrams {
               'Stay low to avoid smoke inhalation. If the fire does not go out within '
               '30 seconds, abandon the attempt and evacuate immediately.',
         )),
-      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway, name: 'Fire Out?', rect: _gw(880, 140)),
-      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Report', rect: _task(1080, 60),
+      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway, name: 'Fire Out?', rect: _gw(left, _row(4))),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Report', rect: _task(left - _branchX * 0.6, _row(5)),
         content: TaskContent(
           title: 'File Incident Report',
           text: 'Call the fire department to report the extinguished fire — they must still inspect. '
@@ -377,9 +352,9 @@ class SampleDiagrams {
               'Document the location, time, cause (if known), and actions taken. '
               'The affected area must not be re-entered until cleared by the fire department.',
         )),
-      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'Safe', rect: _event(1280, 60)),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'Safe', rect: _event(left - _branchX * 0.6, _row(6))),
       // Large fire / extinguisher failed path
-      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Evacuate', rect: _task(660, 460),
+      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Evacuate', rect: _task(right, _row(3)),
         content: TaskContent(
           title: 'Evacuate the Building',
           text: 'Follow the marked evacuation routes — green EXIT signs. '
@@ -388,7 +363,7 @@ class SampleDiagrams {
               'Help anyone with mobility impairments. '
               'Move quickly but do not run or push.',
         )),
-      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Assembly Point', rect: _task(900, 460),
+      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Assembly Point', rect: _task(right, _row(4)),
         content: TaskContent(
           title: 'Go to Assembly Point',
           text: 'Proceed to the designated assembly point (parking lot B, north side). '
@@ -396,7 +371,7 @@ class SampleDiagrams {
               'Do not re-enter the building for any reason. '
               'Keep access roads clear for emergency vehicles.',
         )),
-      'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Headcount', rect: _task(1140, 460),
+      'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Headcount', rect: _task(right, _row(5)),
         content: TaskContent(
           title: 'Conduct Headcount',
           text: 'Floor wardens: use the emergency roster to verify all personnel are accounted for. '
@@ -404,22 +379,22 @@ class SampleDiagrams {
               'Identify anyone who was known to be in the building. '
               'Report results to the incident commander within 10 minutes.',
         )),
-      'n11': NodeModel(id: 'n11', type: NodeType.exclusiveGateway, name: 'All Accounted?', rect: _gw(1360, 460)),
-      'n12': NodeModel(id: 'n12', type: NodeType.task, name: 'Wait for FD', rect: _task(1560, 360),
+      'n11': NodeModel(id: 'n11', type: NodeType.exclusiveGateway, name: 'All Accounted?', rect: _gw(right, _row(6))),
+      'n12': NodeModel(id: 'n12', type: NodeType.task, name: 'Wait for FD', rect: _task(right - _branchX * 0.6, _row(7)),
         content: TaskContent(
           title: 'Await Fire Department',
           text: 'Remain at the assembly point until the fire department gives the all-clear. '
               'Provide the incident commander with building access information. '
               'Do not re-enter until officially authorized.',
         )),
-      'n13': NodeModel(id: 'n13', type: NodeType.task, name: 'Inform FD', rect: _task(1560, 560),
+      'n13': NodeModel(id: 'n13', type: NodeType.task, name: 'Inform FD', rect: _task(right + _branchX * 0.6, _row(7)),
         content: TaskContent(
           title: 'Report Missing Persons',
           text: 'Immediately inform the fire department incident commander of unaccounted personnel. '
               'Provide names, last known locations, and any mobility impairments. '
               'Do NOT attempt to re-enter the building to search for them.',
         )),
-      'n14': NodeModel(id: 'n14', type: NodeType.endEvent, name: 'Complete', rect: _event(1780, 460)),
+      'n14': NodeModel(id: 'n14', type: NodeType.endEvent, name: 'Complete', rect: _event(right, _row(8))),
     };
     final edges = <String, EdgeModel>{
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
@@ -442,16 +417,10 @@ class SampleDiagrams {
   }
 
   /// IKEA shelf assembly (KALLAX 2x2).
-  ///
-  /// ```
-  /// Start -> Unpack -> Check Parts -> [All Parts?]
-  ///   --No-> Contact IKEA -> End
-  ///   --Yes-> Assemble Frame -> Insert Shelves -> Mount to Wall -> Done
-  /// ```
   static DiagramModel ikeaAssembly() {
     final nodes = <String, NodeModel>{
-      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(80, 300)),
-      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Unpack', rect: _task(260, 300),
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Unpack', rect: _task(_cx, _row(1)),
         content: TaskContent(
           title: 'Unpack All Parts',
           text: 'Open the box and carefully remove all components. '
@@ -459,7 +428,7 @@ class SampleDiagrams {
               'Do not use a knife to cut deep into the box as you may scratch the panels. '
               'Remove all plastic wrapping and styrofoam inserts.',
         )),
-      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Check Parts', rect: _task(460, 300),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Check Parts', rect: _task(_cx, _row(2)),
         content: TaskContent(
           title: 'Verify Parts List',
           text: 'Locate the assembly instructions sheet and find the parts list (usually page 2). '
@@ -476,9 +445,9 @@ class SampleDiagrams {
               '- 2 wall anchors + screws\n'
               '- 1 hex key (Allen wrench)',
         )),
-      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'All Parts?', rect: _gw(680, 300)),
-      // Missing parts
-      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Contact IKEA', rect: _task(680, 480),
+      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'All Parts?', rect: _gw(_cx, _row(3))),
+      // Missing parts — branch right
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Contact IKEA', rect: _task(_cx + _branchX, _row(4)),
         content: TaskContent(
           title: 'Order Missing Parts',
           text: 'Go to IKEA.com/replace or call customer service. '
@@ -486,9 +455,9 @@ class SampleDiagrams {
               'and the part numbers from the instruction sheet. '
               'IKEA will ship replacement parts for free.',
         )),
-      'n6': NodeModel(id: 'n6', type: NodeType.endEvent, name: 'Wait', rect: _event(680, 640)),
-      // Assembly path
-      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Frame', rect: _task(900, 300),
+      'n6': NodeModel(id: 'n6', type: NodeType.endEvent, name: 'Wait', rect: _event(_cx + _branchX, _row(5))),
+      // Assembly path — continues down center
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Frame', rect: _task(_cx, _row(4)),
         content: TaskContent(
           title: 'Assemble the Outer Frame',
           text: 'Insert wooden dowels into the pre-drilled holes of the bottom panel. '
@@ -499,7 +468,7 @@ class SampleDiagrams {
               'Repeat for the top panel. The frame should now stand as an open rectangle. '
               'Check that all corners are square by measuring diagonals — they should be equal.',
         )),
-      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Dividers', rect: _task(1120, 300),
+      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Dividers', rect: _task(_cx, _row(5)),
         content: TaskContent(
           title: 'Insert Shelf Dividers',
           text: 'Slide the horizontal divider into position first — insert dowels, then lock with cams. '
@@ -508,7 +477,7 @@ class SampleDiagrams {
               'Ensure all cam locks are firmly turned. Gently wiggle the unit — '
               'if it racks (leans to one side), a cam lock is not fully engaged.',
         )),
-      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Back Panel', rect: _task(1340, 300),
+      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Back Panel', rect: _task(_cx, _row(6)),
         content: TaskContent(
           title: 'Attach the Back Panel',
           text: 'Lay the unit face-down on the floor. '
@@ -518,7 +487,7 @@ class SampleDiagrams {
               'Start with the four corners, then add nails every 10-15 cm along each edge and along the dividers. '
               'The back panel is critical for structural rigidity — do not skip nails.',
         )),
-      'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Wall Mount', rect: _task(1560, 300),
+      'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Wall Mount', rect: _task(_cx, _row(7)),
         content: TaskContent(
           title: 'Secure to the Wall',
           text: 'IMPORTANT: KALLAX units MUST be anchored to the wall to prevent tipping.\n\n'
@@ -529,7 +498,7 @@ class SampleDiagrams {
               '(drywall anchor included — use masonry anchors for concrete). '
               'Secure the bracket to the wall. Test by gently pulling the unit forward — it should not move.',
         )),
-      'n11': NodeModel(id: 'n11', type: NodeType.endEvent, name: 'Done', rect: _event(1760, 300)),
+      'n11': NodeModel(id: 'n11', type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(8))),
     };
     final edges = <String, EdgeModel>{
       'e1': EdgeModel(id: 'e1', sourceId: 'n1',  targetId: 'n2'),
