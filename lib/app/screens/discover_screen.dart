@@ -338,9 +338,34 @@ Route<T> _bottomToTopRoute<T>(Widget page) {
 }
 
 /// Dismiss the entire modal stack back to the dashboard.
-/// The modal route's reverse animation (slide down) plays automatically.
+/// Removes pushed routes silently, then pops the modal route
+/// so only the vertical slide-down animation plays.
 void dismissToDashboard(BuildContext context) {
-  Navigator.of(context).popUntil((route) => route.isFirst);
+  final nav = Navigator.of(context);
+
+  // Collect all routes above the dashboard.
+  final routes = <Route>[];
+  nav.popUntil((route) {
+    if (!route.isFirst) routes.add(route);
+    return true; // don't pop — just collect
+  });
+
+  if (routes.isEmpty) return;
+
+  // If only one route above dashboard, just pop it (it's the modal).
+  if (routes.length == 1) {
+    nav.pop();
+    return;
+  }
+
+  // Remove all pushed routes above the modal without animation.
+  // The modal is routes.last (closest to dashboard), pushed ones are before it.
+  for (int i = 0; i < routes.length - 1; i++) {
+    nav.removeRoute(routes[i]);
+  }
+
+  // Now pop the modal route — its slide-down animation plays.
+  nav.pop();
 }
 
 // ── Creator avatar ──────────────────────────────────────────────
@@ -448,8 +473,16 @@ class _ProfileDiagramCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Pressable(
       onTap: () {
-        _openPresentation(context, diagram,
-            title: name, creator: creator);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PresentationScreen(
+              diagram: diagram,
+              title: name,
+              creator: creator,
+            ),
+          ),
+        );
       },
       child: Container(
         height: 80,

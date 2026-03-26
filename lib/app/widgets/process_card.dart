@@ -356,7 +356,6 @@ class ProcessCard extends StatelessWidget {
           if (text != null) ...[
             const SizedBox(height: 16),
             Flexible(
-              flex: hasImage ? 2 : 3,
               child: GestureDetector(
                 onTap: hasLongText
                     ? () => _showTextModal(context, displayTitle, text!)
@@ -387,38 +386,83 @@ class ProcessCard extends StatelessWidget {
           ],
 
           if (hasImage) ...[
-            const SizedBox(height: 20),
-            Expanded(
-              flex: text != null ? 3 : 5,
-              child: GestureDetector(
+            const SizedBox(height: 16),
+            if (text != null)
+              // Small framed thumbnail when text is present.
+              GestureDetector(
                 onTap: () => _showMediaModal(context, isVideo: false),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    fit: StackFit.passthrough,
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: _buildImage(imagePath!, BoxFit.cover),
-                      ),
-                      Positioned(
-                        right: 10,
-                        bottom: 10,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.fullscreen, size: 20, color: Colors.white),
+                child: Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!, width: 1),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: Stack(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: double.infinity,
+                          child: _buildImage(imagePath!, BoxFit.cover),
                         ),
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.fullscreen, size: 18, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              // Full-size image when no text.
+              Expanded(
+                flex: 5,
+                child: GestureDetector(
+                  onTap: () => _showMediaModal(context, isVideo: false),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!, width: 1),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(11),
+                      child: Stack(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: double.infinity,
+                            child: _buildImage(imagePath!, BoxFit.cover),
+                          ),
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(Icons.fullscreen, size: 18, color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
 
           if (linkUrl != null) ...[
@@ -454,16 +498,63 @@ class ProcessCard extends StatelessWidget {
   // ── Text detail view (fullscreen overlay) ───────────────────
 
   void _showTextModal(BuildContext context, String modalTitle, String fullText) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return _TextDetailView(title: modalTitle, text: fullText);
-        },
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (modalTitle.isNotEmpty)
+                    Text(
+                      modalTitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Text(
+                        fullText,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              height: 1.6,
+                              color: Colors.grey[700],
+                            ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
