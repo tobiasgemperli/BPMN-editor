@@ -389,9 +389,12 @@ class ProcessCard extends StatelessWidget {
             const SizedBox(height: 16),
             if (text != null)
               // Small framed thumbnail when text is present.
-              GestureDetector(
+              Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
                 onTap: () => _showMediaModal(context, isVideo: false),
                 child: Container(
+                  width: 140,
                   height: 120,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
@@ -423,6 +426,7 @@ class ProcessCard extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
               )
             else
               // Full-size image when no text.
@@ -697,52 +701,6 @@ class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
   }
 }
 
-/// Fullscreen text detail view with close button.
-class _TextDetailView extends StatelessWidget {
-  final String title;
-  final String text;
-
-  const _TextDetailView({required this.title, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          ListView(
-            padding: EdgeInsets.fromLTRB(24, topPad + 56, 24, 40),
-            children: [
-              if (title.isNotEmpty)
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              const SizedBox(height: 20),
-              Text(
-                text,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      height: 1.6,
-                      color: Colors.grey[700],
-                    ),
-              ),
-            ],
-          ),
-          Positioned(
-            top: topPad + 8,
-            left: 16,
-            child: CloseCircleButton(
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Flat option pill — dark grey bg, white text, no shadow.
 class _OptionCard extends StatefulWidget {
