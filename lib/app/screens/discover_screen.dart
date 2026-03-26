@@ -51,7 +51,7 @@ class DiscoverScreen extends StatelessWidget {
                       icon: const Icon(Icons.add_circle_outline, size: 28),
                       onPressed: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const EditorScreen()),
+                        _bottomToTopRoute(const EditorScreen()),
                       ),
                       tooltip: 'New Diagram',
                     ),
@@ -217,11 +217,30 @@ String? _findTeaserImage(DiagramModel diagram) {
   return null;
 }
 
-void _openPresentation(BuildContext context, DiagramModel diagram) {
+void _openPresentation(BuildContext context, DiagramModel diagram,
+    {String? title}) {
   Navigator.push(
     context,
-    MaterialPageRoute(
-        builder: (_) => PresentationScreen(diagram: diagram)),
+    _bottomToTopRoute(
+        PresentationScreen(diagram: diagram, title: title)),
+  );
+}
+
+Route<T> _bottomToTopRoute<T>(Widget page) {
+  return PageRouteBuilder<T>(
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+        )),
+        child: child,
+      );
+    },
   );
 }
 
@@ -444,7 +463,7 @@ class _ProfileDiagramCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         Navigator.pop(context); // close the sheet
-        _openPresentation(context, diagram);
+        _openPresentation(context, diagram, title: name);
       },
       child: Container(
         height: 80,
@@ -713,7 +732,7 @@ class _FeaturedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final diagram = entry.builder();
     return GestureDetector(
-      onTap: () => _openPresentation(context, diagram),
+      onTap: () => _openPresentation(context, diagram, title: entry.name),
       child: Container(
         height: 220,
         decoration: BoxDecoration(
@@ -778,7 +797,8 @@ class _FeaturedCard extends StatelessWidget {
                         _CreatorRow(creator: entry.creator),
                         const Spacer(),
                         GestureDetector(
-                          onTap: () => _openPresentation(context, diagram),
+                          onTap: () => _openPresentation(context, diagram,
+                              title: entry.name),
                           child: Icon(Icons.play_circle_filled,
                               size: 32, color: Colors.grey[800]),
                         ),
@@ -806,7 +826,7 @@ class _SmallCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final diagram = entry.builder();
     return GestureDetector(
-      onTap: () => _openPresentation(context, diagram),
+      onTap: () => _openPresentation(context, diagram, title: entry.name),
       child: Container(
         width: 160,
         decoration: BoxDecoration(
@@ -872,7 +892,7 @@ class _ListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final diagram = entry.builder();
     return GestureDetector(
-      onTap: () => _openPresentation(context, diagram),
+      onTap: () => _openPresentation(context, diagram, title: entry.name),
       child: Container(
         height: 88,
         decoration: BoxDecoration(

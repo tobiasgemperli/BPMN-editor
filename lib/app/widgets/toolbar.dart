@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
 
-/// Bottom toolbar for adding BPMN elements by tapping.
+/// Toolbar for adding BPMN elements by tapping.
+/// Supports horizontal (bottom) or vertical (right side) layout.
 class EditorToolbar extends StatelessWidget {
   final EditorController controller;
   final TransformationController transformationController;
   final GlobalKey canvasKey;
+  final bool vertical;
 
   const EditorToolbar({
     super.key,
     required this.controller,
     required this.transformationController,
     required this.canvasKey,
+    this.vertical = false,
   });
 
   /// Compute the canvas point at the perceived center of the visible area
@@ -106,22 +109,7 @@ class EditorToolbar extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final startDisabled = controller.hasStartEvent;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        final buttons = [
               _ToolButton(
                 shape: _ShapeType.startCircle,
                 label: 'Start',
@@ -151,8 +139,26 @@ class EditorToolbar extends StatelessWidget {
                   _addNodeAndZoom(NodeType.endEvent);
                 },
               ),
+            ];
+
+        return Container(
+          padding: vertical
+              ? const EdgeInsets.symmetric(horizontal: 6, vertical: 8)
+              : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
+          child: vertical
+              ? Column(mainAxisSize: MainAxisSize.min, children: buttons)
+              : Row(mainAxisSize: MainAxisSize.min, children: buttons),
         );
       },
     );

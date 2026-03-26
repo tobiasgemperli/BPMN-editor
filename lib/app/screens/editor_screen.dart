@@ -4,18 +4,17 @@ import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/io/bpmn_parser.dart';
 import '../../diagram/io/bpmn_serializer.dart';
 import '../../diagram/model/diagram_model.dart';
-import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
 import 'presentation_screen.dart';
-import 'component_library_screen.dart';
 
 /// The main editor screen.
 class EditorScreen extends StatefulWidget {
   final DiagramModel? initialDiagram;
+  final String? title;
 
-  const EditorScreen({super.key, this.initialDiagram});
+  const EditorScreen({super.key, this.initialDiagram, this.title});
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
@@ -58,109 +57,30 @@ class _EditorScreenState extends State<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        backgroundColor: Colors.grey[50],
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          widget.title ?? 'New Diagram',
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
         actions: [
-          ListenableBuilder(
-            listenable: _controller,
-            builder: (context, _) {
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.undo),
-                    onPressed: _controller.canUndo ? _controller.undo : null,
-                    tooltip: 'Undo',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.redo),
-                    onPressed: _controller.canRedo ? _controller.redo : null,
-                    tooltip: 'Redo',
-                  ),
-                  if (_controller.selectedNodeId != null ||
-                      _controller.selectedEdgeId != null)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: _controller.deleteSelected,
-                      tooltip: 'Delete',
-                    ),
-                  if (_controller.selectedNodeId != null)
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () =>
-                          showPropertiesSheet(context, _controller),
-                      tooltip: 'Properties',
-                    ),
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PresentationScreen(
-                            diagram: _controller.diagram),
-                      ),
-                    ),
-                    tooltip: 'Presentation Mode',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.clear_all),
-                    onPressed: () =>
-                        _controller.loadDiagram(DiagramModel()),
-                    tooltip: 'Clear',
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: _handleMenuAction,
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'bpmn_sample',
-                        child: ListTile(
-                          leading: Icon(Icons.file_open),
-                          title: Text('Load BPMN File'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      ...SampleDiagrams.all.asMap().entries.map((entry) =>
-                        PopupMenuItem(
-                          value: 'sample_${entry.key}',
-                          child: ListTile(
-                            leading: const Icon(Icons.schema_outlined),
-                            title: Text(entry.value.name),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'component_library',
-                        child: ListTile(
-                          leading: Icon(Icons.widgets_outlined),
-                          title: Text('Component Library'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'export',
-                        child: ListTile(
-                          leading: Icon(Icons.code),
-                          title: Text('View BPMN XML'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'clear',
-                        child: ListTile(
-                          leading: Icon(Icons.clear_all),
-                          title: Text('New Diagram'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
+          PopupMenuButton<String>(
+            onSelected: _handleMenuAction,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.code),
+                  title: Text('View BPMN XML'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -171,15 +91,90 @@ class _EditorScreenState extends State<EditorScreen> {
             controller: _controller,
             transformationController: _transformController,
           ),
+          // ── Right-side shape palette (vertical) ──
+          Positioned(
+            right: 12,
+            top: 12,
+            child: EditorToolbar(
+              controller: _controller,
+              transformationController: _transformController,
+              canvasKey: _canvasKey,
+              vertical: true,
+            ),
+          ),
+          // ── Bottom action bar ──
           Positioned(
             left: 0,
             right: 0,
-            bottom: MediaQuery.of(context).padding.bottom + 16,
+            bottom: bottomPad + 12,
             child: Center(
-              child: EditorToolbar(
-                controller: _controller,
-                transformationController: _transformController,
-                canvasKey: _canvasKey,
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) {
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.undo, size: 22),
+                          onPressed:
+                              _controller.canUndo ? _controller.undo : null,
+                          tooltip: 'Undo',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.redo, size: 22),
+                          onPressed:
+                              _controller.canRedo ? _controller.redo : null,
+                          tooltip: 'Redo',
+                        ),
+                        if (_controller.selectedNodeId != null ||
+                            _controller.selectedEdgeId != null)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 22),
+                            onPressed: _controller.deleteSelected,
+                            tooltip: 'Delete',
+                          ),
+                        if (_controller.selectedNodeId != null)
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 22),
+                            onPressed: () =>
+                                showPropertiesSheet(context, _controller),
+                            tooltip: 'Properties',
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.play_arrow, size: 22),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PresentationScreen(
+                                  diagram: _controller.diagram),
+                            ),
+                          ),
+                          tooltip: 'Presentation Mode',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.clear_all, size: 22),
+                          onPressed: () =>
+                              _controller.loadDiagram(DiagramModel()),
+                          tooltip: 'Clear',
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -188,55 +183,11 @@ class _EditorScreenState extends State<EditorScreen> {
     );
   }
 
-  Future<void> _handleMenuAction(String action) async {
-    if (action.startsWith('sample_')) {
-      final index = int.parse(action.substring(7));
-      final diagram = SampleDiagrams.all[index].builder();
-      _controller.loadDiagram(diagram);
-      return;
-    }
+  void _handleMenuAction(String action) {
     switch (action) {
-      case 'bpmn_sample':
-        await _loadSample();
-        break;
       case 'export':
         _showExportedXml();
         break;
-      case 'component_library':
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ComponentLibraryScreen(),
-            ),
-          );
-        }
-        break;
-      case 'clear':
-        _controller.loadDiagram(DiagramModel());
-        break;
-    }
-  }
-
-  Future<void> _loadSample() async {
-    try {
-      final content =
-          await rootBundle.loadString('assets/sample.bpmn');
-      final parser = BpmnParser();
-      final diagram = parser.parse(content);
-      _controller.loadDiagram(diagram);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sample BPMN loaded')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Load error: $e')),
-        );
-      }
     }
   }
 

@@ -7,8 +7,9 @@ import 'editor_screen.dart';
 /// Full-screen presentation mode — swipe vertically through process steps.
 class PresentationScreen extends StatefulWidget {
   final DiagramModel diagram;
+  final String? title;
 
-  const PresentationScreen({super.key, required this.diagram});
+  const PresentationScreen({super.key, required this.diagram, this.title});
 
   @override
   State<PresentationScreen> createState() => _PresentationScreenState();
@@ -136,10 +137,13 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 
   void _openEditor(BuildContext context) {
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EditorScreen(initialDiagram: widget.diagram),
+        builder: (_) => EditorScreen(
+          initialDiagram: widget.diagram,
+          title: widget.title,
+        ),
       ),
     );
   }
