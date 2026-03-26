@@ -4,6 +4,7 @@ import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
 import '../widgets/process_card.dart';
+import 'discover_screen.dart' show dismissToDashboard;
 import 'editor_screen.dart';
 
 /// Full-screen presentation mode — swipe vertically through process steps.
@@ -235,12 +236,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Close button top-left.
+            // Close button top-right — pops to dashboard.
             Positioned(
               top: topPad + 8,
-              left: 16,
+              right: 16,
               child: CloseCircleButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => dismissToDashboard(context),
               ),
             ),
             // Mini process map bottom-right — tap to open full view.

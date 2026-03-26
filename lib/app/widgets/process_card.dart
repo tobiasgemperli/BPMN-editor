@@ -682,7 +682,7 @@ class _OptionCardState extends State<_OptionCard> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.grey[800],
+            color: Colors.grey[300],
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -690,7 +690,7 @@ class _OptionCardState extends State<_OptionCard> {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
+              color: Colors.black87,
             ),
             textAlign: TextAlign.center,
           ),

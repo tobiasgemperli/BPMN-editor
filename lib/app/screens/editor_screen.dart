@@ -9,7 +9,7 @@ import '../widgets/close_circle_button.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
-import 'discover_screen.dart' show showCreatorProfile;
+import 'discover_screen.dart' show showCreatorProfile, dismissToDashboard;
 import 'presentation_screen.dart';
 
 /// Role determines what the user can do with the diagram.
@@ -186,13 +186,32 @@ class _EditorScreenState extends State<EditorScreen> {
               ),
             ),
           // ── Top bar ──
-          if (widget.showCloseButton || widget.showBackButton)
+          // Back button (left) — goes back one screen.
+          if (widget.showBackButton)
             Positioned(
               top: topPad + 8,
               left: 16,
               child: CloseCircleButton(
                 onPressed: () => Navigator.pop(context),
-                isBack: widget.showBackButton,
+                isBack: true,
+              ),
+            ),
+          // Close button for modal screens (no back) — top left.
+          if (widget.showCloseButton && !widget.showBackButton)
+            Positioned(
+              top: topPad + 8,
+              left: 16,
+              child: CloseCircleButton(
+                onPressed: () => dismissToDashboard(context),
+              ),
+            ),
+          // Close button (right) — pops all the way to dashboard.
+          if (widget.showBackButton)
+            Positioned(
+              top: topPad + 8,
+              right: 16,
+              child: CloseCircleButton(
+                onPressed: () => dismissToDashboard(context),
               ),
             ),
           Positioned(

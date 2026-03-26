@@ -298,14 +298,12 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
     {String? title}) {
   Navigator.push(
     context,
-    MaterialPageRoute(
-      builder: (_) => EditorScreen(
-        initialDiagram: diagram,
-        title: title,
-        role: DiagramRole.owner,
-        showCloseButton: true,
-      ),
-    ),
+    _bottomToTopRoute(EditorScreen(
+      initialDiagram: diagram,
+      title: title,
+      role: DiagramRole.owner,
+      showCloseButton: true,
+    )),
   );
 }
 
@@ -313,14 +311,12 @@ void _openPresentation(BuildContext context, DiagramModel diagram,
     {String? title, SampleCreator? creator}) {
   Navigator.push(
     context,
-    MaterialPageRoute(
-      builder: (_) => PresentationScreen(
-        diagram: diagram,
-        title: title,
-        role: DiagramRole.viewer,
-        creator: creator,
-      ),
-    ),
+    _bottomToTopRoute(PresentationScreen(
+      diagram: diagram,
+      title: title,
+      role: DiagramRole.viewer,
+      creator: creator,
+    )),
   );
 }
 
@@ -340,6 +336,12 @@ Route<T> _bottomToTopRoute<T>(Widget page) {
       );
     },
   );
+}
+
+/// Dismiss the entire modal stack back to the dashboard.
+/// The modal route's reverse animation (slide down) plays automatically.
+void dismissToDashboard(BuildContext context) {
+  dismissToDashboard(context);
 }
 
 // ── Creator avatar ──────────────────────────────────────────────
@@ -1006,8 +1008,11 @@ class _CreatorProfileScreen extends StatelessWidget {
               padding: EdgeInsets.only(top: topPad + 8, left: 16, right: 16),
               child: Row(
                 children: [
-                  CloseCircleButton(onPressed: () => Navigator.pop(context)),
+                  CloseCircleButton(onPressed: () => Navigator.pop(context), isBack: true),
                   const Spacer(),
+                  CloseCircleButton(
+                    onPressed: () => dismissToDashboard(context),
+                  ),
                 ],
               ),
             ),
