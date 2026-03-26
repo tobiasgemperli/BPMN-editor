@@ -97,12 +97,16 @@ class ProcessCard extends StatelessWidget {
 
   Widget _buildEvent(BuildContext context) {
     return Center(
-      child: Text(
-        nodeName.isNotEmpty ? nodeName : 'Event',
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.grey[400],
-              fontWeight: FontWeight.w300,
-            ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Text(
+          nodeName.isNotEmpty ? nodeName : 'Event',
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.w300,
+                fontSize: 32,
+              ),
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
@@ -322,8 +326,8 @@ class ProcessCard extends StatelessWidget {
                           fontWeight: FontWeight.w300,
                           fontSize: 32,
                         )
-                    : Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
+                    : Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                 textAlign: titleOnly ? TextAlign.center : TextAlign.start,
                 maxLines: 5,
@@ -338,19 +342,6 @@ class ProcessCard extends StatelessWidget {
                       color: Colors.grey[700],
                     ),
               ),
-              if (hasLongText) ...[
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () => _showTextModal(context, displayTitle, text!),
-                  child: Text(
-                    'Tap to read more',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ],
         ),
