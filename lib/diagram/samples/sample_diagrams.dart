@@ -571,7 +571,7 @@ class SampleDiagrams {
   /// Content showcase: every card variation in one flow.
   static DiagramModel contentShowcase() {
     const img = 'assets/sample_image.jpg';
-    const video = '/tmp/bpmn_sample_video.mp4';
+    const video = 'assets/sample_video_3.mp4';
 
     const longText =
         'This is a detailed description that exceeds 200 characters to trigger '
