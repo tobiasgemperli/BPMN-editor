@@ -162,7 +162,7 @@ class _EditorScreenState extends State<EditorScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
+                        color: Colors.grey[50],
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(

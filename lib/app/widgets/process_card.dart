@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 import '../../diagram/model/diagram_model.dart';
 
 /// A full-screen step in a process. No Card/shadow — clean flat design.
@@ -225,15 +226,9 @@ class ProcessCard extends StatelessWidget {
   // ── Video full (TikTok) ─────────────────────────────────────
 
   Widget _buildVideoFull(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showMediaModal(context, isVideo: true),
-      child: Container(
-        color: Colors.black,
-        child: const Center(
-          child:
-              Icon(Icons.play_circle_outline, size: 80, color: Colors.white70),
-        ),
-      ),
+    return _AssetVideoPlayer(
+      videoPath: videoPath!,
+      child: const SizedBox.expand(),
     );
   }
 
@@ -241,58 +236,45 @@ class ProcessCard extends StatelessWidget {
 
   Widget _buildVideoWithTitle(BuildContext context) {
     final displayTitle = title ?? nodeName;
-    return GestureDetector(
-      onTap: () => _showMediaModal(context, isVideo: true),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-            color: Colors.black,
-            child: const Center(
-              child: Icon(Icons.play_circle_outline,
-                  size: 80, color: Colors.white70),
-            ),
-          ),
-          // Title + text overlay at bottom.
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 48,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (displayTitle.isNotEmpty)
-                  Text(
-                    displayTitle,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+    return _AssetVideoPlayer(
+      videoPath: videoPath!,
+      child: Positioned(
+        left: 24,
+        right: 24,
+        bottom: 48,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (displayTitle.isNotEmpty)
+              Text(
+                displayTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (text != null) ...[
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => _showTextModal(context, displayTitle, text!),
+                child: Text(
+                  text!,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 14,
+                    height: 1.4,
                   ),
-                if (text != null) ...[
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => _showTextModal(context, displayTitle, text!),
-                    child: Text(
-                      text!,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -468,17 +450,9 @@ class ProcessCard extends StatelessWidget {
               ),
             ),
             body: isVideo
-                ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.play_circle_outline,
-                            size: 96, color: Colors.white54),
-                        SizedBox(height: 16),
-                        Text('Video player',
-                            style: TextStyle(color: Colors.white54)),
-                      ],
-                    ),
+                ? _AssetVideoPlayer(
+                    videoPath: videoPath!,
+                    child: const SizedBox.expand(),
                   )
                 : InteractiveViewer(
                     child: Center(
@@ -512,6 +486,64 @@ class ProcessCard extends StatelessWidget {
       child: Center(
         child: Icon(Icons.image_outlined, size: 48, color: Colors.grey[400]),
       ),
+    );
+  }
+}
+
+/// Plays a bundled asset video in a loop, filling its parent.
+class _AssetVideoPlayer extends StatefulWidget {
+  final String videoPath;
+  final Widget child;
+
+  const _AssetVideoPlayer({required this.videoPath, required this.child});
+
+  @override
+  State<_AssetVideoPlayer> createState() => _AssetVideoPlayerState();
+}
+
+class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
+  late VideoPlayerController _vController;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _vController = VideoPlayerController.asset(widget.videoPath)
+      ..setLooping(true)
+      ..setVolume(0)
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _initialized = true);
+          _vController.play();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _vController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(color: Colors.black),
+        if (_initialized)
+          Center(
+            child: AspectRatio(
+              aspectRatio: _vController.value.aspectRatio,
+              child: VideoPlayer(_vController),
+            ),
+          )
+        else
+          const Center(
+            child: CircularProgressIndicator(color: Colors.white54),
+          ),
+        widget.child,
+      ],
     );
   }
 }

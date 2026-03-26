@@ -146,7 +146,7 @@ class EditorToolbar extends StatelessWidget {
               ? const EdgeInsets.symmetric(horizontal: 6, vertical: 8)
               : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: Colors.grey[50],
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
