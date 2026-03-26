@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
+import '../widgets/close_circle_button.dart';
 import 'presentation_screen.dart';
 import 'editor_screen.dart';
 
@@ -20,10 +21,16 @@ class DiscoverScreen extends StatelessWidget {
     final tutorials = rest.where((s) =>
         s.name.contains('IKEA') ||
         s.name.contains('Content') ||
-        s.name.contains('Emergency')).toList();
+        s.name.contains('Emergency') ||
+        s.name.contains('Coffee') ||
+        s.name.contains('Flat Tire') ||
+        s.name.contains('Plant')).toList();
     final technical = rest.where((s) =>
         s.name.contains('Debug') ||
-        s.name.contains('Sprint')).toList();
+        s.name.contains('Sprint') ||
+        s.name.contains('Git') ||
+        s.name.contains('CI/CD') ||
+        s.name.contains('Database')).toList();
     final patterns = rest.where((s) =>
         !tutorials.contains(s) && !technical.contains(s)).toList();
 
@@ -51,7 +58,8 @@ class DiscoverScreen extends StatelessWidget {
                       icon: const Icon(Icons.add_circle_outline, size: 28),
                       onPressed: () => Navigator.push(
                         context,
-                        _bottomToTopRoute(const EditorScreen()),
+                        _bottomToTopRoute(
+                            const EditorScreen(showCloseButton: true)),
                       ),
                       tooltip: 'New Diagram',
                     ),
@@ -117,6 +125,26 @@ class DiscoverScreen extends StatelessWidget {
                   child: _FeaturedCard(entry: featured),
                 ),
               ),
+
+            // ── My Flowcharts section ──────────────────────────
+            if (SampleDiagrams.myDiagrams.isNotEmpty) ...[
+              _sectionHeader(context, 'My Flowcharts'),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: SampleDiagrams.myDiagrams.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) => _SmallCard(
+                      entry: SampleDiagrams.myDiagrams[i],
+                      isOwned: true,
+                    ),
+                  ),
+                ),
+              ),
+            ],
 
             // ── Tutorials section ───────────────────────────────
             if (tutorials.isNotEmpty) ...[
@@ -205,6 +233,12 @@ String _subtitle(String name) {
   if (name.contains('Diamond')) return '7–9 steps · Branch & merge';
   if (name.contains('Three-Way')) return '7 steps · 3-way merge';
   if (name.contains('Four-Way')) return '8 steps · 4-way merge';
+  if (name.contains('Coffee')) return '6 steps · Daily routine';
+  if (name.contains('Flat Tire')) return '7 steps · Emergency guide';
+  if (name.contains('Plant')) return '7 steps · Care routine';
+  if (name.contains('Git')) return '8 steps · Developer guide';
+  if (name.contains('CI/CD')) return '8 steps · DevOps pipeline';
+  if (name.contains('Database')) return '6 steps · Migration checklist';
   return '';
 }
 
@@ -217,12 +251,29 @@ String? _findTeaserImage(DiagramModel diagram) {
   return null;
 }
 
-void _openPresentation(BuildContext context, DiagramModel diagram,
+void _openOwnedEditor(BuildContext context, DiagramModel diagram,
     {String? title}) {
   Navigator.push(
     context,
-    _bottomToTopRoute(
-        PresentationScreen(diagram: diagram, title: title)),
+    _bottomToTopRoute(EditorScreen(
+      initialDiagram: diagram,
+      title: title,
+      role: DiagramRole.owner,
+      showCloseButton: true,
+    )),
+  );
+}
+
+void _openPresentation(BuildContext context, DiagramModel diagram,
+    {String? title, SampleCreator? creator}) {
+  Navigator.push(
+    context,
+    _bottomToTopRoute(PresentationScreen(
+      diagram: diagram,
+      title: title,
+      role: DiagramRole.viewer,
+      creator: creator,
+    )),
   );
 }
 
@@ -289,7 +340,7 @@ class _CreatorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return _Pressable(
       onTap: () => _showCreatorProfile(context, creator),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -316,126 +367,9 @@ class _CreatorRow extends StatelessWidget {
 // ── Creator profile sheet ───────────────────────────────────────
 
 void _showCreatorProfile(BuildContext context, SampleCreator creator) {
-  // Collect all diagrams by this creator.
-  final creatorDiagrams =
-      SampleDiagrams.all.where((e) => e.creator.id == creator.id).toList();
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (context) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: [
-              const SizedBox(height: 12),
-              // Drag handle.
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Profile header.
-              Row(
-                children: [
-                  _CreatorAvatar(creator: creator, size: 56),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          creator.name,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_formatNumber(creator.followers)} followers · '
-                          '${creatorDiagrams.length} processes',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Bio.
-              Text(
-                creator.bio,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: Colors.grey[700],
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Follow button.
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Follow'),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Diagrams by this creator.
-              Text(
-                'Processes',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[800],
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...creatorDiagrams.map((entry) {
-                final diagram = entry.builder();
-                final teaser = _findTeaserImage(diagram);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _ProfileDiagramCard(
-                    name: entry.name,
-                    diagram: diagram,
-                    subtitle: _subtitle(entry.name),
-                    teaserImage: teaser,
-                  ),
-                );
-              }),
-              const SizedBox(height: 16),
-            ],
-          );
-        },
-      );
-    },
+  Navigator.push(
+    context,
+    _bottomToTopRoute(_CreatorProfileScreen(creator: creator)),
   );
 }
 
@@ -450,20 +384,22 @@ class _ProfileDiagramCard extends StatelessWidget {
   final DiagramModel diagram;
   final String subtitle;
   final String? teaserImage;
+  final SampleCreator? creator;
 
   const _ProfileDiagramCard({
     required this.name,
     required this.diagram,
     this.subtitle = '',
     this.teaserImage,
+    this.creator,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return _Pressable(
       onTap: () {
-        Navigator.pop(context); // close the sheet
-        _openPresentation(context, diagram, title: name);
+        _openPresentation(context, diagram,
+            title: name, creator: creator);
       },
       child: Container(
         height: 80,
@@ -731,8 +667,9 @@ class _FeaturedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final diagram = entry.builder();
-    return GestureDetector(
-      onTap: () => _openPresentation(context, diagram, title: entry.name),
+    return _Pressable(
+      onTap: () => _openPresentation(context, diagram,
+                              title: entry.name, creator: entry.creator),
       child: Container(
         height: 220,
         decoration: BoxDecoration(
@@ -796,9 +733,9 @@ class _FeaturedCard extends StatelessWidget {
                       children: [
                         _CreatorRow(creator: entry.creator),
                         const Spacer(),
-                        GestureDetector(
+                        _Pressable(
                           onTap: () => _openPresentation(context, diagram,
-                              title: entry.name),
+                              title: entry.name, creator: entry.creator),
                           child: Icon(Icons.play_circle_filled,
                               size: 32, color: Colors.grey[800]),
                         ),
@@ -819,14 +756,22 @@ class _FeaturedCard extends StatelessWidget {
 
 class _SmallCard extends StatelessWidget {
   final SampleDiagramEntry entry;
+  final bool isOwned;
 
-  const _SmallCard({required this.entry});
+  const _SmallCard({required this.entry, this.isOwned = false});
 
   @override
   Widget build(BuildContext context) {
     final diagram = entry.builder();
-    return GestureDetector(
-      onTap: () => _openPresentation(context, diagram, title: entry.name),
+    return _Pressable(
+      onTap: () {
+        if (isOwned) {
+          _openOwnedEditor(context, diagram, title: entry.name);
+        } else {
+          _openPresentation(context, diagram,
+              title: entry.name, creator: entry.creator);
+        }
+      },
       child: Container(
         width: 160,
         decoration: BoxDecoration(
@@ -891,8 +836,9 @@ class _ListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final diagram = entry.builder();
-    return GestureDetector(
-      onTap: () => _openPresentation(context, diagram, title: entry.name),
+    return _Pressable(
+      onTap: () => _openPresentation(context, diagram,
+                              title: entry.name, creator: entry.creator),
       child: Container(
         height: 88,
         decoration: BoxDecoration(
@@ -949,6 +895,186 @@ class _ListCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Pressable wrapper ─────────────────────────────────────────
+
+/// Wraps a child with press-down opacity feedback.
+class _Pressable extends StatefulWidget {
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _Pressable({required this.onTap, required this.child});
+
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<_Pressable> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedOpacity(
+        opacity: _pressed ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+// ── Creator profile screen (fullscreen) ───────────────────────
+
+class _CreatorProfileScreen extends StatelessWidget {
+  final SampleCreator creator;
+
+  const _CreatorProfileScreen({required this.creator});
+
+  @override
+  Widget build(BuildContext context) {
+    final creatorDiagrams =
+        SampleDiagrams.all.where((e) => e.creator.id == creator.id).toList();
+    final topPad = MediaQuery.of(context).padding.top;
+
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: CustomScrollView(
+        slivers: [
+          // ── Top bar with close button ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(top: topPad + 8, left: 12, right: 12),
+              child: Row(
+                children: [
+                  CloseCircleButton(onPressed: () => Navigator.pop(context)),
+                  const Spacer(),
+                ],
+              ),
+            ),
+          ),
+          // ── Profile header ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: Column(
+                children: [
+                  _CreatorAvatar(creator: creator, size: 72),
+                  const SizedBox(height: 12),
+                  Text(
+                    creator.name,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_formatNumber(creator.followers)} followers · '
+                    '${creatorDiagrams.length} processes',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    creator.bio,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {},
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Follow'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Messaging ${creator.name} is not available yet'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                          label: const Text('Message'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Processes',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+          // ── Diagram list ──
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) {
+                  final entry = creatorDiagrams[i];
+                  final diagram = entry.builder();
+                  final teaser = _findTeaserImage(diagram);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ProfileDiagramCard(
+                      name: entry.name,
+                      diagram: diagram,
+                      subtitle: _subtitle(entry.name),
+                      teaserImage: teaser,
+                      creator: entry.creator,
+                    ),
+                  );
+                },
+                childCount: creatorDiagrams.length,
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
+        ],
       ),
     );
   }

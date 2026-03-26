@@ -7,11 +7,13 @@ import '../../diagram/render/diagram_painter.dart';
 class DiagramCanvas extends StatefulWidget {
   final EditorController controller;
   final TransformationController transformationController;
+  final bool readOnly;
 
   const DiagramCanvas({
     super.key,
     required this.controller,
     required this.transformationController,
+    this.readOnly = false,
   });
 
   @override
@@ -134,6 +136,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
+        if (widget.readOnly) return;
         final canvasPoint = event.localPosition;
         _activePointer = event.pointer;
 

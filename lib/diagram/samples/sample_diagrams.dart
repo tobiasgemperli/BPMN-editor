@@ -695,6 +695,197 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  // ── Additional tutorial samples ──────────────────────────────
+
+  /// Coffee Brewing Guide: Start -> Boil Water -> Grind Beans -> Brew -> Serve -> End
+  static DiagramModel coffeeBrewing() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Boil Water', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Boil Water', text: 'Heat filtered water to 96°C (205°F). Avoid boiling.',
+              videoPath: 'assets/sample_video_1.mp4')),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Grind Beans', rect: _task(_cx, _row(2)),
+          content: TaskContent(title: 'Grind Beans', text: 'Use medium-coarse grind. 15g per 250ml water.',
+              imagePath: 'assets/sample_image.jpg')),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Brew', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Brew Coffee', text: 'Pour water over grounds in circular motion. Wait 4 minutes.',
+              videoPath: 'assets/sample_video_2.mp4')),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Serve', rect: _task(_cx, _row(4)),
+          content: TaskContent(title: 'Serve', text: 'Pour into pre-warmed mug. Add milk or sugar to taste.')),
+      'n6': NodeModel(id: 'n6', type: NodeType.endEvent, name: 'Enjoy', rect: _event(_cx, _row(5))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Flat Tire Repair: linear with a decision branch
+  static DiagramModel flatTireRepair() {
+    const left = _cx - _branchX;
+    const right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Flat Tire', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Pull Over Safely', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Pull Over', text: 'Move to a safe spot away from traffic. Turn on hazard lights.')),
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Have spare?', rect: _gw(_cx, _row(2))),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Change Tire', rect: _task(left, _row(3)),
+          content: TaskContent(title: 'Change Tire', text: 'Loosen lugs, jack up car, swap tire, lower and tighten.')),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Call Roadside', rect: _task(right, _row(3)),
+          content: TaskContent(title: 'Call Roadside Assistance', text: 'Share your location and wait in a safe spot.')),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Drive to Shop', rect: _task(_cx, _row(4)),
+          content: TaskContent(title: 'Visit Tire Shop', text: 'Drive slowly on the spare (max 80 km/h) to get a replacement.')),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(5))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4', name: 'Yes',
+          waypoints: _hv(_cx, _row(2), left, _row(3))),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5', name: 'No',
+          waypoints: _hv(_cx, _row(2), right, _row(3))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6',
+          waypoints: _hv(left, _row(3), _cx, _row(4))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6',
+          waypoints: _hv(right, _row(3), _cx, _row(4))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n6', targetId: 'n7'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Plant Care Routine: watering schedule with season check
+  static DiagramModel plantCare() {
+    const left = _cx - _branchX;
+    const right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Check Plant', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Check Soil', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Check Soil Moisture', text: 'Push your finger 2cm into the soil. If dry, water is needed.')),
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Soil dry?', rect: _gw(_cx, _row(2))),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Water Plant', rect: _task(left, _row(3)),
+          content: TaskContent(title: 'Water Thoroughly', text: 'Water until it drains from the bottom. Empty saucer after 30 min.')),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Skip Watering', rect: _task(right, _row(3)),
+          content: TaskContent(title: 'No Water Needed', text: 'Soil is still moist. Check again in 2-3 days.')),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Check Light', rect: _task(_cx, _row(4)),
+          content: TaskContent(title: 'Adjust Light', text: 'Rotate plant quarter-turn for even growth. Move if leaves yellow.')),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(5))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4', name: 'Yes',
+          waypoints: _hv(_cx, _row(2), left, _row(3))),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n3', targetId: 'n5', name: 'No',
+          waypoints: _hv(_cx, _row(2), right, _row(3))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6',
+          waypoints: _hv(left, _row(3), _cx, _row(4))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n6',
+          waypoints: _hv(right, _row(3), _cx, _row(4))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n6', targetId: 'n7'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  // ── Additional technical samples ────────────────────────────
+
+  /// Git Merge Conflict Resolution
+  static DiagramModel gitMergeConflict() {
+    const left = _cx - _branchX;
+    const right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Conflict', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Identify Files', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Identify Conflicting Files', text: 'Run git status to see files with merge conflicts.')),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Open Diff', rect: _task(_cx, _row(2)),
+          content: TaskContent(title: 'Review the Diff', text: 'Look for <<<<<<< HEAD markers. Understand both sides of the change.')),
+      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Simple fix?', rect: _gw(_cx, _row(3))),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Edit Manually', rect: _task(left, _row(4)),
+          content: TaskContent(title: 'Manual Resolution', text: 'Keep the correct code, remove conflict markers, test.')),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Use Merge Tool', rect: _task(right, _row(4)),
+          content: TaskContent(title: 'Visual Merge Tool', text: 'Use VS Code or IntelliJ merge tool for complex conflicts.')),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Test & Commit', rect: _task(_cx, _row(5)),
+          content: TaskContent(title: 'Test & Commit', text: 'Run tests, then git add and git commit to finalize the merge.')),
+      'n8': NodeModel(id: 'n8', type: NodeType.endEvent, name: 'Resolved', rect: _event(_cx, _row(6))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5', name: 'Yes',
+          waypoints: _hv(_cx, _row(3), left, _row(4))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6', name: 'No',
+          waypoints: _hv(_cx, _row(3), right, _row(4))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n7',
+          waypoints: _hv(left, _row(4), _cx, _row(5))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n6', targetId: 'n7',
+          waypoints: _hv(right, _row(4), _cx, _row(5))),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n7', targetId: 'n8'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// CI/CD Pipeline: build, test, deploy with rollback
+  static DiagramModel cicdPipeline() {
+    const left = _cx - _branchX;
+    const right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Push', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Build', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Build Artifacts', text: 'Compile code, build Docker image, run linters.')),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Run Tests', rect: _task(_cx, _row(2)),
+          content: TaskContent(title: 'Automated Tests', text: 'Unit tests, integration tests, E2E tests in parallel.')),
+      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Tests pass?', rect: _gw(_cx, _row(3))),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Deploy Staging', rect: _task(left, _row(4)),
+          content: TaskContent(title: 'Deploy to Staging', text: 'Push to staging environment. Run smoke tests.')),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Fix & Retry', rect: _task(right, _row(4)),
+          content: TaskContent(title: 'Fix Failures', text: 'Review test logs, fix issues, push again to trigger pipeline.')),
+      'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Deploy Prod', rect: _task(_cx, _row(5)),
+          content: TaskContent(title: 'Deploy to Production', text: 'Blue-green deploy with canary rollout. Monitor error rates.')),
+      'n8': NodeModel(id: 'n8', type: NodeType.endEvent, name: 'Live', rect: _event(_cx, _row(6))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5', name: 'Yes',
+          waypoints: _hv(_cx, _row(3), left, _row(4))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6', name: 'No',
+          waypoints: _hv(_cx, _row(3), right, _row(4))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n7',
+          waypoints: _hv(left, _row(4), _cx, _row(5))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Database Migration Checklist
+  static DiagramModel dbMigration() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Plan', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Backup DB', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Create Backup', text: 'Full database dump. Verify backup integrity with restore test.')),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Run Migration', rect: _task(_cx, _row(2)),
+          content: TaskContent(title: 'Execute Migration', text: 'Apply schema changes. Monitor for lock contention on large tables.')),
+      'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Validate Data', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Validate Data', text: 'Run integrity checks. Compare row counts and checksums.')),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Update App', rect: _task(_cx, _row(4)),
+          content: TaskContent(title: 'Deploy App Changes', text: 'Deploy app version that uses the new schema. Monitor errors.')),
+      'n6': NodeModel(id: 'n6', type: NodeType.endEvent, name: 'Complete', rect: _event(_cx, _row(5))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   // ── Creators ─────────────────────────────────────────────────
 
   static const _creators = <String, SampleCreator>{
@@ -762,6 +953,38 @@ class SampleDiagrams {
         creator: _creators['sam']!),
     SampleDiagramEntry(name: 'Four-Way Merge', builder: fourWayMerge,
         creator: _creators['alex']!),
+    SampleDiagramEntry(name: 'Coffee Brewing Guide', builder: coffeeBrewing,
+        creator: _creators['jordan']!),
+    SampleDiagramEntry(name: 'Flat Tire Repair', builder: flatTireRepair,
+        creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'Plant Care Routine', builder: plantCare,
+        creator: _creators['jordan']!),
+    SampleDiagramEntry(name: 'Git Merge Conflicts', builder: gitMergeConflict,
+        creator: _creators['alex']!),
+    SampleDiagramEntry(name: 'CI/CD Pipeline', builder: cicdPipeline,
+        creator: _creators['alex']!),
+    SampleDiagramEntry(name: 'Database Migration', builder: dbMigration,
+        creator: _creators['sam']!),
+  ];
+
+  /// The current user (for prototype purposes).
+  static const currentUser = SampleCreator(
+    id: 'me',
+    name: 'You',
+    initials: 'ME',
+    colorValue: 0xFF42A5F5,
+    bio: '',
+    followers: 0,
+  );
+
+  /// Diagrams owned by the current user.
+  static final List<SampleDiagramEntry> myDiagrams = [
+    SampleDiagramEntry(name: 'My Onboarding Flow', builder: linear,
+        creator: currentUser),
+    SampleDiagramEntry(name: 'Team Standup Process', builder: diamond,
+        creator: currentUser),
+    SampleDiagramEntry(name: 'Bug Triage Workflow', builder: threeWayMerge,
+        creator: currentUser),
   ];
 }
 

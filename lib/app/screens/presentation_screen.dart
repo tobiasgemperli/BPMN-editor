@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../diagram/model/diagram_model.dart';
+import '../../diagram/samples/sample_diagrams.dart';
+import '../widgets/close_circle_button.dart';
 import '../widgets/process_card.dart';
 import 'editor_screen.dart';
 
@@ -8,8 +10,16 @@ import 'editor_screen.dart';
 class PresentationScreen extends StatefulWidget {
   final DiagramModel diagram;
   final String? title;
+  final DiagramRole role;
+  final SampleCreator? creator;
 
-  const PresentationScreen({super.key, required this.diagram, this.title});
+  const PresentationScreen({
+    super.key,
+    required this.diagram,
+    this.title,
+    this.role = DiagramRole.owner,
+    this.creator,
+  });
 
   @override
   State<PresentationScreen> createState() => _PresentationScreenState();
@@ -139,11 +149,26 @@ class _PresentationScreenState extends State<PresentationScreen> {
   void _openEditor(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => EditorScreen(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => EditorScreen(
           initialDiagram: widget.diagram,
           title: widget.title,
+          role: widget.role,
+          creator: widget.creator,
+          showCloseButton: true,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOut,
+            )),
+            child: child,
+          );
+        },
       ),
     );
   }
@@ -224,7 +249,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
             Positioned(
               top: topPad + 8,
               left: 12,
-              child: _CloseCircleButton(
+              child: CloseCircleButton(
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -261,22 +286,24 @@ class _PresentationScreenState extends State<PresentationScreen> {
             if (_isLastStep(_currentPage))
               Positioned(
                 bottom: bottomPad + 32,
-                left: 32,
-                right: 32,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: SizedBox(
+                    width: 140,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
+                      child: const Text('Close',
+                          style: TextStyle(fontSize: 16)),
                     ),
-                    child: const Text('Close',
-                        style: TextStyle(fontSize: 17)),
                   ),
                 ),
               ),
@@ -458,35 +485,6 @@ class _MiniFlowPainter extends CustomPainter {
   @override
   bool shouldRepaint(_MiniFlowPainter oldDelegate) =>
       oldDelegate.currentNodeId != currentNodeId;
-}
-
-class _CloseCircleButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _CloseCircleButton({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.9),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.close, size: 20, color: Colors.black54),
-      ),
-    );
-  }
 }
 
 /// Blinking down-arrow hint shown on the first card only.

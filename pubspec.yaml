@@ -58,6 +58,9 @@ flutter:
   assets:
     - assets/sample.bpmn
     - assets/sample_image.jpg
+    - assets/sample_video_1.mp4
+    - assets/sample_video_2.mp4
+    - assets/sample_video_3.mp4
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
