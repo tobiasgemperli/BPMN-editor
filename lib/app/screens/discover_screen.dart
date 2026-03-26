@@ -298,12 +298,14 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
     {String? title}) {
   Navigator.push(
     context,
-    _bottomToTopRoute(EditorScreen(
-      initialDiagram: diagram,
-      title: title,
-      role: DiagramRole.owner,
-      showCloseButton: true,
-    )),
+    MaterialPageRoute(
+      builder: (_) => EditorScreen(
+        initialDiagram: diagram,
+        title: title,
+        role: DiagramRole.owner,
+        showCloseButton: true,
+      ),
+    ),
   );
 }
 
@@ -311,12 +313,14 @@ void _openPresentation(BuildContext context, DiagramModel diagram,
     {String? title, SampleCreator? creator}) {
   Navigator.push(
     context,
-    _bottomToTopRoute(PresentationScreen(
-      diagram: diagram,
-      title: title,
-      role: DiagramRole.viewer,
-      creator: creator,
-    )),
+    MaterialPageRoute(
+      builder: (_) => PresentationScreen(
+        diagram: diagram,
+        title: title,
+        role: DiagramRole.viewer,
+        creator: creator,
+      ),
+    ),
   );
 }
 
@@ -412,7 +416,9 @@ class _CreatorRow extends StatelessWidget {
 void _showCreatorProfile(BuildContext context, SampleCreator creator) {
   Navigator.push(
     context,
-    _bottomToTopRoute(_CreatorProfileScreen(creator: creator)),
+    MaterialPageRoute(
+      builder: (_) => _CreatorProfileScreen(creator: creator),
+    ),
   );
 }
 
