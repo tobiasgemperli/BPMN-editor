@@ -124,54 +124,33 @@ class ProcessCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.call_split, size: 32, color: Colors.black54),
-            const SizedBox(height: 20),
             Text(
               question,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w300,
+                    fontSize: 32,
                   ),
               textAlign: TextAlign.center,
             ),
             if (hasInline) ...[
-              const SizedBox(height: 32),
+              const SizedBox(height: 36),
               ...gatewayOptions.asMap().entries.map(
                     (entry) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: onOptionSelected != null
-                              ? () => onOptionSelected!(entry.key)
-                              : null,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text(entry.value,
-                              style: const TextStyle(fontSize: 16)),
-                        ),
+                      child: _OptionCard(
+                        label: entry.value,
+                        onTap: onOptionSelected != null
+                            ? () => onOptionSelected!(entry.key)
+                            : null,
                       ),
                     ),
                   ),
             ],
             if (hasModal) ...[
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => _showOptionsModal(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text('Choose (${gatewayOptions.length} options)',
-                      style: const TextStyle(fontSize: 16)),
-                ),
+              const SizedBox(height: 36),
+              _OptionCard(
+                label: 'Choose from ${gatewayOptions.length} options',
+                onTap: () => _showOptionsModal(context),
               ),
             ],
           ],
@@ -197,25 +176,30 @@ class ProcessCard extends StatelessWidget {
             return Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
                   child: Text(
                     nodeName.isNotEmpty ? nodeName : 'Choose',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                const Divider(height: 1),
                 Expanded(
                   child: ListView.builder(
                     controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     itemCount: gatewayOptions.length,
                     itemBuilder: (context, index) {
-                      return ListTile(
-                        title: Text(gatewayOptions[index]),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          Navigator.pop(context);
-                          onOptionSelected?.call(index);
-                        },
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _OptionCard(
+                          label: gatewayOptions[index],
+                          onTap: () {
+                            Navigator.pop(context);
+                            onOptionSelected?.call(index);
+                          },
+                        ),
                       );
                     },
                   ),
@@ -363,7 +347,7 @@ class ProcessCard extends StatelessWidget {
             Text(
               displayTitle,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -381,7 +365,7 @@ class ProcessCard extends StatelessWidget {
                   text!,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         height: 1.6,
-                        color: Colors.grey[800],
+                        color: Colors.grey[700],
                       ),
                   overflow: TextOverflow.fade,
                 ),
@@ -389,11 +373,14 @@ class ProcessCard extends StatelessWidget {
             ),
             if (hasLongText) ...[
               const SizedBox(height: 8),
-              Text(
-                'Tap to read more',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 13,
+              GestureDetector(
+                onTap: () => _showTextModal(context, displayTitle, text!),
+                child: Text(
+                  'Tap to read more',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -407,9 +394,26 @@ class ProcessCard extends StatelessWidget {
                 onTap: () => _showMediaModal(context, isVideo: false),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: _buildImage(imagePath!, BoxFit.cover),
+                  child: Stack(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildImage(imagePath!, BoxFit.cover),
+                      ),
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.fullscreen, size: 20, color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -418,18 +422,25 @@ class ProcessCard extends StatelessWidget {
 
           if (linkUrl != null) ...[
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.link, size: 16, color: Colors.grey[500]),
-                const SizedBox(width: 6),
-                Text(
-                  linkLabel ?? linkUrl!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
+            GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Opening ${linkUrl!}')),
+                );
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.link, size: 16, color: Colors.grey[500]),
+                  const SizedBox(width: 6),
+                  Text(
+                    linkLabel ?? linkUrl!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
 
@@ -614,16 +625,16 @@ class _TextDetailView extends StatelessWidget {
               if (title.isNotEmpty)
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
               const SizedBox(height: 20),
               Text(
                 text,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      height: 1.7,
-                      color: Colors.grey[800],
+                      height: 1.6,
+                      color: Colors.grey[700],
                     ),
               ),
             ],
@@ -636,6 +647,67 @@ class _TextDetailView extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Apple-style option card — white bg, rounded, subtle shadow, chevron.
+class _OptionCard extends StatefulWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const _OptionCard({required this.label, this.onTap});
+
+  @override
+  State<_OptionCard> createState() => _OptionCardState();
+}
+
+class _OptionCardState extends State<_OptionCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap?.call();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedOpacity(
+        opacity: _pressed ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }
