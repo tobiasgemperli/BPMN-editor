@@ -887,6 +887,620 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// Importing a car from the USA to Germany — regulatory, customs, conversion.
+  static DiagramModel carImportUSA() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Find Your Car', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Purchase & Title', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Purchase the Vehicle',
+            text: 'Buy the car and ensure you receive a clean title (Certificate of Title). '
+                'Get a Bill of Sale with VIN, price, and seller details. '
+                'Verify the title is free of liens — German customs will reject cars with open loans. '
+                'For classic cars (30+ years), get a Historical Vehicle Declaration from NHTSA.',
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Export from USA', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            title: 'US Export & Shipping',
+            text: 'File an Electronic Export Information (EEI) via AES if the car is worth over \$2,500. '
+                'Choose a shipping method:\n\n'
+                '• RoRo (Roll-on/Roll-off) — cheapest, ~\$800–1,500\n'
+                '• Container — safer, ~\$1,500–3,000\n'
+                '• Air freight — fastest, ~\$5,000+\n\n'
+                'Get marine insurance covering the full value. '
+                'Shipping takes 3–6 weeks by sea (East Coast to Bremerhaven/Hamburg).',
+          )),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Customs Clearance', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            title: 'German Customs (Zoll)',
+            text: 'When the car arrives in port, file an import declaration with German customs. '
+                'You will need:\n\n'
+                '• Original title and bill of sale\n'
+                '• Shipping documents (Bill of Lading)\n'
+                '• Proof of insurance\n'
+                '• Your passport or Aufenthaltstitel\n\n'
+                'Pay 10% import duty on the purchase price + shipping cost, '
+                'then 19% VAT (Einfuhrumsatzsteuer) on top. '
+                'Example: \$30,000 car + \$1,500 shipping = €29,500 base → ~€3,000 duty → ~€6,200 VAT.',
+          )),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway,
+          name: 'EU Compliant?', rect: _gw(_cx, _row(4))),
+
+      // Left: Already compliant (rare — e.g., some models sold in both markets)
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'COC Document', rect: _task(left, _row(5)),
+          content: TaskContent(
+            title: 'Obtain EU Certificate of Conformity',
+            text: 'If the car model was also sold in the EU, the manufacturer may issue a '
+                'Certificate of Conformity (COC). Contact the German importer of the brand. '
+                'This skips the full Einzelabnahme and saves thousands of euros. '
+                'Common for: BMW, Mercedes, Porsche models with EU equivalents.',
+          )),
+
+      // Right: Needs conversion (most US cars)
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Convert to EU Spec', rect: _task(right, _row(5)),
+          content: TaskContent(
+            title: 'Technical Conversion',
+            text: 'US-spec cars need modifications for German road approval:\n\n'
+                '• Headlights — replace sealed beams with E-marked units or re-aim for right-hand traffic\n'
+                '• Rear fog light — mandatory in EU, usually missing on US models\n'
+                '• Speedometer — must show km/h (not just mph)\n'
+                '• Side markers — amber front, red rear reflectors per ECE\n'
+                '• Catalytic converter — may need EU-spec cat for emissions compliance\n\n'
+                'Use a shop that specializes in US imports (Importfahrzeuge). Budget €1,000–5,000.',
+          )),
+
+      // Merge into TÜV
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'TÜV Inspection', rect: _task(_cx, _row(6)),
+          content: TaskContent(
+            title: 'Einzelabnahme (TÜV)',
+            text: 'Book a Vollabnahme (§21 StVZO) at a TÜV or DEKRA station. '
+                'The inspector checks every modification and measures emissions, '
+                'noise levels, brakes, and lighting. '
+                'Bring all conversion receipts and technical documentation.\n\n'
+                'Cost: €150–500 depending on the station and vehicle. '
+                'If something fails, you can fix it and return for a re-inspection.',
+          )),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.exclusiveGateway,
+          name: 'TÜV Passed?', rect: _gw(_cx, _row(7))),
+
+      // Fail — fix and retry
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Fix Issues', rect: _task(right, _row(7)),
+          content: TaskContent(
+            title: 'Address TÜV Deficiencies',
+            text: 'The TÜV report lists every deficiency with a severity rating. '
+                'Common failures: headlight aim, missing reflectors, emission levels, '
+                'rust on structural members, brake performance. '
+                'Fix all items and book a Nachprüfung (re-inspection) — usually cheaper than the first visit.',
+          )),
+
+      // Pass — register
+      'n11': NodeModel(id: 'n11', type: NodeType.task,
+          name: 'Register', rect: _task(_cx, _row(8)),
+          content: TaskContent(
+            title: 'Register at Zulassungsstelle',
+            text: 'Go to your local Kfz-Zulassungsstelle with:\n\n'
+                '• TÜV report (Prüfbericht)\n'
+                '• Customs clearance certificate (Verzollungsnachweis)\n'
+                '• Proof of insurance (eVB number from your Kfz-Versicherung)\n'
+                '• Your ID and proof of address (Meldebescheinigung)\n'
+                '• SEPA mandate for Kfz-Steuer\n\n'
+                'You will receive your Fahrzeugschein (Zulassungsbescheinigung Teil I) '
+                'and can pick up your license plates. Cost: ~€30 + plates (~€35).',
+          )),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.task,
+          name: 'Insurance & Tax', rect: _task(_cx, _row(9)),
+          content: TaskContent(
+            title: 'Insurance & Vehicle Tax',
+            text: 'US imports often have higher insurance premiums because parts are harder to source. '
+                'Get quotes from multiple insurers — mention the Typschlüsselnummer from TÜV.\n\n'
+                'Kfz-Steuer (annual vehicle tax) is based on engine displacement and CO₂ emissions. '
+                'Large US V8s can cost €400–800/year. '
+                'Classic cars (H-Kennzeichen, 30+ years) get a flat rate of €191/year.',
+          )),
+
+      'n13': NodeModel(id: 'n13', type: NodeType.endEvent,
+          name: 'On the Road', rect: _event(_cx, _row(10))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
+      'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4'),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n5'),
+      'e5':  EdgeModel(id: 'e5',  sourceId: 'n5',  targetId: 'n6',  name: 'Yes (COC available)',
+        waypoints: _hv(_cx, _row(4), left, _row(5))),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n5',  targetId: 'n7',  name: 'No (needs conversion)',
+        waypoints: _hv(_cx, _row(4), right, _row(5))),
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n6',  targetId: 'n8',
+        waypoints: _vh(left, _row(5), _cx, _row(6))),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n7',  targetId: 'n8',
+        waypoints: _vh(right, _row(5), _cx, _row(6))),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n9'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n9',  targetId: 'n10', name: 'Fail',
+        waypoints: _hv(_cx, _row(7), right, _row(7))),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n10', targetId: 'n8',
+        waypoints: [Offset(right, _row(7)), Offset(right, _row(6) - 30), Offset(_cx + _taskW / 2 + 10, _row(6) - 30), Offset(_cx + _taskW / 2 + 10, _row(6))]),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n9',  targetId: 'n11', name: 'Pass'),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n11', targetId: 'n12'),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n12', targetId: 'n13'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// FDA 510(k) medical device clearance process.
+  static DiagramModel fda510k() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'New Medical Device', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Device Classification', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Determine Device Classification',
+            text: 'Search the FDA Product Classification Database for your device type. '
+                'Most devices fall into Class I (low risk), Class II (moderate risk), '
+                'or Class III (high risk).\n\n'
+                'Class II devices typically require 510(k) clearance. '
+                'Class III devices need a PMA (Pre-Market Approval) — a much longer process. '
+                'Identify the product code, regulation number, and review panel.',
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Predicate Device', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            title: 'Identify Predicate Device',
+            text: 'Find a legally marketed device that is substantially equivalent to yours. '
+                'Search the FDA 510(k) database and PMA database.\n\n'
+                'The predicate must have:\n'
+                '• Same intended use\n'
+                '• Same technological characteristics, OR\n'
+                '• Different technology but equivalent safety/effectiveness\n\n'
+                'A weak predicate is the #1 reason for 510(k) rejection. '
+                'Consider using multiple predicates (split predicate strategy).',
+          )),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Testing', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            title: 'Performance & Safety Testing',
+            text: 'Conduct all testing required for substantial equivalence:\n\n'
+                '• Biocompatibility (ISO 10993) — cytotoxicity, sensitization, irritation\n'
+                '• Electrical safety (IEC 60601-1) for powered devices\n'
+                '• EMC testing (IEC 60601-1-2) — electromagnetic compatibility\n'
+                '• Software validation (IEC 62304) if device contains software\n'
+                '• Sterilization validation (ISO 11135/11137) if applicable\n'
+                '• Shelf life / packaging validation\n\n'
+                'All testing must be done at accredited laboratories (ISO 17025). '
+                'Budget 3–12 months depending on complexity.',
+          )),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Prepare Submission', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            title: 'Compile 510(k) Submission',
+            text: 'Assemble the submission package per FDA guidance:\n\n'
+                '1. Cover letter and CDRH Premarket Review Submission Cover Sheet\n'
+                '2. Indications for Use Statement\n'
+                '3. 510(k) Summary or 510(k) Statement\n'
+                '4. Substantial Equivalence Comparison Table\n'
+                '5. Device Description (materials, design, principles of operation)\n'
+                '6. Performance Testing Results\n'
+                '7. Biocompatibility Assessment\n'
+                '8. Labeling (IFU, packaging, device labels)\n'
+                '9. Sterilization Documentation\n'
+                '10. Software Documentation (if applicable)\n\n'
+                'Submit electronically via eSTAR. FDA user fee: ~\$21,760 (small business: ~\$5,440).',
+          )),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'FDA Review', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'FDA Substantive Review',
+            text: 'The FDA has 90 days for a standard 510(k) review (often takes longer). '
+                'The review goes through stages:\n\n'
+                '• Acceptance Review (15 days) — checks completeness\n'
+                '• Substantive Review — detailed technical evaluation\n'
+                '• Interactive Review — FDA may request additional info (AI letter)\n\n'
+                'Respond to Additional Information requests within 180 days or the submission is withdrawn. '
+                'Average total review time: 4–6 months.',
+          )),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.exclusiveGateway,
+          name: 'FDA Decision?', rect: _gw(_cx, _row(6))),
+
+      // Cleared
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'SE Determination', rect: _task(left, _row(7)),
+          content: TaskContent(
+            title: 'Substantially Equivalent (SE)',
+            text: 'The FDA issues a Substantially Equivalent (SE) letter — your device is cleared! '
+                'You receive a 510(k) number (e.g., K231234).\n\n'
+                'You can now legally market the device in the US. '
+                'List the device in the FDA Establishment Registration database. '
+                'Implement your Quality Management System (21 CFR 820) before manufacturing.',
+          )),
+
+      // Not cleared
+      'n9': NodeModel(id: 'n9', type: NodeType.task,
+          name: 'NSE Letter', rect: _task(right, _row(7)),
+          content: TaskContent(
+            title: 'Not Substantially Equivalent (NSE)',
+            text: 'If the FDA determines your device is NSE, you have several options:\n\n'
+                '• Request a meeting with the review division to discuss deficiencies\n'
+                '• Submit a new 510(k) addressing the issues with stronger data\n'
+                '• File a De Novo classification request (for novel low-to-moderate risk devices)\n'
+                '• Pursue PMA approval (expensive — \$400K+ in fees alone)\n\n'
+                'An NSE does not mean the device is unsafe — it means equivalence was not demonstrated.',
+          )),
+
+      // Post-market
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Post-Market', rect: _task(left, _row(8)),
+          content: TaskContent(
+            title: 'Post-Market Surveillance',
+            text: 'After clearance, ongoing obligations include:\n\n'
+                '• Medical Device Reporting (MDR) — report adverse events within 30 days\n'
+                '• Annual registration and device listing\n'
+                '• Design change management — some changes require a new 510(k)\n'
+                '• FDA facility inspections (typically every 2–3 years)\n'
+                '• Maintain complaint handling and CAPA system\n'
+                '• Track and report corrections and removals',
+          )),
+
+      'n11': NodeModel(id: 'n11', type: NodeType.endEvent,
+          name: 'Device on Market', rect: _event(left, _row(9))),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.endEvent,
+          name: 'Reassess Strategy', rect: _event(right, _row(8))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
+      'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4'),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n5'),
+      'e5':  EdgeModel(id: 'e5',  sourceId: 'n5',  targetId: 'n6'),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n6',  targetId: 'n7'),
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n7',  targetId: 'n8',  name: 'Cleared (SE)',
+        waypoints: _hv(_cx, _row(6), left, _row(7))),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n7',  targetId: 'n9',  name: 'Not Cleared (NSE)',
+        waypoints: _hv(_cx, _row(6), right, _row(7))),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n10'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n10', targetId: 'n11'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n9',  targetId: 'n12'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// CE Marking for medical devices under EU MDR 2017/745.
+  static DiagramModel ceMedicalDevice() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'New Medical Device', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Classification', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Device Classification (MDR Annex VIII)',
+            text: 'Classify your device using the 22 rules in MDR Annex VIII:\n\n'
+                '• Class I — low risk (e.g., bandages, tongue depressors)\n'
+                '• Class IIa — low-medium risk (e.g., hearing aids, ultrasound)\n'
+                '• Class IIb — medium-high risk (e.g., ventilators, X-ray machines)\n'
+                '• Class III — high risk (e.g., heart valves, implants)\n\n'
+                'The classification determines which conformity assessment route you must follow '
+                'and whether a Notified Body is required (Class IIa and above).',
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway,
+          name: 'Risk Class?', rect: _gw(_cx, _row(2))),
+
+      // Class I — self-declaration
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Self-Declaration', rect: _task(left, _row(3)),
+          content: TaskContent(
+            title: 'Self-Declaration (Class I)',
+            text: 'Class I devices (non-sterile, non-measuring) can self-certify. '
+                'You must still:\n\n'
+                '• Establish a Quality Management System (ISO 13485)\n'
+                '• Create technical documentation per MDR Annex II & III\n'
+                '• Conduct a clinical evaluation per MDR Article 61\n'
+                '• Draft the EU Declaration of Conformity\n\n'
+                'No Notified Body audit is required, but your documentation must be '
+                'ready for market surveillance authority inspections at any time.',
+          )),
+
+      // Class IIa+ — Notified Body
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Select Notified Body', rect: _task(right, _row(3)),
+          content: TaskContent(
+            title: 'Select a Notified Body',
+            text: 'For Class IIa, IIb, and III devices, a Notified Body must audit you.\n\n'
+                'Check NANDO database for MDR-designated Notified Bodies. '
+                'Major ones: TÜV SÜD, BSI, DEKRA, SGS. '
+                'Wait times are currently 12–18 months due to MDR transition bottleneck.\n\n'
+                'Submit an application with: device description, classification rationale, '
+                'QMS certificate (or ISO 13485 readiness), and intended clinical claims.',
+          )),
+
+      // Merge into QMS
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'QMS (ISO 13485)', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            title: 'Quality Management System',
+            text: 'Implement ISO 13485 — the foundation of MDR compliance:\n\n'
+                '• Design and development controls\n'
+                '• Risk management process (ISO 14971)\n'
+                '• Supplier and purchasing controls\n'
+                '• Production and process validation\n'
+                '• CAPA (Corrective and Preventive Actions)\n'
+                '• Post-market surveillance procedures\n\n'
+                'For Class IIa+, the Notified Body audits your QMS (Annex IX, Chapter I). '
+                'The audit covers your facility, processes, and design documentation.',
+          )),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Technical Documentation', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'Technical Documentation (Annex II & III)',
+            text: 'Create the Technical File covering:\n\n'
+                '1. Device description and specification\n'
+                '2. Design and manufacturing information\n'
+                '3. General Safety and Performance Requirements (GSPR) checklist\n'
+                '4. Benefit-risk analysis and risk management (ISO 14971)\n'
+                '5. Product verification and validation\n'
+                '6. Clinical evaluation report (CER) per MEDDEV 2.7/1 Rev. 4\n'
+                '7. Labeling and Instructions for Use (IFU)\n'
+                '8. Post-market surveillance plan (PMS)\n'
+                '9. Post-market clinical follow-up plan (PMCF)',
+          )),
+
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Clinical Evaluation', rect: _task(_cx, _row(6)),
+          content: TaskContent(
+            title: 'Clinical Evaluation',
+            text: 'Demonstrate clinical safety and performance per MDR Article 61:\n\n'
+                '• Literature review — systematic search of published clinical data\n'
+                '• Equivalence route — demonstrate equivalence to a device with clinical data '
+                '(requires contract with the equivalent device manufacturer under MDR)\n'
+                '• Clinical investigation — your own clinical study per ISO 14155\n\n'
+                'Class III and implantable devices almost always require clinical investigations. '
+                'The Clinical Evaluation Report (CER) must be updated at least annually.',
+          )),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.exclusiveGateway,
+          name: 'Audit Result?', rect: _gw(_cx, _row(7))),
+
+      // Non-conformities
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Address Findings', rect: _task(right, _row(7)),
+          content: TaskContent(
+            title: 'Address Non-Conformities',
+            text: 'The Notified Body may issue:\n\n'
+                '• Major non-conformities — must be resolved before certificate is issued\n'
+                '• Minor non-conformities — must be resolved within an agreed timeframe\n'
+                '• Observations — recommendations for improvement\n\n'
+                'Provide root cause analysis and corrective action plans (CAPA). '
+                'The Notified Body verifies your corrections before proceeding.',
+          )),
+
+      // CE Mark
+      'n11': NodeModel(id: 'n11', type: NodeType.task,
+          name: 'CE Marking', rect: _task(_cx, _row(8)),
+          content: TaskContent(
+            title: 'Affix CE Mark & Register',
+            text: 'Once the Notified Body issues the EU Certificate of Conformity:\n\n'
+                '1. Sign the EU Declaration of Conformity (DoC)\n'
+                '2. Affix the CE mark to the device and packaging (with NB number for Class IIa+)\n'
+                '3. Register in EUDAMED — the EU medical device database\n'
+                '4. Assign a Unique Device Identifier (UDI) per MDR Article 27\n'
+                '5. Appoint an Authorised Representative if you are outside the EU\n'
+                '6. Register with the competent authority in each EU member state where you sell',
+          )),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.task,
+          name: 'Post-Market', rect: _task(_cx, _row(9)),
+          content: TaskContent(
+            title: 'Post-Market Surveillance',
+            text: 'Ongoing obligations under MDR:\n\n'
+                '• Post-Market Surveillance (PMS) plan and reports\n'
+                '• Periodic Safety Update Reports (PSUR) — annually for Class IIa+\n'
+                '• Post-Market Clinical Follow-up (PMCF) studies\n'
+                '• Vigilance reporting — serious incidents within 15 days\n'
+                '• Field Safety Corrective Actions (FSCA) when needed\n'
+                '• Annual Notified Body surveillance audits\n'
+                '• Certificate renewal every 5 years',
+          )),
+
+      'n13': NodeModel(id: 'n13', type: NodeType.endEvent,
+          name: 'Market Access', rect: _event(_cx, _row(10))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
+      'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4',  name: 'Class I',
+        waypoints: _hv(_cx, _row(2), left, _row(3))),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n3',  targetId: 'n5',  name: 'Class IIa / IIb / III',
+        waypoints: _hv(_cx, _row(2), right, _row(3))),
+      'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n6',
+        waypoints: _vh(left, _row(3), _cx, _row(4))),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n5',  targetId: 'n6',
+        waypoints: _vh(right, _row(3), _cx, _row(4))),
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n6',  targetId: 'n7'),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n7',  targetId: 'n8'),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n8',  targetId: 'n9'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n9',  targetId: 'n10', name: 'Non-Conformities',
+        waypoints: _hv(_cx, _row(7), right, _row(7))),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n10', targetId: 'n8',
+        waypoints: [Offset(right, _row(7)), Offset(right, _row(6) - 30), Offset(_cx + _taskW / 2 + 10, _row(6) - 30), Offset(_cx + _taskW / 2 + 10, _row(6))]),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n9',  targetId: 'n11', name: 'Approved'),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n11', targetId: 'n12'),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n12', targetId: 'n13'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// ISO 13485 Quality Management System certification for medical devices.
+  static DiagramModel iso13485() {
+    final right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Certification Kickoff', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Gap Analysis', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Gap Analysis',
+            text: 'Assess your current quality system against ISO 13485:2016 requirements. '
+                'Identify gaps in:\n\n'
+                '• Management responsibility and resource allocation\n'
+                '• Design and development controls\n'
+                '• Purchasing and supplier management\n'
+                '• Production and service provision\n'
+                '• Monitoring, measurement, and CAPA processes\n\n'
+                'Hire a consultant or use an internal auditor with ISO 13485 Lead Auditor certification. '
+                'Timeline: 2–4 weeks.',
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Build QMS', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            title: 'Implement Quality Management System',
+            text: 'Create and implement all required QMS processes:\n\n'
+                '• Quality Manual and Quality Policy\n'
+                '• Standard Operating Procedures (SOPs)\n'
+                '• Work Instructions and Forms\n'
+                '• Risk Management File (ISO 14971)\n'
+                '• Design History File (DHF) for each device\n'
+                '• Document and record control procedures\n'
+                '• Training program and competency records\n\n'
+                'Timeline: 3–9 months depending on company size and complexity.',
+          )),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Internal Audit', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            title: 'Internal Audit & Management Review',
+            text: 'Conduct at least one full internal audit cycle before the certification audit:\n\n'
+                '• Train internal auditors (or hire external auditors)\n'
+                '• Audit each process against ISO 13485 clause requirements\n'
+                '• Document findings: non-conformities, observations, opportunities\n'
+                '• Execute CAPAs for all non-conformities found\n'
+                '• Hold a Management Review meeting covering all required inputs\n\n'
+                'This is your dress rehearsal — the certification body auditor will review these records.',
+          )),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Stage 1 Audit', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            title: 'Stage 1 Audit (Documentation Review)',
+            text: 'The certification body (e.g., TÜV, BSI, SGS) conducts a Stage 1 audit:\n\n'
+                '• Review QMS documentation for adequacy\n'
+                '• Verify scope of certification\n'
+                '• Confirm readiness for Stage 2\n'
+                '• Identify areas of concern\n\n'
+                'This may be done on-site or remotely. '
+                'The auditor issues a report with any findings to address before Stage 2. '
+                'Typical gap: 4–8 weeks between Stage 1 and Stage 2.',
+          )),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Stage 2 Audit', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'Stage 2 Audit (On-Site)',
+            text: 'The full on-site certification audit:\n\n'
+                '• Auditor interviews staff at all levels\n'
+                '• Examines records: design files, production logs, complaints, CAPAs\n'
+                '• Observes processes: manufacturing, testing, warehousing\n'
+                '• Verifies traceability from design input to finished product\n'
+                '• Checks regulatory compliance (MDR, FDA QSR as applicable)\n\n'
+                'Duration: 2–5 days depending on company size. '
+                'Results: certificate issued, or non-conformities requiring closure.',
+          )),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.exclusiveGateway,
+          name: 'Audit Result?', rect: _gw(_cx, _row(6))),
+
+      // Major NCs
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Close NCs', rect: _task(right, _row(6)),
+          content: TaskContent(
+            title: 'Close Non-Conformities',
+            text: 'Major non-conformities must be closed within 90 days (typically). '
+                'For each NC:\n\n'
+                '1. Root cause analysis (5 Whys, Fishbone, etc.)\n'
+                '2. Immediate correction\n'
+                '3. Corrective action to prevent recurrence\n'
+                '4. Effectiveness verification\n\n'
+                'Submit evidence to the certification body. '
+                'A follow-up audit may be required for major findings.',
+          )),
+
+      // Certificate issued
+      'n9': NodeModel(id: 'n9', type: NodeType.task,
+          name: 'Certificate Issued', rect: _task(_cx, _row(7)),
+          content: TaskContent(
+            title: 'ISO 13485 Certificate Issued',
+            text: 'The certification body issues your ISO 13485:2016 certificate, '
+                'valid for 3 years.\n\n'
+                'The certificate scope specifies: design, manufacturing, distribution, '
+                'and/or servicing of specific device types. '
+                'This certificate is recognized by MDSAP member countries '
+                '(USA, Canada, Australia, Japan, Brazil).',
+          )),
+
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Surveillance Audits', rect: _task(_cx, _row(8)),
+          content: TaskContent(
+            title: 'Annual Surveillance Audits',
+            text: 'The certification body conducts annual surveillance audits (Year 1 and Year 2). '
+                'These are shorter than the initial audit but cover:\n\n'
+                '• Follow-up on previous findings\n'
+                '• Sampling of QMS processes\n'
+                '• Review of changes since last audit\n'
+                '• Complaint and CAPA trends\n'
+                '• Management Review outputs\n\n'
+                'In Year 3: full re-certification audit (similar to Stage 2).',
+          )),
+
+      'n11': NodeModel(id: 'n11', type: NodeType.endEvent,
+          name: 'Certified', rect: _event(_cx, _row(9))),
+    };
+    final edges = <String, EdgeModel>{
+      'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
+      'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
+      'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4'),
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n5'),
+      'e5':  EdgeModel(id: 'e5',  sourceId: 'n5',  targetId: 'n6'),
+      'e6':  EdgeModel(id: 'e6',  sourceId: 'n6',  targetId: 'n7'),
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n7',  targetId: 'n8',  name: 'Non-Conformities',
+        waypoints: _hv(_cx, _row(6), right, _row(6))),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n8',  targetId: 'n6',
+        waypoints: [Offset(right, _row(6)), Offset(right, _row(5) - 30), Offset(_cx + _taskW / 2 + 10, _row(5) - 30), Offset(_cx + _taskW / 2 + 10, _row(5))]),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n7',  targetId: 'n9',  name: 'Passed'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n9',  targetId: 'n10'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n10', targetId: 'n11'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   // ── Creators ─────────────────────────────────────────────────
 
   static const _creators = <String, SampleCreator>{
@@ -1314,6 +1928,14 @@ class SampleDiagrams {
         creator: _creators['jordan']!),
     SampleDiagramEntry(name: 'Pasta from Scratch', builder: pastaRecipe,
         creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'Car Import USA → Germany', builder: carImportUSA,
+        creator: _creators['sam']!),
+    SampleDiagramEntry(name: 'FDA 510(k) Clearance', builder: fda510k,
+        creator: _creators['alex']!),
+    SampleDiagramEntry(name: 'CE Marking (EU MDR)', builder: ceMedicalDevice,
+        creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'ISO 13485 Certification', builder: iso13485,
+        creator: _creators['sam']!),
   ];
 
   /// The current user (for prototype purposes).

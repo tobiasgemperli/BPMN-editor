@@ -27,7 +27,12 @@ class DiscoverScreen extends StatelessWidget {
         s.name.contains('Plant') ||
         s.name.contains('Text Only') ||
         s.name.contains('Car Configurator') ||
-        s.name.contains('Pasta')).toList();
+        s.name.contains('Pasta') ||
+        s.name.contains('Car Import')).toList();
+    final certification = rest.where((s) =>
+        s.name.contains('FDA') ||
+        s.name.contains('CE Marking') ||
+        s.name.contains('ISO 13485')).toList();
     final technical = rest.where((s) =>
         s.name.contains('Debug') ||
         s.name.contains('Sprint') ||
@@ -35,7 +40,9 @@ class DiscoverScreen extends StatelessWidget {
         s.name.contains('CI/CD') ||
         s.name.contains('Database')).toList();
     final patterns = rest.where((s) =>
-        !tutorials.contains(s) && !technical.contains(s)).toList();
+        !tutorials.contains(s) &&
+        !certification.contains(s) &&
+        !technical.contains(s)).toList();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -119,6 +126,7 @@ class DiscoverScreen extends StatelessWidget {
                       _CategoryChip(label: 'All', selected: true),
                       _CategoryChip(label: 'Tutorials'),
                       _CategoryChip(label: 'Technical'),
+                      _CategoryChip(label: 'Certification'),
                       _CategoryChip(label: 'Templates'),
                       _CategoryChip(label: 'Recent'),
                     ],
@@ -169,6 +177,24 @@ class DiscoverScreen extends StatelessWidget {
                     separatorBuilder: (_, _) => const SizedBox(width: 12),
                     itemBuilder: (context, i) =>
                         _SmallCard(entry: tutorials[i]),
+                  ),
+                ),
+              ),
+            ],
+
+            // ── Certification section ─────────────────────────────
+            if (certification.isNotEmpty) ...[
+              _sectionHeader(context, 'Certification Processes'),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: certification.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) =>
+                        _SmallCard(entry: certification[i]),
                   ),
                 ),
               ),
@@ -252,6 +278,10 @@ String _subtitle(String name) {
   if (name.contains('Text Only')) return '10 steps · Text-only layouts';
   if (name.contains('Car Configurator')) return '6 steps · 10 color options';
   if (name.contains('Pasta')) return '9 steps · Video recipe';
+  if (name.contains('Car Import')) return '13 steps · Import guide';
+  if (name.contains('FDA')) return '12 steps · Medical device';
+  if (name.contains('CE Marking')) return '13 steps · EU MDR';
+  if (name.contains('ISO 13485')) return '11 steps · QMS certification';
   return '';
 }
 
