@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/diagram_embed.dart';
+import '../widgets/mini_process_map.dart';
 
 /// Web showcase page with multiple embedded process steppers and
 /// a landscape diagram view.
@@ -10,6 +11,7 @@ class EmbedShowcaseScreen extends StatelessWidget {
   const EmbedShowcaseScreen({super.key});
 
   static const _samples = [
+    ('Content Showcase', SampleDiagrams.contentShowcase),
     ('IKEA KALLAX Assembly', SampleDiagrams.ikeaAssembly),
     ('Coffee Brewing Guide', SampleDiagrams.coffeeBrewing),
     ('CI/CD Pipeline', SampleDiagrams.cicdPipeline),
@@ -194,6 +196,7 @@ class _FramedStepper extends StatefulWidget {
 class _FramedStepperState extends State<_FramedStepper> {
   late final DiagramModel _diagram;
   late final List<NodeModel> _steps;
+  late final List<NodeModel> _allNodes;
   int _currentStep = 0;
   bool _animatingForward = true;
 
@@ -202,6 +205,35 @@ class _FramedStepperState extends State<_FramedStepper> {
     super.initState();
     _diagram = widget.builder();
     _steps = _buildPath(_diagram);
+    _allNodes = _collectAllNodes(_diagram);
+  }
+
+  List<NodeModel> _collectAllNodes(DiagramModel diagram) {
+    NodeModel? start;
+    for (final node in diagram.nodes.values) {
+      if (node.type == NodeType.startEvent) {
+        start = node;
+        break;
+      }
+    }
+    start ??= diagram.nodes.values.firstOrNull;
+    if (start == null) return diagram.nodes.values.toList();
+
+    final ordered = <NodeModel>[];
+    final visited = <String>{};
+    final queue = <String>[start.id];
+    while (queue.isNotEmpty) {
+      final id = queue.removeAt(0);
+      if (visited.contains(id)) continue;
+      visited.add(id);
+      final node = diagram.nodes[id];
+      if (node == null) continue;
+      ordered.add(node);
+      for (final edge in diagram.outgoingEdges(id)) {
+        if (!visited.contains(edge.targetId)) queue.add(edge.targetId);
+      }
+    }
+    return ordered;
   }
 
   List<NodeModel> _buildPath(DiagramModel diagram) {
@@ -294,9 +326,9 @@ class _FramedStepperState extends State<_FramedStepper> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // Title bar.
+          // Title bar with horizontal miniature.
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.grey[50],
               border: Border(
@@ -315,14 +347,14 @@ class _FramedStepperState extends State<_FramedStepper> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Progress indicator.
-                Text(
-                  '${_currentStep + 1} / ${_steps.length}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                    fontWeight: FontWeight.w500,
-                  ),
+                const SizedBox(width: 12),
+                MiniProcessMap(
+                  steps: _allNodes,
+                  diagram: _diagram,
+                  currentNodeId: _steps[_currentStep].id,
+                  horizontal: true,
+                  backgroundColor: Colors.grey[50]!,
+                  showShadow: false,
                 ),
               ],
             ),
@@ -364,8 +396,6 @@ class _FramedStepperState extends State<_FramedStepper> {
                 key: ValueKey(_currentStep),
                 node: node,
                 diagram: _diagram,
-                stepIndex: _currentStep,
-                totalSteps: _steps.length,
               ),
             ),
           ),
@@ -445,15 +475,11 @@ class _FramedStepperState extends State<_FramedStepper> {
 class _EmbedStepContent extends StatelessWidget {
   final NodeModel node;
   final DiagramModel diagram;
-  final int stepIndex;
-  final int totalSteps;
 
   const _EmbedStepContent({
     super.key,
     required this.node,
     required this.diagram,
-    required this.stepIndex,
-    required this.totalSteps,
   });
 
   @override
@@ -494,7 +520,7 @@ class _EmbedStepContent extends StatelessWidget {
                   ? (node.type == NodeType.startEvent ? 'START' : 'END')
                   : isGateway
                       ? 'DECISION'
-                      : 'STEP ${stepIndex + 1}',
+                      : 'STEP',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,

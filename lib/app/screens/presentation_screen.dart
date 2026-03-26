@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
+import '../widgets/mini_process_map.dart';
 import '../widgets/process_card.dart';
 import 'discover_screen.dart' show dismissToDashboard;
 import 'editor_screen.dart';
@@ -250,7 +251,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
               right: 16,
               child: GestureDetector(
                 onTap: () => _openEditor(context),
-                child: _MiniProcessMap(
+                child: MiniProcessMap(
                   steps: _allNodes,
                   diagram: widget.diagram,
                   currentNodeId: _path[safePage].id,
@@ -312,177 +313,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 }
 
-/// Mini flowchart with uniform dot density across all diagrams.
-/// Uses a fixed target spacing per edge so every miniature looks similar
-/// regardless of node count or original layout.
-class _MiniProcessMap extends StatelessWidget {
-  final List<NodeModel> steps;
-  final DiagramModel diagram;
-  final String currentNodeId;
-
-  const _MiniProcessMap({
-    required this.steps,
-    required this.diagram,
-    required this.currentNodeId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (steps.isEmpty) return const SizedBox.shrink();
-
-    // Target spacing: every connected pair of nodes should be ~targetDist apart.
-    const targetDist = 16.0;
-    const padding = 8.0;
-
-    // Compute bounding box of all step nodes.
-    double minX = double.infinity, minY = double.infinity;
-    double maxX = -double.infinity, maxY = -double.infinity;
-    for (final node in steps) {
-      final c = node.rect.center;
-      if (c.dx < minX) minX = c.dx;
-      if (c.dy < minY) minY = c.dy;
-      if (c.dx > maxX) maxX = c.dx;
-      if (c.dy > maxY) maxY = c.dy;
-    }
-
-    final diagramW = (maxX - minX).clamp(1.0, double.infinity);
-    final diagramH = (maxY - minY).clamp(1.0, double.infinity);
-
-    // Compute average edge length in the original diagram.
-    final stepIds = {for (final s in steps) s.id};
-    double totalDist = 0;
-    int edgeCount = 0;
-    for (final edge in diagram.edges.values) {
-      if (!stepIds.contains(edge.sourceId) ||
-          !stepIds.contains(edge.targetId)) continue;
-      final src = diagram.nodes[edge.sourceId];
-      final tgt = diagram.nodes[edge.targetId];
-      if (src == null || tgt == null) continue;
-      totalDist += (src.rect.center - tgt.rect.center).distance;
-      edgeCount++;
-    }
-    final avgDist = edgeCount > 0 ? totalDist / edgeCount : diagramH;
-
-    // Scale so the average edge length maps to targetDist.
-    final scale = targetDist / avgDist;
-
-    final mapW = diagramW * scale + padding * 2;
-    final mapH = diagramH * scale + padding * 2;
-
-    return Container(
-      width: mapW + 12,
-      height: mapH + 12,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: CustomPaint(
-        size: Size(mapW, mapH),
-        painter: _MiniFlowPainter(
-          steps: steps,
-          diagram: diagram,
-          currentNodeId: currentNodeId,
-          originX: minX,
-          originY: minY,
-          scale: scale,
-          padding: padding,
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniFlowPainter extends CustomPainter {
-  final List<NodeModel> steps;
-  final DiagramModel diagram;
-  final String currentNodeId;
-  final double originX, originY, scale, padding;
-
-  _MiniFlowPainter({
-    required this.steps,
-    required this.diagram,
-    required this.currentNodeId,
-    required this.originX,
-    required this.originY,
-    required this.scale,
-    required this.padding,
-  });
-
-  Offset _map(Offset center) => Offset(
-        (center.dx - originX) * scale + padding,
-        (center.dy - originY) * scale + padding,
-      );
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const dotRadius = 4.0;
-    const diamondSize = 5.5;
-
-    final linePaint = Paint()
-      ..color = Colors.black26
-      ..strokeWidth = 1;
-
-    final currentPaint = Paint()..color = Colors.black;
-    final futurePaint = Paint()..color = Colors.black26;
-
-    final stepIds = {for (final s in steps) s.id};
-
-    // Draw edges.
-    for (final edge in diagram.edges.values) {
-      if (!stepIds.contains(edge.sourceId) ||
-          !stepIds.contains(edge.targetId)) {
-        continue;
-      }
-      final srcNode = diagram.nodes[edge.sourceId];
-      final tgtNode = diagram.nodes[edge.targetId];
-      if (srcNode == null || tgtNode == null) continue;
-
-      final points = <Offset>[
-        _map(srcNode.rect.center),
-        if (edge.waypoints.length >= 3)
-          for (int i = 1; i < edge.waypoints.length - 1; i++)
-            _map(edge.waypoints[i]),
-        _map(tgtNode.rect.center),
-      ];
-      for (int i = 0; i < points.length - 1; i++) {
-        canvas.drawLine(points[i], points[i + 1], linePaint);
-      }
-    }
-
-    // Draw nodes on top.
-    final bgPaint = Paint()..color = Colors.white;
-    for (final node in steps) {
-      final center = _map(node.rect.center);
-      final paint = node.id == currentNodeId ? currentPaint : futurePaint;
-
-      if (node.type == NodeType.exclusiveGateway) {
-        final path = Path()
-          ..moveTo(center.dx, center.dy - diamondSize)
-          ..lineTo(center.dx + diamondSize, center.dy)
-          ..lineTo(center.dx, center.dy + diamondSize)
-          ..lineTo(center.dx - diamondSize, center.dy)
-          ..close();
-        canvas.drawPath(path, bgPaint);
-        canvas.drawPath(path, paint);
-      } else {
-        canvas.drawCircle(center, dotRadius, bgPaint);
-        canvas.drawCircle(center, dotRadius, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_MiniFlowPainter oldDelegate) =>
-      oldDelegate.currentNodeId != currentNodeId;
-}
 
 /// Pulsating chevron hint — tappable to go to next page.
 class _SwipeHintArrow extends StatefulWidget {
