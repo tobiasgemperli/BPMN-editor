@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/io/bpmn_parser.dart';
-import '../../diagram/io/bpmn_serializer.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -228,11 +227,6 @@ class _EditorScreenState extends State<EditorScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextButton(
-                    onPressed: _showExportedXml,
-                    child: const Text('XML'),
-                  ),
-                  const SizedBox(width: 4),
-                  TextButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Diagram saved')),
@@ -272,67 +266,6 @@ class _EditorScreenState extends State<EditorScreen> {
     );
   }
 
-  void _showExportedXml() {
-    final serializer = BpmnSerializer();
-    final xml = serializer.serialize(_controller.diagram);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.3,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('BPMN XML',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      IconButton(
-                        icon: const Icon(Icons.copy),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: xml));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('XML copied to clipboard')),
-                          );
-                        },
-                        tooltip: 'Copy',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      child: SelectableText(
-                        xml,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
 /// Floating creator chip — avatar + name in a pill.
