@@ -217,14 +217,6 @@ String? _findTeaserImage(DiagramModel diagram) {
   return null;
 }
 
-void _openEditor(BuildContext context, DiagramModel diagram) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-        builder: (_) => EditorScreen(initialDiagram: diagram)),
-  );
-}
-
 void _openPresentation(BuildContext context, DiagramModel diagram) {
   Navigator.push(
     context,
@@ -452,7 +444,7 @@ class _ProfileDiagramCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         Navigator.pop(context); // close the sheet
-        _openEditor(context, diagram);
+        _openPresentation(context, diagram);
       },
       child: Container(
         height: 80,
@@ -721,7 +713,7 @@ class _FeaturedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final diagram = entry.builder();
     return GestureDetector(
-      onTap: () => _openEditor(context, diagram),
+      onTap: () => _openPresentation(context, diagram),
       child: Container(
         height: 220,
         decoration: BoxDecoration(
@@ -814,7 +806,7 @@ class _SmallCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final diagram = entry.builder();
     return GestureDetector(
-      onTap: () => _openEditor(context, diagram),
+      onTap: () => _openPresentation(context, diagram),
       child: Container(
         width: 160,
         decoration: BoxDecoration(
@@ -880,7 +872,7 @@ class _ListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final diagram = entry.builder();
     return GestureDetector(
-      onTap: () => _openEditor(context, diagram),
+      onTap: () => _openPresentation(context, diagram),
       child: Container(
         height: 88,
         decoration: BoxDecoration(
