@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(git -C /Users/tobiasgemperli/Documents/Sandbox/BPMN-editor status)",
+      "Bash(git -C /Users/tobiasgemperli/Documents/Sandbox/BPMN-editor diff --stat)",
+      "Bash(/Users/tobiasgemperli/Documents/Sandbox/BPMN-editor/test/debug_merge_tmp_test.dart:*)",
+      "Bash(git -C /Users/tobiasgemperli/Documents/Sandbox/BPMN-editor log --oneline -3)",
+      "Bash(git -C /Users/tobiasgemperli/Documents/Sandbox/BPMN-editor add:*)",
+      "Bash(git -C:*)",
+      "Bash(git status:*)",
+      "Bash(flutter build:*)",
+      "Bash(curl:*)",
+      "Bash(git checkout:*)",
+      "Bash(flutter run:*)",
+      "Bash(cp:*)",
+      "Bash(flutter pub:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
