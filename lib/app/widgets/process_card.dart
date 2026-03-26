@@ -492,22 +492,23 @@ class ProcessCard extends StatelessWidget {
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (context) {
+          final topPad = MediaQuery.of(context).padding.top;
           return Scaffold(
             backgroundColor: Colors.black,
-            extendBodyBehindAppBar: true,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              systemOverlayStyle: SystemUiOverlayStyle.light,
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            body: _AssetVideoPlayer(
-              videoPath: videoPath!,
-              child: const SizedBox.expand(),
+            body: Stack(
+              children: [
+                _AssetVideoPlayer(
+                  videoPath: videoPath!,
+                  child: const SizedBox.expand(),
+                ),
+                Positioned(
+                  top: topPad + 8,
+                  left: 16,
+                  child: CloseCircleButton(
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
             ),
           );
         },

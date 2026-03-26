@@ -1179,6 +1179,101 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// Recipe: pasta from scratch — video-heavy cooking walkthrough.
+  static DiagramModel pastaRecipe() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Pasta from Scratch', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Ingredients', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Gather Ingredients',
+            text: '- 400g "00" flour (or all-purpose)\n'
+                '- 4 large eggs\n'
+                '- 1 tbsp olive oil\n'
+                '- Pinch of salt\n'
+                '- Semolina flour for dusting\n\n'
+                'For the sauce:\n'
+                '- 400g San Marzano tomatoes\n'
+                '- 3 cloves garlic\n'
+                '- Fresh basil\n'
+                '- Parmesan\n'
+                '- Salt, pepper, red pepper flakes',
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Make Dough', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            title: 'Make the Dough',
+            videoPath: 'assets/recipe_video_1.mp4',
+          )),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Knead', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            title: 'Knead Until Smooth',
+            text: 'Knead the dough for 8-10 minutes until it becomes silky '
+                'and springs back when poked. Wrap in plastic and rest for '
+                '30 minutes at room temperature.',
+            videoPath: 'assets/recipe_video_2.mp4',
+          )),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Roll & Cut', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            title: 'Roll and Cut the Pasta',
+            text: 'Divide dough into 4 pieces. Roll each through the pasta '
+                'machine starting at the widest setting, narrowing each pass. '
+                'Cut into your desired shape — tagliatelle, fettuccine, or pappardelle.',
+            videoPath: 'assets/recipe_video_3.mp4',
+          )),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Make Sauce', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'Prepare the Sauce',
+            videoPath: 'assets/recipe_video_4.mp4',
+          )),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Cook Pasta', rect: _task(_cx, _row(6)),
+          content: TaskContent(
+            title: 'Cook the Fresh Pasta',
+            text: 'Bring a large pot of salted water to a rolling boil. '
+                'Fresh pasta cooks in just 2-3 minutes — taste for al dente. '
+                'Reserve a cup of pasta water before draining.',
+          )),
+
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Combine & Serve', rect: _task(_cx, _row(7)),
+          content: TaskContent(
+            title: 'Toss and Serve',
+            text: 'Add the drained pasta directly to the sauce. Toss over '
+                'medium heat, adding pasta water a splash at a time until '
+                'the sauce clings to every strand. Finish with fresh basil, '
+                'a drizzle of olive oil, and grated Parmesan.',
+            videoPath: 'assets/recipe_video_5.mp4',
+          )),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.endEvent,
+          name: 'Buon Appetito!', rect: _event(_cx, _row(8))),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
     SampleDiagramEntry(name: 'Content Showcase', builder: contentShowcase,
@@ -1217,6 +1312,8 @@ class SampleDiagrams {
         creator: _creators['maria']!),
     SampleDiagramEntry(name: 'Car Configurator', builder: carConfigurator,
         creator: _creators['jordan']!),
+    SampleDiagramEntry(name: 'Pasta from Scratch', builder: pastaRecipe,
+        creator: _creators['maria']!),
   ];
 
   /// The current user (for prototype purposes).

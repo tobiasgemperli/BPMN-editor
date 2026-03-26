@@ -26,7 +26,8 @@ class DiscoverScreen extends StatelessWidget {
         s.name.contains('Flat Tire') ||
         s.name.contains('Plant') ||
         s.name.contains('Text Only') ||
-        s.name.contains('Car Configurator')).toList();
+        s.name.contains('Car Configurator') ||
+        s.name.contains('Pasta')).toList();
     final technical = rest.where((s) =>
         s.name.contains('Debug') ||
         s.name.contains('Sprint') ||
@@ -250,6 +251,7 @@ String _subtitle(String name) {
   if (name.contains('Database')) return '6 steps · Migration checklist';
   if (name.contains('Text Only')) return '10 steps · Text-only layouts';
   if (name.contains('Car Configurator')) return '6 steps · 10 color options';
+  if (name.contains('Pasta')) return '9 steps · Video recipe';
   return '';
 }
 

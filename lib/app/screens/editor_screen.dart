@@ -76,55 +76,10 @@ class _EditorScreenState extends State<EditorScreen> {
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
+    final topPad = MediaQuery.of(context).padding.top;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.grey[50],
-        surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: !widget.showCloseButton,
-        leading: widget.showCloseButton
-            ? Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: CloseCircleButton(
-                  onPressed: () => Navigator.pop(context),
-                ),
-              )
-            : null,
-        title: Text(
-          widget.title ?? 'New Diagram',
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          if (_isOwner) ...[
-            TextButton(
-              onPressed: _showExportedXml,
-              child: const Text('XML'),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: TextButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Diagram saved')),
-                  );
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF007AFF),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  textStyle: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                child: const Text('Save'),
-              ),
-            ),
-          ],
-        ],
-      ),
       body: Stack(
         children: [
           DiagramCanvas(
@@ -225,6 +180,61 @@ class _EditorScreenState extends State<EditorScreen> {
                     );
                   },
                 ),
+              ),
+            ),
+          // ── Top bar ──
+          if (widget.showCloseButton)
+            Positioned(
+              top: topPad + 8,
+              left: 16,
+              child: CloseCircleButton(
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          Positioned(
+            top: topPad + 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                widget.title ?? 'New Diagram',
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          if (_isOwner)
+            Positioned(
+              top: topPad + 6,
+              right: 16,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: _showExportedXml,
+                    child: const Text('XML'),
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Diagram saved')),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFF007AFF),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      textStyle: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ],
               ),
             ),
           // ── Floating creator info (viewer only) ──
