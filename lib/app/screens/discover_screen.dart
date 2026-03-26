@@ -388,7 +388,7 @@ class _CreatorRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Pressable(
-      onTap: () => _showCreatorProfile(context, creator),
+      onTap: () => showCreatorProfile(context, creator),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -413,7 +413,7 @@ class _CreatorRow extends StatelessWidget {
 
 // ── Creator profile sheet ───────────────────────────────────────
 
-void _showCreatorProfile(BuildContext context, SampleCreator creator) {
+void showCreatorProfile(BuildContext context, SampleCreator creator) {
   Navigator.push(
     context,
     MaterialPageRoute(

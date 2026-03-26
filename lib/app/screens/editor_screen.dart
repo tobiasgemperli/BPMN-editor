@@ -9,6 +9,7 @@ import '../widgets/close_circle_button.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
+import 'discover_screen.dart' show showCreatorProfile;
 import 'presentation_screen.dart';
 
 /// Role determines what the user can do with the diagram.
@@ -21,6 +22,7 @@ class EditorScreen extends StatefulWidget {
   final DiagramRole role;
   final SampleCreator? creator;
   final bool showCloseButton;
+  final bool showBackButton;
 
   const EditorScreen({
     super.key,
@@ -29,6 +31,7 @@ class EditorScreen extends StatefulWidget {
     this.role = DiagramRole.owner,
     this.creator,
     this.showCloseButton = false,
+    this.showBackButton = false,
   });
 
   @override
@@ -183,12 +186,13 @@ class _EditorScreenState extends State<EditorScreen> {
               ),
             ),
           // ── Top bar ──
-          if (widget.showCloseButton)
+          if (widget.showCloseButton || widget.showBackButton)
             Positioned(
               top: topPad + 8,
               left: 16,
               child: CloseCircleButton(
                 onPressed: () => Navigator.pop(context),
+                isBack: widget.showBackButton,
               ),
             ),
           Positioned(
@@ -337,9 +341,7 @@ class _FloatingCreatorChipState extends State<_FloatingCreatorChip> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
         setState(() => _pressed = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${widget.creator.name}\'s profile')),
-        );
+        showCreatorProfile(context, widget.creator);
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedOpacity(

@@ -149,26 +149,14 @@ class _PresentationScreenState extends State<PresentationScreen> {
   void _openEditor(BuildContext context) {
     Navigator.push(
       context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => EditorScreen(
+      MaterialPageRoute(
+        builder: (_) => EditorScreen(
           initialDiagram: widget.diagram,
           title: widget.title,
           role: widget.role,
           creator: widget.creator,
-          showCloseButton: true,
+          showBackButton: true,
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOut,
-            )),
-            child: child,
-          );
-        },
       ),
     );
   }

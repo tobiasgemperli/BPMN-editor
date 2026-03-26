@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Floating close button — white circle with drop shadow.
+/// Floating circle button — white circle with drop shadow.
+/// Shows a close icon by default, or a back chevron when [isBack] is true.
 class CloseCircleButton extends StatelessWidget {
   final VoidCallback onPressed;
+  final bool isBack;
 
-  const CloseCircleButton({super.key, required this.onPressed});
+  const CloseCircleButton({
+    super.key,
+    required this.onPressed,
+    this.isBack = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +30,11 @@ class CloseCircleButton extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.close, size: 20, color: Colors.black54),
+        child: Icon(
+          isBack ? Icons.chevron_left : Icons.close,
+          size: 20,
+          color: Colors.black54,
+        ),
       ),
     );
   }
