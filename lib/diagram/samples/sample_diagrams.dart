@@ -629,21 +629,21 @@ class SampleDiagrams {
             videoPath: video,
           )),
 
-      // Row 5: Merge task
+      // Row 6: Merge task (extra gap to avoid lines crossing row-4 nodes)
       'n8': NodeModel(id: 'n8', type: NodeType.task,
-          name: 'Confirm Understanding', rect: _task(_cx, _row(5)),
+          name: 'Confirm Understanding', rect: _task(_cx, _row(6)),
           content: TaskContent(
             title: 'Knowledge Check',
             imagePath: img,
           )),
 
-      // Row 6: Gateway — "Need more info?"
+      // Row 7: Gateway — "Need more info?"
       'n9': NodeModel(id: 'n9', type: NodeType.exclusiveGateway,
-          name: 'Need more info?', rect: _gw(_cx, _row(6))),
+          name: 'Need more info?', rect: _gw(_cx, _row(7))),
 
-      // Row 7: Two branches
+      // Row 8: Two branches
       'n10': NodeModel(id: 'n10', type: NodeType.task,
-          name: 'Open Manual', rect: _task(left, _row(7)),
+          name: 'Open Manual', rect: _task(left, _row(8)),
           content: TaskContent(
             title: 'Reference Manual',
             text: 'Full documentation with diagrams and specifications.',
@@ -652,15 +652,15 @@ class SampleDiagrams {
             linkLabel: 'Open Manual PDF',
           )),
       'n11': NodeModel(id: 'n11', type: NodeType.task,
-          name: 'Proceed', rect: _task(right, _row(7)),
+          name: 'Proceed', rect: _task(right, _row(8)),
           content: TaskContent(
             title: 'All Clear',
             text: 'You have completed the training module successfully.',
           )),
 
-      // Row 8: End
+      // Row 9: End
       'n12': NodeModel(id: 'n12', type: NodeType.endEvent,
-          name: 'Complete', rect: _event(_cx, _row(8))),
+          name: 'Complete', rect: _event(_cx, _row(9))),
     };
 
     final edges = <String, EdgeModel>{
@@ -673,39 +673,126 @@ class SampleDiagrams {
       'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n6',  name: 'Image'),
       'e6':  EdgeModel(id: 'e6',  sourceId: 'n4',  targetId: 'n7',  name: 'Video',
           waypoints: _hv(_cx, _row(3), right, _row(4))),
-      // 3-way merge
+      // 3-way merge — go down first, then horizontal to avoid crossing n6
       'e7':  EdgeModel(id: 'e7',  sourceId: 'n5',  targetId: 'n8',
-          waypoints: _hv(left, _row(4), _cx, _row(5))),
+          waypoints: _vh(left, _row(4), _cx, _row(6))),
       'e8':  EdgeModel(id: 'e8',  sourceId: 'n6',  targetId: 'n8'),
       'e9':  EdgeModel(id: 'e9',  sourceId: 'n7',  targetId: 'n8',
-          waypoints: _hv(right, _row(4), _cx, _row(5))),
+          waypoints: _vh(right, _row(4), _cx, _row(6))),
       // Second gateway
       'e10': EdgeModel(id: 'e10', sourceId: 'n8',  targetId: 'n9'),
       'e11': EdgeModel(id: 'e11', sourceId: 'n9',  targetId: 'n10', name: 'Yes',
-          waypoints: _hv(_cx, _row(6), left, _row(7))),
+          waypoints: _hv(_cx, _row(7), left, _row(8))),
       'e12': EdgeModel(id: 'e12', sourceId: 'n9',  targetId: 'n11', name: 'No',
-          waypoints: _hv(_cx, _row(6), right, _row(7))),
+          waypoints: _hv(_cx, _row(7), right, _row(8))),
       // Both paths to end
       'e13': EdgeModel(id: 'e13', sourceId: 'n10', targetId: 'n12',
-          waypoints: _hv(left, _row(7), _cx, _row(8))),
+          waypoints: _hv(left, _row(8), _cx, _row(9))),
       'e14': EdgeModel(id: 'e14', sourceId: 'n11', targetId: 'n12',
-          waypoints: _hv(right, _row(7), _cx, _row(8))),
+          waypoints: _hv(right, _row(8), _cx, _row(9))),
     };
 
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
-  /// All sample diagrams with display names.
-  static final List<({String name, DiagramModel Function() builder})> all = [
-    (name: 'Content Showcase', builder: contentShowcase),
-    (name: 'IKEA KALLAX Assembly', builder: ikeaAssembly),
-    (name: 'Emergency: Fire Evacuation', builder: emergencyProcedure),
-    (name: 'Debug: API 500 Errors', builder: technicalDebugging),
-    (name: 'Sprint Cycle', builder: sprintCycle),
-    (name: 'Linear Flow', builder: linear),
-    (name: 'Diamond (2 merge)', builder: diamond),
-    (name: 'Three-Way Merge', builder: threeWayMerge),
-    (name: 'Double Diamond (2x2 merge)', builder: doubleDiamond),
-    (name: 'Four-Way Merge', builder: fourWayMerge),
+  // ── Creators ─────────────────────────────────────────────────
+
+  static const _creators = <String, SampleCreator>{
+    'maria': SampleCreator(
+      id: 'maria',
+      name: 'Maria Chen',
+      initials: 'MC',
+      colorValue: 0xFF5C6BC0,
+      bio: 'Process engineer at a Fortune 500 manufacturing company. '
+          'Passionate about lean operations and visual work instructions. '
+          '12 years of experience in industrial process design.',
+      followers: 2340,
+    ),
+    'alex': SampleCreator(
+      id: 'alex',
+      name: 'Alex Rivera',
+      initials: 'AR',
+      colorValue: 0xFF26A69A,
+      bio: 'Senior software engineer and DevOps advocate. '
+          'Writes about debugging strategies, CI/CD pipelines, and '
+          'engineering best practices. Speaker at QCon and StrangeLoop.',
+      followers: 5120,
+    ),
+    'sam': SampleCreator(
+      id: 'sam',
+      name: 'Sam Kowalski',
+      initials: 'SK',
+      colorValue: 0xFFEF5350,
+      bio: 'Agile coach helping teams ship better software. '
+          'Certified Scrum Master and SAFe Program Consultant. '
+          'Creator of workflow templates used by 500+ teams.',
+      followers: 8900,
+    ),
+    'jordan': SampleCreator(
+      id: 'jordan',
+      name: 'Jordan Patel',
+      initials: 'JP',
+      colorValue: 0xFFFF7043,
+      bio: 'UX researcher and information architect. '
+          'Specializes in making complex processes understandable '
+          'through visual design and interactive documentation.',
+      followers: 1580,
+    ),
+  };
+
+  /// All sample diagrams with display names and creator info.
+  static final List<SampleDiagramEntry> all = [
+    SampleDiagramEntry(name: 'Content Showcase', builder: contentShowcase,
+        creator: _creators['jordan']!),
+    SampleDiagramEntry(name: 'IKEA KALLAX Assembly', builder: ikeaAssembly,
+        creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'Emergency: Fire Evacuation', builder: emergencyProcedure,
+        creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'Debug: API 500 Errors', builder: technicalDebugging,
+        creator: _creators['alex']!),
+    SampleDiagramEntry(name: 'Sprint Cycle', builder: sprintCycle,
+        creator: _creators['sam']!),
+    SampleDiagramEntry(name: 'Linear Flow', builder: linear,
+        creator: _creators['jordan']!),
+    SampleDiagramEntry(name: 'Diamond (2 merge)', builder: diamond,
+        creator: _creators['jordan']!),
+    SampleDiagramEntry(name: 'Three-Way Merge', builder: threeWayMerge,
+        creator: _creators['sam']!),
+    SampleDiagramEntry(name: 'Double Diamond (2x2 merge)', builder: doubleDiamond,
+        creator: _creators['sam']!),
+    SampleDiagramEntry(name: 'Four-Way Merge', builder: fourWayMerge,
+        creator: _creators['alex']!),
   ];
+}
+
+/// Metadata for a sample diagram creator.
+class SampleCreator {
+  final String id;
+  final String name;
+  final String initials;
+  final int colorValue;
+  final String bio;
+  final int followers;
+
+  const SampleCreator({
+    required this.id,
+    required this.name,
+    required this.initials,
+    required this.colorValue,
+    required this.bio,
+    required this.followers,
+  });
+}
+
+/// Entry in the sample diagrams list.
+class SampleDiagramEntry {
+  final String name;
+  final DiagramModel Function() builder;
+  final SampleCreator creator;
+
+  const SampleDiagramEntry({
+    required this.name,
+    required this.builder,
+    required this.creator,
+  });
 }

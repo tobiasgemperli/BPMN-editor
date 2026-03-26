@@ -13,7 +13,9 @@ import 'component_library_screen.dart';
 
 /// The main editor screen.
 class EditorScreen extends StatefulWidget {
-  const EditorScreen({super.key});
+  final DiagramModel? initialDiagram;
+
+  const EditorScreen({super.key, this.initialDiagram});
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
@@ -29,7 +31,11 @@ class _EditorScreenState extends State<EditorScreen> {
   void initState() {
     super.initState();
     _controller = EditorController();
-    _loadSampleOnStart();
+    if (widget.initialDiagram != null) {
+      _controller.loadDiagram(widget.initialDiagram!);
+    } else {
+      _loadSampleOnStart();
+    }
   }
 
   Future<void> _loadSampleOnStart() async {
@@ -53,6 +59,7 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         actions: [
           ListenableBuilder(

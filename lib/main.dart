@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'app/screens/editor_screen.dart';
+import 'app/screens/discover_screen.dart';
 
 void main() {
   runApp(const BpmnEditorApp());
@@ -23,7 +23,7 @@ class BpmnEditorApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.dark,
       ),
-      home: const EditorScreen(),
+      home: const DiscoverScreen(),
     );
   }
 }
