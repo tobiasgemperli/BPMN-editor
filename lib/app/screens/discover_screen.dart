@@ -298,11 +298,10 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
     {String? title}) {
   Navigator.push(
     context,
-    _bottomToTopRoute(EditorScreen(
-      initialDiagram: diagram,
+    _bottomToTopRoute(PresentationScreen(
+      diagram: diagram,
       title: title,
       role: DiagramRole.owner,
-      showCloseButton: true,
     )),
   );
 }
@@ -341,7 +340,7 @@ Route<T> _bottomToTopRoute<T>(Widget page) {
 /// Dismiss the entire modal stack back to the dashboard.
 /// The modal route's reverse animation (slide down) plays automatically.
 void dismissToDashboard(BuildContext context) {
-  dismissToDashboard(context);
+  Navigator.of(context).popUntil((route) => route.isFirst);
 }
 
 // ── Creator avatar ──────────────────────────────────────────────

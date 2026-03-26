@@ -395,6 +395,7 @@ class ProcessCard extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Stack(
+                    fit: StackFit.passthrough,
                     children: [
                       SizedBox(
                         width: double.infinity,

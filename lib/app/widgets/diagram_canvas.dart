@@ -226,7 +226,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
           transformationController: widget.transformationController,
           constrained: false,
           boundaryMargin: const EdgeInsets.all(2000),
-          minScale: widget.readOnly ? 0.7 : 0.3,
+          minScale: widget.readOnly ? 0.7 : 0.15,
           maxScale: 3.0,
           panEnabled: !dragging,
           scaleEnabled: !dragging,

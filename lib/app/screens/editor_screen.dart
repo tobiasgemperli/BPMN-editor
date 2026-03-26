@@ -41,7 +41,7 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   late final EditorController _controller;
   final TransformationController _transformController =
-      TransformationController();
+      TransformationController(Matrix4.diagonal3Values(0.55, 0.55, 1));
   final GlobalKey _canvasKey = GlobalKey();
 
   bool get _isOwner => widget.role == DiagramRole.owner;
@@ -171,12 +171,6 @@ class _EditorScreenState extends State<EditorScreen> {
                               ),
                             ),
                             tooltip: 'Presentation Mode',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.clear_all, size: 22),
-                            onPressed: () =>
-                                _controller.loadDiagram(DiagramModel()),
-                            tooltip: 'Clear',
                           ),
                         ],
                       ),
