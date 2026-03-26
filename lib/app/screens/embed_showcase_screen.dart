@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
@@ -335,67 +334,52 @@ class _FramedStepperState extends State<_FramedStepper> {
                 bottom: BorderSide(color: Colors.grey[200]!),
               ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                MiniProcessMap(
-                  steps: _allNodes,
-                  diagram: _diagram,
-                  currentNodeId: _steps[_currentStep].id,
-                  horizontal: true,
-                  backgroundColor: Colors.grey[50]!,
-                  showShadow: false,
-                ),
-              ],
+            child: Text(
+              widget.title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
 
           // Step content with slide animation.
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) {
-                // Slide from right when going forward, from left when going back.
-                final isIncoming = child.key == ValueKey(_currentStep);
-                final offset = isIncoming
-                    ? Tween(
-                        begin: Offset(_animatingForward ? 1.0 : -1.0, 0),
-                        end: Offset.zero,
-                      )
-                    : Tween(
-                        begin: Offset.zero,
-                        end: Offset(_animatingForward ? -1.0 : 1.0, 0),
-                      );
-                return SlideTransition(
-                  position: offset.animate(CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeInOut,
-                  )),
-                  child: child,
-                );
-              },
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  children: [
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                );
-              },
-              child: _EmbedStepContent(
-                key: ValueKey(_currentStep),
-                node: node,
-                diagram: _diagram,
+            child: ClipRect(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) {
+                  final isIncoming = child.key == ValueKey(_currentStep);
+                  if (!isIncoming) {
+                    // Outgoing: just fade out quickly.
+                    return FadeTransition(opacity: animation, child: child);
+                  }
+                  // Incoming: slide in from right/left.
+                  return SlideTransition(
+                    position: Tween(
+                      begin: Offset(_animatingForward ? 1.0 : -1.0, 0),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  );
+                },
+                layoutBuilder: (currentChild, previousChildren) {
+                  return Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      ...previousChildren,
+                      if (currentChild != null) currentChild,
+                    ],
+                  );
+                },
+                child: _EmbedStepContent(
+                  key: ValueKey(_currentStep),
+                  node: node,
+                  diagram: _diagram,
+                ),
               ),
             ),
           ),
@@ -411,14 +395,16 @@ class _FramedStepperState extends State<_FramedStepper> {
             ),
             child: Row(
               children: [
-                // Progress dots.
-                Expanded(
-                  child: _ProgressDots(
-                    total: _steps.length,
-                    current: _currentStep,
-                  ),
+                // Horizontal miniature diagram.
+                MiniProcessMap(
+                  steps: _allNodes,
+                  diagram: _diagram,
+                  currentNodeId: _steps[_currentStep].id,
+                  horizontal: true,
+                  backgroundColor: Colors.grey[50]!,
+                  showShadow: false,
                 ),
-                const SizedBox(width: 12),
+                const Spacer(),
                 // Back button.
                 if (!isFirst)
                   TextButton(
@@ -487,8 +473,6 @@ class _EmbedStepContent extends StatelessWidget {
     final content = node.content;
     final displayTitle = content?.title ?? node.name;
     final text = content?.text;
-    final isEvent =
-        node.type == NodeType.startEvent || node.type == NodeType.endEvent;
     final isGateway = node.type == NodeType.exclusiveGateway;
 
     List<String> options = [];
@@ -502,36 +486,11 @@ class _EmbedStepContent extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Badge.
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: isEvent
-                  ? Colors.grey[800]
-                  : isGateway
-                      ? Colors.amber[700]
-                      : Colors.indigo,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              isEvent
-                  ? (node.type == NodeType.startEvent ? 'START' : 'END')
-                  : isGateway
-                      ? 'DECISION'
-                      : 'STEP',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
-          // Title.
+          // Title — centered.
           Text(
             displayTitle,
             style: const TextStyle(
@@ -539,6 +498,7 @@ class _EmbedStepContent extends StatelessWidget {
               fontWeight: FontWeight.w600,
               height: 1.3,
             ),
+            textAlign: TextAlign.center,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
@@ -585,50 +545,6 @@ class _EmbedStepContent extends StatelessWidget {
               ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// Compact progress dots.
-class _ProgressDots extends StatelessWidget {
-  final int total;
-  final int current;
-
-  const _ProgressDots({required this.total, required this.current});
-
-  @override
-  Widget build(BuildContext context) {
-    // If too many dots, show a condensed progress bar.
-    if (total > 15) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: LinearProgressIndicator(
-          value: (current + 1) / total,
-          backgroundColor: Colors.grey[200],
-          valueColor: const AlwaysStoppedAnimation(Colors.indigo),
-          minHeight: 4,
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(
-        math.min(total, 15),
-        (i) => Container(
-          width: i == current ? 16 : 6,
-          height: 6,
-          margin: const EdgeInsets.only(right: 4),
-          decoration: BoxDecoration(
-            color: i == current
-                ? Colors.indigo
-                : i < current
-                    ? Colors.indigo.withValues(alpha: 0.3)
-                    : Colors.grey[300],
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
       ),
     );
   }
