@@ -312,7 +312,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 }
 
-/// Mini flowchart using the actual diagram node positions, scaled to fit.
+/// Mini flowchart with uniform dot density across all diagrams.
+/// Uses a fixed target spacing per edge so every miniature looks similar
+/// regardless of node count or original layout.
 class _MiniProcessMap extends StatelessWidget {
   final List<NodeModel> steps;
   final DiagramModel diagram;
@@ -328,6 +330,10 @@ class _MiniProcessMap extends StatelessWidget {
   Widget build(BuildContext context) {
     if (steps.isEmpty) return const SizedBox.shrink();
 
+    // Target spacing: every connected pair of nodes should be ~targetDist apart.
+    const targetDist = 16.0;
+    const padding = 8.0;
+
     // Compute bounding box of all step nodes.
     double minX = double.infinity, minY = double.infinity;
     double maxX = -double.infinity, maxY = -double.infinity;
@@ -342,38 +348,30 @@ class _MiniProcessMap extends StatelessWidget {
     final diagramW = (maxX - minX).clamp(1.0, double.infinity);
     final diagramH = (maxY - minY).clamp(1.0, double.infinity);
 
-    // Use uniform scale so dots don't get squashed.
-    // Fit within max bounds, then derive the other dimension.
-    const maxMapH = 90.0;
-    const maxMapW = 180.0;
-    const padding = 8.0;
-    const minDotSpacing = 15.0;
-
-    // Find the minimum spacing in the diagram to ensure dots don't overlap.
-    double minNodeDist = double.infinity;
-    for (int i = 0; i < steps.length; i++) {
-      for (int j = i + 1; j < steps.length; j++) {
-        final d = (steps[i].rect.center - steps[j].rect.center).distance;
-        if (d > 0 && d < minNodeDist) minNodeDist = d;
-      }
+    // Compute average edge length in the original diagram.
+    final stepIds = {for (final s in steps) s.id};
+    double totalDist = 0;
+    int edgeCount = 0;
+    for (final edge in diagram.edges.values) {
+      if (!stepIds.contains(edge.sourceId) ||
+          !stepIds.contains(edge.targetId)) continue;
+      final src = diagram.nodes[edge.sourceId];
+      final tgt = diagram.nodes[edge.targetId];
+      if (src == null || tgt == null) continue;
+      totalDist += (src.rect.center - tgt.rect.center).distance;
+      edgeCount++;
     }
+    final avgDist = edgeCount > 0 ? totalDist / edgeCount : diagramH;
 
-    // Scale so the closest pair of dots is at least minDotSpacing apart.
-    double scale = minDotSpacing / (minNodeDist.isFinite ? minNodeDist : 1.0);
-    // But also fit within max bounds.
-    final scaleForW = (maxMapW - padding) / diagramW;
-    final scaleForH = (maxMapH - padding) / diagramH;
-    scale = scale.clamp(0.0, scaleForW.clamp(0.0, scaleForH));
+    // Scale so the average edge length maps to targetDist.
+    final scale = targetDist / avgDist;
 
-    final mapWidth = diagramW * scale + padding;
-    final mapHeight = diagramH * scale + padding;
-
-    final clampedW = mapWidth.clamp(12.0, maxMapW);
-    final clampedH = mapHeight.clamp(12.0, maxMapH);
+    final mapW = diagramW * scale + padding * 2;
+    final mapH = diagramH * scale + padding * 2;
 
     return Container(
-      width: clampedW + 12,
-      height: clampedH + 12,
+      width: mapW + 12,
+      height: mapH + 12,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(10),
@@ -387,7 +385,7 @@ class _MiniProcessMap extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: CustomPaint(
-        size: Size(clampedW, clampedH),
+        size: Size(mapW, mapH),
         painter: _MiniFlowPainter(
           steps: steps,
           diagram: diagram,
@@ -395,6 +393,7 @@ class _MiniProcessMap extends StatelessWidget {
           originX: minX,
           originY: minY,
           scale: scale,
+          padding: padding,
         ),
       ),
     );
@@ -405,7 +404,7 @@ class _MiniFlowPainter extends CustomPainter {
   final List<NodeModel> steps;
   final DiagramModel diagram;
   final String currentNodeId;
-  final double originX, originY, scale;
+  final double originX, originY, scale, padding;
 
   _MiniFlowPainter({
     required this.steps,
@@ -414,17 +413,18 @@ class _MiniFlowPainter extends CustomPainter {
     required this.originX,
     required this.originY,
     required this.scale,
+    required this.padding,
   });
 
   Offset _map(Offset center) => Offset(
-        (center.dx - originX) * scale + 4,
-        (center.dy - originY) * scale + 4,
+        (center.dx - originX) * scale + padding,
+        (center.dy - originY) * scale + padding,
       );
 
   @override
   void paint(Canvas canvas, Size size) {
-    const dotRadius = 4.5;
-    const diamondSize = 6.0;
+    const dotRadius = 4.0;
+    const diamondSize = 5.5;
 
     final linePaint = Paint()
       ..color = Colors.black26
@@ -435,7 +435,7 @@ class _MiniFlowPainter extends CustomPainter {
 
     final stepIds = {for (final s in steps) s.id};
 
-    // Draw edges — always start/end at node centers so lines touch dots.
+    // Draw edges.
     for (final edge in diagram.edges.values) {
       if (!stepIds.contains(edge.sourceId) ||
           !stepIds.contains(edge.targetId)) {
@@ -447,7 +447,6 @@ class _MiniFlowPainter extends CustomPainter {
 
       final points = <Offset>[
         _map(srcNode.rect.center),
-        // Interior waypoints (skip first/last which are unclipped node centers).
         if (edge.waypoints.length >= 3)
           for (int i = 1; i < edge.waypoints.length - 1; i++)
             _map(edge.waypoints[i]),
@@ -458,7 +457,7 @@ class _MiniFlowPainter extends CustomPainter {
       }
     }
 
-    // Draw nodes on top — white background to fully occlude lines.
+    // Draw nodes on top.
     final bgPaint = Paint()..color = Colors.white;
     for (final node in steps) {
       final center = _map(node.rect.center);

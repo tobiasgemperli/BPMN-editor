@@ -502,64 +502,50 @@ class ProcessCard extends StatelessWidget {
   // ── Text detail view (fullscreen overlay) ───────────────────
 
   void _showTextModal(BuildContext context, String modalTitle, String fullText) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.75,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      pageBuilder: (context, animation, secondaryAnimation) {
+        final topPad = MediaQuery.of(context).padding.top;
+        return FadeTransition(
+          opacity: animation,
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            body: Stack(
+              children: [
+                ListView(
+                  padding: EdgeInsets.fromLTRB(24, topPad + 56, 24, 40),
+                  children: [
+                    if (modalTitle.isNotEmpty)
+                      Text(
+                        modalTitle,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (modalTitle.isNotEmpty)
+                    const SizedBox(height: 20),
                     Text(
-                      modalTitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      fullText,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            height: 1.6,
+                            color: Colors.grey[700],
+                          ),
                     ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      child: Text(
-                        fullText,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              height: 1.6,
-                              color: Colors.grey[700],
-                            ),
-                      ),
-                    ),
+                  ],
+                ),
+                Positioned(
+                  top: topPad + 8,
+                  right: 16,
+                  child: CloseCircleButton(
+                    onPressed: () => Navigator.pop(context),
                   ),
-                ],
-              ),
-            );
-          },
+                ),
+              ],
+            ),
+          ),
         );
       },
-    );
+    ));
   }
 
   // ── Image detail view (scrollable fullscreen) ──────────────
