@@ -202,7 +202,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
 
     final topPad = MediaQuery.of(context).padding.top;
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    final unresolvedGateway = _isUnresolvedGateway(_currentPage);
+    // Clamp in case _path was trimmed after _currentPage was set.
+    final safePage = _currentPage.clamp(0, _path.length - 1);
+    final unresolvedGateway = _isUnresolvedGateway(safePage);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -262,7 +264,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 child: _MiniProcessMap(
                   steps: _allNodes,
                   diagram: widget.diagram,
-                  currentNodeId: _path[_currentPage].id,
+                  currentNodeId: _path[safePage].id,
                 ),
               ),
             ),
@@ -290,7 +292,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 child: const _ChooseOptionHint(),
               ),
             // Close button on last step.
-            if (_isLastStep(_currentPage))
+            if (_isLastStep(safePage))
               Positioned(
                 bottom: bottomPad + 32,
                 left: 0,
