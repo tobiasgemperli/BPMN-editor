@@ -248,7 +248,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
             // Close button top-left.
             Positioned(
               top: topPad + 8,
-              left: 12,
+              left: 16,
               child: CloseCircleButton(
                 onPressed: () => Navigator.pop(context),
               ),
@@ -269,10 +269,17 @@ class _PresentationScreenState extends State<PresentationScreen> {
             // Swipe hint on first card.
             if (_showSwipeHint && _path.length > 1 && !unresolvedGateway)
               Positioned(
-                bottom: bottomPad + 32,
+                bottom: bottomPad + 16,
                 left: 0,
                 right: 0,
-                child: const _SwipeHintArrow(),
+                child: _SwipeHintArrow(
+                  onTap: () {
+                    _pageController.nextPage(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                ),
               ),
             // "Choose an option" hint on unresolved gateway pages.
             if (unresolvedGateway)
@@ -487,9 +494,11 @@ class _MiniFlowPainter extends CustomPainter {
       oldDelegate.currentNodeId != currentNodeId;
 }
 
-/// Blinking down-arrow hint shown on the first card only.
+/// Pulsating chevron hint — tappable to go to next page.
 class _SwipeHintArrow extends StatefulWidget {
-  const _SwipeHintArrow();
+  final VoidCallback onTap;
+
+  const _SwipeHintArrow({required this.onTap});
 
   @override
   State<_SwipeHintArrow> createState() => _SwipeHintArrowState();
@@ -499,7 +508,6 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _opacity;
-  late final Animation<double> _offset;
 
   @override
   void initState() {
@@ -508,10 +516,7 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _opacity = Tween(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _offset = Tween(begin: 0.0, end: 8.0).animate(
+    _opacity = Tween(begin: 0.2, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -524,38 +529,21 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _offset.value),
-          child: Opacity(
+    return GestureDetector(
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Opacity(
             opacity: _opacity.value,
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Swipe up',
-                      style: TextStyle(fontSize: 12, color: Colors.white),
-                    ),
-                    SizedBox(height: 2),
-                    Icon(Icons.keyboard_arrow_down,
-                        size: 24, color: Colors.white),
-                  ],
-                ),
-              ),
+            child: const Center(
+              child: Icon(Icons.keyboard_arrow_down,
+                  size: 40, color: Colors.black),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

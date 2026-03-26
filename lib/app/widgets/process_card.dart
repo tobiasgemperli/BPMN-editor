@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import '../../diagram/model/diagram_model.dart';
+import 'close_circle_button.dart';
 
 /// A full-screen step in a process. No Card/shadow — clean flat design.
 ///
@@ -288,7 +289,78 @@ class ProcessCard extends StatelessWidget {
     final displayTitle = title ?? nodeName;
     final hasImage = imagePath != null;
     final hasLongText = text != null && text!.length > 200;
+    final hasLink = linkUrl != null;
 
+    // Heavy content (image, link, long text) → top-aligned, fills screen.
+    if (hasImage || hasLink) {
+      return _buildTopAligned(context, displayTitle, hasImage, hasLongText);
+    }
+
+    // Light content (title only, title+text) → vertically centered.
+    return _buildCentered(context, displayTitle, hasLongText);
+  }
+
+  /// Vertically centered, always left-aligned.
+  /// Used for title-only and title+text cards.
+  Widget _buildCentered(
+      BuildContext context, String displayTitle, bool hasLongText) {
+    final titleOnly = text == null || text!.isEmpty;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 60),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment:
+              titleOnly ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          children: [
+            if (displayTitle.isNotEmpty)
+              Text(
+                displayTitle,
+                style: titleOnly
+                    ? Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.w300,
+                          fontSize: 32,
+                        )
+                    : Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                textAlign: titleOnly ? TextAlign.center : TextAlign.start,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (text != null && text!.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text(
+                text!,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      height: 1.6,
+                      color: Colors.grey[700],
+                    ),
+              ),
+              if (hasLongText) ...[
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => _showTextModal(context, displayTitle, text!),
+                  child: Text(
+                    'Tap to read more',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Top-aligned layout for cards with image, link, or heavy content.
+  Widget _buildTopAligned(BuildContext context, String displayTitle,
+      bool hasImage, bool hasLongText) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -296,7 +368,6 @@ class ProcessCard extends StatelessWidget {
         children: [
           SizedBox(height: _titleTopPadding),
 
-          // Title.
           if (displayTitle.isNotEmpty)
             Text(
               displayTitle,
@@ -307,7 +378,6 @@ class ProcessCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
 
-          // Text — tappable for modal if long.
           if (text != null) ...[
             const SizedBox(height: 16),
             Flexible(
@@ -338,7 +408,6 @@ class ProcessCard extends StatelessWidget {
             ],
           ],
 
-          // Image thumbnail — tall, uses remaining space.
           if (hasImage) ...[
             const SizedBox(height: 20),
             Expanded(
@@ -356,7 +425,6 @@ class ProcessCard extends StatelessWidget {
             ),
           ],
 
-          // Link.
           if (linkUrl != null) ...[
             const SizedBox(height: 16),
             Row(
@@ -374,63 +442,51 @@ class ProcessCard extends StatelessWidget {
             ),
           ],
 
-          // Bottom spacing — less when image fills the space.
           SizedBox(height: hasImage ? 24 : 80),
         ],
       ),
     );
   }
 
-  // ── Text modal (scrollable) ─────────────────────────────────
+  // ── Text detail view (fullscreen overlay) ───────────────────
 
   void _showTextModal(BuildContext context, String modalTitle, String fullText) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _TextDetailView(title: modalTitle, text: fullText);
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
       ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.3,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ListView(
-                controller: scrollController,
-                children: [
-                  const SizedBox(height: 20),
-                  if (modalTitle.isNotEmpty)
-                    Text(
-                      modalTitle,
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                  const SizedBox(height: 16),
-                  Text(
-                    fullText,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          height: 1.6,
-                        ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
-  // ── Media modal ─────────────────────────────────────────────
+  // ── Image detail view (scrollable fullscreen) ──────────────
+
+  void _showImageDetail(BuildContext context, String path, bool isAsset) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _ImageDetailView(imagePath: path, isAsset: isAsset);
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  // ── Media modal (video) ────────────────────────────────────
 
   void _showMediaModal(BuildContext context, {required bool isVideo}) {
+    if (!isVideo && imagePath != null) {
+      _showImageDetail(context, imagePath!, imageIsAsset);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -449,16 +505,10 @@ class ProcessCard extends StatelessWidget {
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-            body: isVideo
-                ? _AssetVideoPlayer(
-                    videoPath: videoPath!,
-                    child: const SizedBox.expand(),
-                  )
-                : InteractiveViewer(
-                    child: Center(
-                      child: _buildImage(imagePath!, BoxFit.contain),
-                    ),
-                  ),
+            body: _AssetVideoPlayer(
+              videoPath: videoPath!,
+              child: const SizedBox.expand(),
+            ),
           );
         },
       ),
@@ -532,10 +582,14 @@ class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
       children: [
         Container(color: Colors.black),
         if (_initialized)
-          Center(
-            child: AspectRatio(
-              aspectRatio: _vController.value.aspectRatio,
-              child: VideoPlayer(_vController),
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _vController.value.size.width,
+                height: _vController.value.size.height,
+                child: VideoPlayer(_vController),
+              ),
             ),
           )
         else
@@ -544,6 +598,99 @@ class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
           ),
         widget.child,
       ],
+    );
+  }
+}
+
+/// Fullscreen text detail view with close button.
+class _TextDetailView extends StatelessWidget {
+  final String title;
+  final String text;
+
+  const _TextDetailView({required this.title, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          ListView(
+            padding: EdgeInsets.fromLTRB(24, topPad + 56, 24, 40),
+            children: [
+              if (title.isNotEmpty)
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              const SizedBox(height: 20),
+              Text(
+                text,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      height: 1.7,
+                      color: Colors.grey[800],
+                    ),
+              ),
+            ],
+          ),
+          Positioned(
+            top: topPad + 8,
+            left: 16,
+            child: CloseCircleButton(
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fullscreen scrollable image detail view with close button.
+class _ImageDetailView extends StatelessWidget {
+  final String imagePath;
+  final bool isAsset;
+
+  const _ImageDetailView({required this.imagePath, required this.isAsset});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    final imageWidget = isAsset
+        ? Image.asset(imagePath, fit: BoxFit.fitWidth,
+            errorBuilder: (_, _, _) => const SizedBox.shrink())
+        : (File(imagePath).existsSync()
+            ? Image.file(File(imagePath), fit: BoxFit.fitWidth,
+                errorBuilder: (_, _, _) => const SizedBox.shrink())
+            : const SizedBox.shrink());
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 4.0,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(top: topPad + 56, bottom: 40),
+              child: SizedBox(
+                width: double.infinity,
+                child: imageWidget,
+              ),
+            ),
+          ),
+          Positioned(
+            top: topPad + 8,
+            left: 16,
+            child: CloseCircleButton(
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

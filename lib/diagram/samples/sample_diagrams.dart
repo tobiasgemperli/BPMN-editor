@@ -491,6 +491,7 @@ class SampleDiagrams {
               '- 14 nails for back panel\n'
               '- 2 wall anchors + screws\n'
               '- 1 hex key (Allen wrench)',
+          imagePath: 'assets/sample_image_2.jpg',
         )),
       'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'All Parts?', rect: _gw(_cx, _row(3))),
       // Missing parts — branch right
@@ -931,6 +932,253 @@ class SampleDiagrams {
     ),
   };
 
+  /// Text-only content showcase: firefighter emergency response.
+  /// Demonstrates different text-only card layouts.
+  static DiagramModel textOnly() {
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
+
+    final nodes = <String, NodeModel>{
+      // Row 0: Start
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Alarm Received', rect: _event(_cx, _row(0))),
+
+      // Row 1: Title only — short, punchy command
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Don PPE', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Don Protective Equipment',
+          )),
+
+      // Row 2: Title + short text — brief instruction
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Size-Up', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            title: 'Scene Size-Up',
+            text: 'Assess building type, smoke conditions, wind direction, '
+                'and number of floors. Report findings to Incident Commander.',
+          )),
+
+      // Row 3: Title + numbered list text — checklist style
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Establish Command', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            title: 'Establish Incident Command',
+            text: '1. Identify yourself as IC on radio\n'
+                '2. Set up command post upwind\n'
+                '3. Request additional resources if needed\n'
+                '4. Assign sectors (fire attack, ventilation, RIT)\n'
+                '5. Begin personnel accountability report (PAR)',
+          )),
+
+      // Row 4: Gateway — fire type decision
+      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway,
+          name: 'Fire Type?', rect: _gw(_cx, _row(4))),
+
+      // Row 5: Left branch — structural fire (long detailed text)
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Structural Fire Attack', rect: _task(left, _row(5)),
+          content: TaskContent(
+            title: 'Interior Structural Fire Attack',
+            text: 'Deploy 1¾" attack line to the seat of the fire. '
+                'Maintain crew integrity — always operate in teams of two '
+                'or more. Stay low, follow the hose line as your lifeline.\n\n'
+                'Search adjacent rooms systematically: right-hand or left-hand '
+                'search pattern. Close doors behind you to limit fire spread.\n\n'
+                'Monitor air supply continuously. Begin egress with 50% of '
+                'your air remaining or at the low-air alarm — whichever comes '
+                'first. Never remove your SCBA face piece inside the structure.\n\n'
+                'Watch for signs of flashover: darkening smoke, rollover at '
+                'ceiling level, intense radiant heat. If conditions deteriorate '
+                'rapidly, evacuate immediately and transition to defensive '
+                'operations.',
+          )),
+
+      // Row 5: Right branch — electrical/vehicle fire (title + short text + link)
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Vehicle / Electrical Fire', rect: _task(right, _row(5)),
+          content: TaskContent(
+            title: 'Vehicle or Electrical Fire',
+            text: 'Approach from upwind at 45° angle. Use dry chemical or '
+                'CO₂ extinguisher for electrical fires — never use water on '
+                'energized equipment.\n\n'
+                'For vehicle fires, check for alternative fuel systems (CNG, '
+                'LPG, EV batteries). EV battery fires require sustained '
+                'water application — 3,000+ gallons minimum.',
+            linkUrl: 'https://nfpa.org/ev-fire-response',
+            linkLabel: 'NFPA EV Fire Guidelines',
+          )),
+
+      // Row 7: Merge — overhaul (extra row gap for branch routing)
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Overhaul', rect: _task(_cx, _row(7)),
+          content: TaskContent(
+            title: 'Overhaul & Salvage',
+            text: 'Systematically check for hidden fire extension behind '
+                'walls, above ceilings, and below floors using thermal '
+                'imaging camera (TIC).\n\n'
+                'Open up only what is necessary — preserve the structure '
+                'for investigation. Document fire origin and cause indicators '
+                'before disturbing the scene.',
+          )),
+
+      // Row 8: Title + paragraph — debrief
+      'n9': NodeModel(id: 'n9', type: NodeType.task,
+          name: 'Debrief', rect: _task(_cx, _row(8)),
+          content: TaskContent(
+            title: 'Post-Incident Debrief',
+            text: 'Conduct a hot debrief within one hour of scene clearance. '
+                'Cover what went well, what could improve, and any near-miss '
+                'events.\n\n'
+                'Check in with all crew members for signs of stress or injury. '
+                'CISM resources are available through dispatch 24/7.\n\n'
+                'Complete NFIRS report within 24 hours.',
+          )),
+
+      // Row 9: End
+      'n10': NodeModel(id: 'n10', type: NodeType.endEvent,
+          name: 'Scene Secured', rect: _event(_cx, _row(9))),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6', name: 'Structural',
+          waypoints: _hv(_cx, _row(4), left, _row(5))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n7', name: 'Vehicle / Electrical',
+          waypoints: _hv(_cx, _row(4), right, _row(5))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n6', targetId: 'n8',
+          waypoints: _vh(left, _row(5), _cx, _row(7))),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n7', targetId: 'n8',
+          waypoints: _vh(right, _row(5), _cx, _row(7))),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n8', targetId: 'n9'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n9', targetId: 'n10'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Car configurator: gateway with 10 options to test the options modal.
+  static DiagramModel carConfigurator() {
+    // 10 color options fan out from a gateway, merge back, then continue.
+    // Layout: start → model selection → color gateway → (10 branches) → merge → extras → end.
+
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Configure Your Car', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Choose Model', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Select Your Model',
+            text: 'Browse our lineup and pick the model that fits your lifestyle. '
+                'Each model comes with a unique set of standard features.',
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway,
+          name: 'Exterior Color?', rect: _gw(_cx, _row(2))),
+
+      // 10 color options — all merge into the same next step
+      'c1': NodeModel(id: 'c1', type: NodeType.task,
+          name: 'Alpine White', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Alpine White',
+              text: 'A timeless, clean white that highlights the car\'s sculpted lines. Popular for its elegant simplicity and easy maintenance.')),
+      'c2': NodeModel(id: 'c2', type: NodeType.task,
+          name: 'Jet Black', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Jet Black',
+              text: 'Deep, mirror-like black finish. Striking presence on the road. Shows fingerprints and swirl marks more easily — requires careful washing.')),
+      'c3': NodeModel(id: 'c3', type: NodeType.task,
+          name: 'Melbourne Red', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Melbourne Red Metallic',
+              text: 'A rich, deep red with subtle metallic flake. Sporty and bold — turns heads at every corner.')),
+      'c4': NodeModel(id: 'c4', type: NodeType.task,
+          name: 'Mineral Grey', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Mineral Grey Metallic',
+              text: 'Sophisticated dark grey with a warm undertone. Hides dirt well and looks sharp in any lighting condition.')),
+      'c5': NodeModel(id: 'c5', type: NodeType.task,
+          name: 'Portimao Blue', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Portimao Blue Metallic',
+              text: 'A deep, saturated blue exclusive to M Sport models. Named after the Portuguese racing circuit — for drivers who mean business.')),
+      'c6': NodeModel(id: 'c6', type: NodeType.task,
+          name: 'San Remo Green', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'San Remo Green Metallic',
+              text: 'A distinctive heritage green with golden undertones. Inspired by classic motorsport liveries — subtle yet unmistakable.')),
+      'c7': NodeModel(id: 'c7', type: NodeType.task,
+          name: 'Tanzanite Blue', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Tanzanite Blue Metallic',
+              text: 'A luxurious deep blue-violet that shifts between blue and purple depending on the light. A rare gemstone on wheels.')),
+      'c8': NodeModel(id: 'c8', type: NodeType.task,
+          name: 'Frozen Orange', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Frozen Orange Metallic',
+              text: 'Matte orange finish with a satin texture. An Individual color that demands attention — not for the faint of heart. Special matte care required.')),
+      'c9': NodeModel(id: 'c9', type: NodeType.task,
+          name: 'Oxide Grey', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Oxide Grey Metallic',
+              text: 'A warm, earthy grey with bronze undertones. Understated luxury — pairs beautifully with both light and dark interiors.')),
+      'c10': NodeModel(id: 'c10', type: NodeType.task,
+          name: 'Dravit Grey', rect: _task(_cx, _row(3)),
+          content: TaskContent(title: 'Dravit Grey Metallic',
+              text: 'A unique brownish-grey that changes character with the light — cool in shade, warm in sun. Named after a rare mineral.')),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Interior & Extras', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            title: 'Choose Interior & Extras',
+            text: 'Select your interior trim, upholstery, and optional packages:\n\n'
+                '- Leather: Vernasca or Merino\n'
+                '- Trim: Aluminium, Open-Pore Wood, or Carbon Fibre\n'
+                '- Packages: M Sport, Technology, Comfort, Driving Assistant Pro\n'
+                '- Wheels: 18" to 21" options available\n'
+                '- Audio: Standard, Harman Kardon, or Bowers & Wilkins',
+          )),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Review Build', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'Review Your Configuration',
+            text: 'Take a final look at your selected options before placing your order. '
+                'You can always go back and change any selection.',
+          )),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.endEvent,
+          name: 'Order Placed', rect: _event(_cx, _row(6))),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      // 10 color edges from gateway
+      'ec1': EdgeModel(id: 'ec1', sourceId: 'n3', targetId: 'c1', name: 'Alpine White'),
+      'ec2': EdgeModel(id: 'ec2', sourceId: 'n3', targetId: 'c2', name: 'Jet Black'),
+      'ec3': EdgeModel(id: 'ec3', sourceId: 'n3', targetId: 'c3', name: 'Melbourne Red'),
+      'ec4': EdgeModel(id: 'ec4', sourceId: 'n3', targetId: 'c4', name: 'Mineral Grey'),
+      'ec5': EdgeModel(id: 'ec5', sourceId: 'n3', targetId: 'c5', name: 'Portimao Blue'),
+      'ec6': EdgeModel(id: 'ec6', sourceId: 'n3', targetId: 'c6', name: 'San Remo Green'),
+      'ec7': EdgeModel(id: 'ec7', sourceId: 'n3', targetId: 'c7', name: 'Tanzanite Blue'),
+      'ec8': EdgeModel(id: 'ec8', sourceId: 'n3', targetId: 'c8', name: 'Frozen Orange'),
+      'ec9': EdgeModel(id: 'ec9', sourceId: 'n3', targetId: 'c9', name: 'Oxide Grey'),
+      'ec10': EdgeModel(id: 'ec10', sourceId: 'n3', targetId: 'c10', name: 'Dravit Grey'),
+      // All colors merge into extras
+      'em1': EdgeModel(id: 'em1', sourceId: 'c1', targetId: 'n4'),
+      'em2': EdgeModel(id: 'em2', sourceId: 'c2', targetId: 'n4'),
+      'em3': EdgeModel(id: 'em3', sourceId: 'c3', targetId: 'n4'),
+      'em4': EdgeModel(id: 'em4', sourceId: 'c4', targetId: 'n4'),
+      'em5': EdgeModel(id: 'em5', sourceId: 'c5', targetId: 'n4'),
+      'em6': EdgeModel(id: 'em6', sourceId: 'c6', targetId: 'n4'),
+      'em7': EdgeModel(id: 'em7', sourceId: 'c7', targetId: 'n4'),
+      'em8': EdgeModel(id: 'em8', sourceId: 'c8', targetId: 'n4'),
+      'em9': EdgeModel(id: 'em9', sourceId: 'c9', targetId: 'n4'),
+      'em10': EdgeModel(id: 'em10', sourceId: 'c10', targetId: 'n4'),
+      // Continue
+      'e3': EdgeModel(id: 'e3', sourceId: 'n4', targetId: 'n5'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n5', targetId: 'n6'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
     SampleDiagramEntry(name: 'Content Showcase', builder: contentShowcase,
@@ -965,6 +1213,10 @@ class SampleDiagrams {
         creator: _creators['alex']!),
     SampleDiagramEntry(name: 'Database Migration', builder: dbMigration,
         creator: _creators['sam']!),
+    SampleDiagramEntry(name: 'Text Only: Fire Response', builder: textOnly,
+        creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'Car Configurator', builder: carConfigurator,
+        creator: _creators['jordan']!),
   ];
 
   /// The current user (for prototype purposes).

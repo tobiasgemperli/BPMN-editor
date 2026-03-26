@@ -24,7 +24,9 @@ class DiscoverScreen extends StatelessWidget {
         s.name.contains('Emergency') ||
         s.name.contains('Coffee') ||
         s.name.contains('Flat Tire') ||
-        s.name.contains('Plant')).toList();
+        s.name.contains('Plant') ||
+        s.name.contains('Text Only') ||
+        s.name.contains('Car Configurator')).toList();
     final technical = rest.where((s) =>
         s.name.contains('Debug') ||
         s.name.contains('Sprint') ||
@@ -44,7 +46,7 @@ class DiscoverScreen extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.only(
-                    top: topPad + 16, left: 20, right: 12, bottom: 8),
+                    top: topPad + 16, left: 20, right: 20, bottom: 8),
                 child: Row(
                   children: [
                     Text(
@@ -54,14 +56,21 @@ class DiscoverScreen extends StatelessWidget {
                           ),
                     ),
                     const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline, size: 28),
-                      onPressed: () => Navigator.push(
+                    _Pressable(
+                      onTap: () => Navigator.push(
                         context,
                         _bottomToTopRoute(
                             const EditorScreen(showCloseButton: true)),
                       ),
-                      tooltip: 'New Diagram',
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF007AFF),
+                        ),
+                        child: const Icon(Icons.add, size: 22, color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
@@ -239,6 +248,8 @@ String _subtitle(String name) {
   if (name.contains('Git')) return '8 steps · Developer guide';
   if (name.contains('CI/CD')) return '8 steps · DevOps pipeline';
   if (name.contains('Database')) return '6 steps · Migration checklist';
+  if (name.contains('Text Only')) return '10 steps · Text-only layouts';
+  if (name.contains('Car Configurator')) return '6 steps · 10 color options';
   return '';
 }
 
@@ -954,7 +965,7 @@ class _CreatorProfileScreen extends StatelessWidget {
           // ── Top bar with close button ──
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.only(top: topPad + 8, left: 12, right: 12),
+              padding: EdgeInsets.only(top: topPad + 8, left: 16, right: 16),
               child: Row(
                 children: [
                   CloseCircleButton(onPressed: () => Navigator.pop(context)),

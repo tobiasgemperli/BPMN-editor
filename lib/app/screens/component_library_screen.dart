@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/close_circle_button.dart';
 import '../widgets/process_card.dart';
 
 /// Full-screen swipeable reference of all card variations.
@@ -39,8 +40,8 @@ class _ComponentLibraryScreenState extends State<ComponentLibraryScreen> {
             // Minimal top bar: back + label.
             Positioned(
               top: topPad + 8,
-              left: 8,
-              child: _CloseCircleButton(
+              left: 16,
+              child: CloseCircleButton(
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -218,25 +219,3 @@ final _cards = <({String label, Widget card, bool darkBg})>[
   ),
 ];
 
-/// A close button on a white semi-transparent circle.
-class _CloseCircleButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _CloseCircleButton({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.7),
-        ),
-        child: const Icon(Icons.close, size: 20, color: Colors.black54),
-      ),
-    );
-  }
-}

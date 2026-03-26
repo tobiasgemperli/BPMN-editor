@@ -84,7 +84,7 @@ class _EditorScreenState extends State<EditorScreen> {
         automaticallyImplyLeading: !widget.showCloseButton,
         leading: widget.showCloseButton
             ? Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.only(left: 12),
                 child: CloseCircleButton(
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -101,7 +101,7 @@ class _EditorScreenState extends State<EditorScreen> {
               child: const Text('XML'),
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: 16),
               child: TextButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -227,16 +227,18 @@ class _EditorScreenState extends State<EditorScreen> {
                 ),
               ),
             ),
-          // ── Creator bar (viewer only) ──
+          // ── Floating creator info (viewer only) ──
           if (!_isOwner && widget.creator != null)
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _CreatorBar(
-                creator: widget.creator!,
-                diagramTitle: widget.title ?? 'this diagram',
-              ),
+              left: 16,
+              bottom: bottomPad + 16,
+              child: _FloatingCreatorChip(creator: widget.creator!),
+            ),
+          if (!_isOwner && widget.creator != null)
+            Positioned(
+              right: 16,
+              bottom: bottomPad + 16,
+              child: _FloatingMessageButton(creator: widget.creator!),
             ),
         ],
       ),
@@ -306,97 +308,137 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 }
 
-/// YouTube-style creator bar at the bottom of the viewer screen.
-class _CreatorBar extends StatelessWidget {
+/// Floating creator chip — avatar + name in a pill.
+class _FloatingCreatorChip extends StatefulWidget {
   final SampleCreator creator;
-  final String diagramTitle;
 
-  const _CreatorBar({
-    required this.creator,
-    required this.diagramTitle,
-  });
+  const _FloatingCreatorChip({required this.creator});
+
+  @override
+  State<_FloatingCreatorChip> createState() => _FloatingCreatorChipState();
+}
+
+class _FloatingCreatorChipState extends State<_FloatingCreatorChip> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPad + 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Creator avatar.
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(creator.colorValue),
-            ),
-            child: Center(
-              child: Text(
-                creator.initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${widget.creator.name}\'s profile')),
+        );
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedOpacity(
+        opacity: _pressed ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(4, 4, 14, 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 10),
-          // Name and subtitle.
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  creator.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(widget.creator.colorValue),
+                ),
+                child: Center(
+                  child: Text(
+                    widget.creator.initials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-                Text(
-                  diagramTitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          // Message button.
-          OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Messaging ${creator.name} is not available yet'),
-                ),
-              );
-            },
-            icon: const Icon(Icons.chat_bubble_outline, size: 16),
-            label: const Text('Message'),
-            style: OutlinedButton.styleFrom(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              textStyle: const TextStyle(fontSize: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
               ),
-            ),
+              const SizedBox(width: 8),
+              Text(
+                widget.creator.name,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Floating message button — chat icon in a pill.
+class _FloatingMessageButton extends StatefulWidget {
+  final SampleCreator creator;
+
+  const _FloatingMessageButton({required this.creator});
+
+  @override
+  State<_FloatingMessageButton> createState() => _FloatingMessageButtonState();
+}
+
+class _FloatingMessageButtonState extends State<_FloatingMessageButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Messaging ${widget.creator.name} is not available yet'),
+          ),
+        );
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedOpacity(
+        opacity: _pressed ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.chat_bubble_outline, size: 16),
+              SizedBox(width: 6),
+              Text(
+                'Message',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
