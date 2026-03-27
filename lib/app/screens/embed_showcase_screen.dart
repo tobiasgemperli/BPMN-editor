@@ -21,9 +21,6 @@ class EmbedShowcaseScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final crossCount = width > 1100 ? 2 : 1;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       body: CustomScrollView(
@@ -58,20 +55,26 @@ class EmbedShowcaseScreen extends StatelessWidget {
             ),
           ),
 
-          // Stepper embeds grid.
+          // Stepper embeds — single column, limited width.
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
-            sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossCount,
-                mainAxisSpacing: 24,
-                crossAxisSpacing: 24,
-                childAspectRatio: crossCount == 2 ? 0.85 : 1.1,
-              ),
+            sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final (title, builder) = _samples[index];
-                  return _FramedStepper(title: title, builder: builder);
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: AspectRatio(
+                          aspectRatio: 1.5,
+                          child: _FramedStepper(
+                              title: title, builder: builder),
+                        ),
+                      ),
+                    ),
+                  );
                 },
                 childCount: _samples.length,
               ),
@@ -150,10 +153,15 @@ class EmbedShowcaseScreen extends StatelessWidget {
     for (final entry in diagram.nodes.entries) {
       final n = entry.value;
       final c = n.rect.center;
-      // Swap x/y, also swap width/height for tasks.
+      // Swap x/y; make task boxes landscape-shaped (wider, shorter).
       final newCenter = Offset(c.dy, c.dx);
-      final newW = n.rect.height;
-      final newH = n.rect.width;
+      final isTask = n.type == NodeType.task;
+      final newW = isTask
+          ? (n.rect.width > n.rect.height ? n.rect.width : n.rect.height) * 1.2
+          : n.rect.height;
+      final newH = isTask
+          ? (n.rect.width < n.rect.height ? n.rect.width : n.rect.height) * 0.7
+          : n.rect.width;
       nodes[entry.key] = NodeModel(
         id: n.id,
         type: n.type,
@@ -202,7 +210,7 @@ class _FramedStepperState extends State<_FramedStepper> {
   @override
   void initState() {
     super.initState();
-    _diagram = widget.builder();
+    _diagram = EmbedShowcaseScreen._toLandscape(widget.builder());
     _steps = _buildPath(_diagram);
     _allNodes = _collectAllNodes(_diagram);
   }
@@ -303,6 +311,17 @@ class _FramedStepperState extends State<_FramedStepper> {
       _currentStep++;
       _animatingForward = true;
     });
+  }
+
+  void _openDiagramView(BuildContext context) {
+    final landscape = EmbedShowcaseScreen._toLandscape(_diagram);
+    showDialog(
+      context: context,
+      builder: (_) => _FullDiagramOverlay(
+        diagram: landscape,
+        title: widget.title,
+      ),
+    );
   }
 
   void _goForward() {
@@ -416,14 +435,19 @@ class _FramedStepperState extends State<_FramedStepper> {
             ),
             child: Row(
               children: [
-                // Horizontal miniature diagram.
-                MiniProcessMap(
-                  steps: _allNodes,
-                  diagram: _diagram,
-                  currentNodeId: _steps[_currentStep].id,
-                  horizontal: true,
-                  backgroundColor: Colors.grey[50]!,
-                  showShadow: false,
+                // Horizontal miniature diagram — tap to open full view.
+                GestureDetector(
+                  onTap: () => _openDiagramView(context),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: MiniProcessMap(
+                      steps: _allNodes,
+                      diagram: _diagram,
+                      currentNodeId: _steps[_currentStep].id,
+                      backgroundColor: Colors.grey[50]!,
+                      showShadow: false,
+                    ),
+                  ),
                 ),
                 const Spacer(),
                 // Back button.
@@ -619,6 +643,57 @@ class _EmbedStepContent extends StatelessWidget {
                 ),
               ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Full-screen overlay showing the landscape diagram.
+class _FullDiagramOverlay extends StatelessWidget {
+  final DiagramModel diagram;
+  final String title;
+
+  const _FullDiagramOverlay({required this.diagram, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: Colors.white,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+              child: DiagramEmbed(
+                diagram: diagram,
+                showBorder: false,
+              ),
+            ),
+          ),
+          // Title top-center.
+          Positioned(
+            top: 16,
+            left: 56,
+            right: 56,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // Close button top-right.
+          Positioned(
+            top: 8,
+            right: 8,
+            child: IconButton(
+              icon: const Icon(Icons.close, size: 24),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
         ],
       ),
     );

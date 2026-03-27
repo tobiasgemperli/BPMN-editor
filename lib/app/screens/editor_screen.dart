@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../diagram/edit/editor_controller.dart';
-import '../../diagram/io/bpmn_parser.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -51,21 +49,9 @@ class _EditorScreenState extends State<EditorScreen> {
     _controller = EditorController();
     if (widget.initialDiagram != null) {
       _controller.loadDiagram(widget.initialDiagram!);
-    } else {
-      _loadSampleOnStart();
     }
   }
 
-  Future<void> _loadSampleOnStart() async {
-    try {
-      final content = await rootBundle.loadString('assets/sample.bpmn');
-      final parser = BpmnParser();
-      final diagram = parser.parse(content);
-      _controller.loadDiagram(diagram);
-    } catch (_) {
-      // Silently ignore — start with empty diagram.
-    }
-  }
 
   @override
   void dispose() {
