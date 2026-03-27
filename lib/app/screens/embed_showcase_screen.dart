@@ -194,7 +194,7 @@ class _FramedStepper extends StatefulWidget {
 
 class _FramedStepperState extends State<_FramedStepper> {
   late final DiagramModel _diagram;
-  late final List<NodeModel> _steps;
+  late List<NodeModel> _steps;
   late final List<NodeModel> _allNodes;
   int _currentStep = 0;
   bool _animatingForward = true;
@@ -254,27 +254,8 @@ class _FramedStepperState extends State<_FramedStepper> {
       final outgoing = diagram.outgoingEdges(current.id);
       if (outgoing.isEmpty) break;
 
-      if (current.type == NodeType.exclusiveGateway) {
-        // Follow first branch for the embed.
-        for (final edge in outgoing) {
-          final target = diagram.nodes[edge.targetId];
-          if (target != null && !visited.contains(target.id)) {
-            visited.add(target.id);
-            path.add(target);
-            var branchNode = target;
-            while (true) {
-              final bo = diagram.outgoingEdges(branchNode.id);
-              if (bo.isEmpty || bo.length > 1) break;
-              final next = diagram.nodes[bo.first.targetId];
-              if (next == null || visited.contains(next.id)) break;
-              visited.add(next.id);
-              path.add(next);
-              branchNode = next;
-            }
-          }
-        }
-        break;
-      }
+      // Stop at gateways — user must choose an option.
+      if (current.type == NodeType.exclusiveGateway) break;
 
       if (outgoing.length == 1) {
         final target = diagram.nodes[outgoing.first.targetId];
@@ -287,6 +268,41 @@ class _FramedStepperState extends State<_FramedStepper> {
       }
     }
     return path;
+  }
+
+  /// Extend the path linearly from a node (follow single-outgoing edges).
+  void _extendPath(List<NodeModel> path, Set<String> visited) {
+    while (true) {
+      final current = path.last;
+      if (current.type == NodeType.exclusiveGateway) break;
+      final outgoing = _diagram.outgoingEdges(current.id);
+      if (outgoing.length != 1) break;
+      final target = _diagram.nodes[outgoing.first.targetId];
+      if (target == null || visited.contains(target.id)) break;
+      visited.add(target.id);
+      path.add(target);
+    }
+  }
+
+  void _handleGatewayOption(int optionIndex) {
+    final gatewayNode = _steps[_currentStep];
+    final outgoing = _diagram.outgoingEdges(gatewayNode.id);
+    if (optionIndex >= outgoing.length) return;
+    final target = _diagram.nodes[outgoing[optionIndex].targetId];
+    if (target == null) return;
+
+    setState(() {
+      // Trim everything after the gateway.
+      _steps.removeRange(_currentStep + 1, _steps.length);
+      // Collect visited IDs from current path.
+      final visited = <String>{for (final s in _steps) s.id};
+      visited.add(target.id);
+      _steps.add(target);
+      _extendPath(_steps, visited);
+      // Advance to the chosen target.
+      _currentStep++;
+      _animatingForward = true;
+    });
   }
 
   void _goForward() {
@@ -319,6 +335,9 @@ class _FramedStepperState extends State<_FramedStepper> {
     final node = _steps[_currentStep];
     final isLast = _currentStep >= _steps.length - 1;
     final isFirst = _currentStep == 0;
+    final isUnresolvedGateway = node.type == NodeType.exclusiveGateway &&
+        _diagram.outgoingEdges(node.id).isNotEmpty &&
+        isLast;
 
     return Container(
       decoration: _frameDecoration(),
@@ -353,17 +372,18 @@ class _FramedStepperState extends State<_FramedStepper> {
                 switchOutCurve: Curves.easeIn,
                 transitionBuilder: (child, animation) {
                   final isIncoming = child.key == ValueKey(_currentStep);
-                  if (!isIncoming) {
-                    // Outgoing: just fade out quickly.
-                    return FadeTransition(opacity: animation, child: child);
-                  }
-                  // Incoming: slide in from right/left.
+                  final direction = _animatingForward ? 1.0 : -1.0;
+                  // Incoming slides in from direction, outgoing slides out opposite.
+                  final offset = isIncoming ? direction : -direction;
                   return SlideTransition(
                     position: Tween(
-                      begin: Offset(_animatingForward ? 1.0 : -1.0, 0),
+                      begin: Offset(offset, 0),
                       end: Offset.zero,
                     ).animate(animation),
-                    child: child,
+                    child: FadeTransition(
+                      opacity: Tween(begin: 0.3, end: 1.0).animate(animation),
+                      child: child,
+                    ),
                   );
                 },
                 layoutBuilder: (currentChild, previousChildren) {
@@ -379,6 +399,7 @@ class _FramedStepperState extends State<_FramedStepper> {
                   key: ValueKey(_currentStep),
                   node: node,
                   diagram: _diagram,
+                  onOptionSelected: _handleGatewayOption,
                 ),
               ),
             ),
@@ -417,14 +438,17 @@ class _FramedStepperState extends State<_FramedStepper> {
                     child: const Text('Back'),
                   ),
                 const SizedBox(width: 8),
-                // Continue / Restart button.
+                // Continue / Restart button — disabled on unresolved gateway.
                 FilledButton(
-                  onPressed: isLast
-                      ? () => setState(() {
-                                                _currentStep = 0;
-                            _animatingForward = false;
-                          })
-                      : _goForward,
+                  onPressed: isUnresolvedGateway
+                      ? null
+                      : isLast
+                          ? () => setState(() {
+                                _currentStep = 0;
+                                _animatingForward = false;
+                                _steps = _buildPath(_diagram);
+                              })
+                          : _goForward,
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.indigo,
                     padding: const EdgeInsets.symmetric(
@@ -433,7 +457,9 @@ class _FramedStepperState extends State<_FramedStepper> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: Text(isLast ? 'Restart' : 'Continue'),
+                  child: Text(isLast && !isUnresolvedGateway
+                      ? 'Restart'
+                      : 'Continue'),
                 ),
               ],
             ),
@@ -461,11 +487,13 @@ class _FramedStepperState extends State<_FramedStepper> {
 class _EmbedStepContent extends StatelessWidget {
   final NodeModel node;
   final DiagramModel diagram;
+  final ValueChanged<int>? onOptionSelected;
 
   const _EmbedStepContent({
     super.key,
     required this.node,
     required this.diagram,
+    this.onOptionSelected,
   });
 
   @override
@@ -473,6 +501,10 @@ class _EmbedStepContent extends StatelessWidget {
     final content = node.content;
     final displayTitle = content?.title ?? node.name;
     final text = content?.text;
+    final imagePath = content?.imagePath;
+    final videoPath = content?.videoPath;
+    final hasImage = imagePath != null;
+    final hasVideo = videoPath != null;
     final isGateway = node.type == NodeType.exclusiveGateway;
 
     List<String> options = [];
@@ -506,7 +538,8 @@ class _EmbedStepContent extends StatelessWidget {
           // Body text.
           if (text != null) ...[
             const SizedBox(height: 12),
-            Expanded(
+            Flexible(
+              flex: hasImage || hasVideo ? 2 : 3,
               child: SingleChildScrollView(
                 child: Text(
                   text,
@@ -518,28 +551,70 @@ class _EmbedStepContent extends StatelessWidget {
                 ),
               ),
             ),
-          ] else
-            const Spacer(),
+          ],
+
+          // Image.
+          if (hasImage) ...[
+            const SizedBox(height: 12),
+            Expanded(
+              flex: 3,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  imagePath,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ],
+
+          // Video thumbnail placeholder.
+          if (hasVideo && !hasImage) ...[
+            const SizedBox(height: 12),
+            Expanded(
+              flex: 3,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Center(
+                  child: Icon(Icons.play_circle_outline,
+                      size: 48, color: Colors.white70),
+                ),
+              ),
+            ),
+          ],
+
+          if (!hasImage && !hasVideo && text == null) const Spacer(),
 
           // Gateway options.
           if (isGateway && options.isNotEmpty) ...[
             const SizedBox(height: 8),
-            for (final option in options)
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  option,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[800],
+            for (int i = 0; i < options.length; i++)
+              GestureDetector(
+                onTap: () => onOptionSelected?.call(i),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      options[i],
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[800],
+                      ),
+                    ),
                   ),
                 ),
               ),
