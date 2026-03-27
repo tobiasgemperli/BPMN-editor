@@ -18,6 +18,9 @@ class MiniProcessMap extends StatelessWidget {
   /// Whether to show a shadow.
   final bool showShadow;
 
+  /// Use light colors for dark backgrounds.
+  final bool darkMode;
+
   const MiniProcessMap({
     super.key,
     required this.steps,
@@ -26,6 +29,7 @@ class MiniProcessMap extends StatelessWidget {
     this.horizontal = false,
     this.backgroundColor = Colors.white,
     this.showShadow = true,
+    this.darkMode = false,
   });
 
   @override
@@ -99,6 +103,7 @@ class MiniProcessMap extends StatelessWidget {
           scale: scale,
           padding: padding,
           horizontal: horizontal,
+          darkMode: darkMode,
         ),
       ),
     );
@@ -117,6 +122,7 @@ class _MiniFlowPainter extends CustomPainter {
   final String currentNodeId;
   final double originX, originY, scale, padding;
   final bool horizontal;
+  final bool darkMode;
 
   _MiniFlowPainter({
     required this.steps,
@@ -127,6 +133,7 @@ class _MiniFlowPainter extends CustomPainter {
     required this.scale,
     required this.padding,
     required this.horizontal,
+    required this.darkMode,
   });
 
   Offset _toMapped(Offset diagramCenter) {
@@ -151,11 +158,11 @@ class _MiniFlowPainter extends CustomPainter {
     const diamondSize = 5.5;
 
     final linePaint = Paint()
-      ..color = Colors.black26
+      ..color = darkMode ? Colors.white30 : Colors.black26
       ..strokeWidth = 1;
 
-    final currentPaint = Paint()..color = Colors.black;
-    final futurePaint = Paint()..color = Colors.black26;
+    final currentPaint = Paint()..color = darkMode ? Colors.white : Colors.black;
+    final futurePaint = Paint()..color = darkMode ? Colors.white30 : Colors.black26;
 
     final stepIds = {for (final s in steps) s.id};
 
@@ -182,7 +189,7 @@ class _MiniFlowPainter extends CustomPainter {
     }
 
     // Draw nodes on top.
-    final bgPaint = Paint()..color = Colors.white;
+    final bgPaint = Paint()..color = darkMode ? Colors.grey[900]! : Colors.white;
     for (final node in steps) {
       final center = _toMapped(node.rect.center);
       final paint = node.id == currentNodeId ? currentPaint : futurePaint;

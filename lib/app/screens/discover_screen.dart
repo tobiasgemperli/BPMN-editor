@@ -85,34 +85,6 @@ class DiscoverScreen extends StatelessWidget {
               ),
             ),
 
-            // ── Search bar ──────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                child: Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 14),
-                      Icon(Icons.search, size: 20, color: Colors.grey[500]),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Search processes...',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
             // ── Category chips ──────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(

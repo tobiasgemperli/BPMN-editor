@@ -94,7 +94,52 @@ class ProcessCard extends StatelessWidget {
     if (videoPath != null) {
       return _buildVideoWithTitle(context);
     }
+    // Fullscreen image — no text, just image with gradient title.
+    if (imagePath != null && (text == null || text!.isEmpty) && _links.isEmpty && linkUrl == null) {
+      return _buildImageFull(context);
+    }
     return _buildContent(context);
+  }
+
+  // ── Fullscreen image with gradient title ────────────────────
+
+  Widget _buildImageFull(BuildContext context) {
+    final displayTitle = title ?? nodeName;
+    return GestureDetector(
+      onTap: () => _showMediaModal(context, isVideo: false),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildImage(imagePath!, BoxFit.cover),
+          // Gradient title at bottom.
+          if (displayTitle.isNotEmpty)
+            Positioned(
+              left: 0, right: 0, bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(24, 48, 24, 40),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: Text(
+                  displayTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   // ── Event ───────────────────────────────────────────────────
@@ -283,8 +328,8 @@ class ProcessCard extends StatelessWidget {
     final hasLongText = text != null && text!.length > 200;
     final hasLink = linkUrl != null;
 
-    // Heavy content (image, link, long text) → top-aligned, fills screen.
-    if (hasImage || hasLink) {
+    // Heavy content (image, link, long text, doc links) → top-aligned, fills screen.
+    if (hasImage || hasLink || _links.isNotEmpty) {
       return _buildTopAligned(context, displayTitle, hasImage, hasLongText);
     }
 
@@ -784,26 +829,22 @@ class _ImageDetailView extends StatelessWidget {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     final imageWidget = isAsset
-        ? Image.asset(imagePath, fit: BoxFit.fitWidth,
+        ? Image.asset(imagePath, fit: BoxFit.contain,
             errorBuilder: (_, _, _) => const SizedBox.shrink())
         : (File(imagePath).existsSync()
-            ? Image.file(File(imagePath), fit: BoxFit.fitWidth,
+            ? Image.file(File(imagePath), fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const SizedBox.shrink())
             : const SizedBox.shrink());
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           InteractiveViewer(
             minScale: 1.0,
-            maxScale: 4.0,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.only(top: topPad + 56, bottom: 40),
-              child: SizedBox(
-                width: double.infinity,
-                child: imageWidget,
-              ),
+            maxScale: 5.0,
+            child: Center(
+              child: imageWidget,
             ),
           ),
           Positioned(
