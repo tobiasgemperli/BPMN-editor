@@ -582,8 +582,10 @@ class SampleDiagrams {
         'The second paragraph continues with additional details about the task, '
         'ensuring the text is long enough to overflow the card.';
 
+    final farLeft = _cx - _branchX * 2;
     final left = _cx - _branchX;
     final right = _cx + _branchX;
+    final farRight = _cx + _branchX * 2;
 
     final nodes = <String, NodeModel>{
       // Row 0: Start
@@ -629,22 +631,110 @@ class SampleDiagrams {
             text: 'Watch the full procedure before attempting it yourself.',
             videoPath: video,
           )),
+      'n7a': NodeModel(id: 'n7a', type: NodeType.task,
+          name: 'Safety Overview', rect: _task(right, _row(5)),
+          content: TaskContent(
+            title: 'Safety Overview',
+            videoPath: 'assets/sample_video_1.mp4',
+          )),
+      'n7b': NodeModel(id: 'n7b', type: NodeType.task,
+          name: 'Assembly Steps', rect: _task(right, _row(6)),
+          content: TaskContent(
+            title: 'Step-by-Step Assembly',
+            videoPath: 'assets/sample_video_2.mp4',
+          )),
+      'n7c': NodeModel(id: 'n7c', type: NodeType.task,
+          name: 'Final Inspection', rect: _task(right, _row(7)),
+          content: TaskContent(
+            title: 'Final Inspection',
+            text: 'Verify all connections are secure.',
+            videoPath: 'assets/sample_video_3.mp4',
+          )),
 
-      // Row 6: Merge task (extra gap to avoid lines crossing row-4 nodes)
+      // Image gallery branch
+      'n13': NodeModel(id: 'n13', type: NodeType.task,
+          name: 'Machine Overview', rect: _task(farLeft, _row(4)),
+          content: TaskContent(
+            title: 'Machine Overview',
+            imagePath: 'assets/machine_1.jpg',
+          )),
+      'n13a': NodeModel(id: 'n13a', type: NodeType.task,
+          name: 'Compressor Detail', rect: _task(farLeft, _row(5)),
+          content: TaskContent(
+            title: 'Compressor Detail',
+            imagePath: 'assets/machine_2.png',
+          )),
+      'n13b': NodeModel(id: 'n13b', type: NodeType.task,
+          name: 'Parts Diagram', rect: _task(farLeft, _row(6)),
+          content: TaskContent(
+            title: 'Parts Diagram',
+            imagePath: 'assets/machine_3.png',
+          )),
+
+      // Text + PDF links branch
+      'n14': NodeModel(id: 'n14', type: NodeType.task,
+          name: 'Documentation', rect: _task(farRight, _row(4)),
+          content: TaskContent(
+            title: 'Technical Documentation',
+            text: 'Download the relevant manuals and specification sheets '
+                'for your equipment model.',
+            links: const [
+              DocLink(url: 'manual.pdf', label: 'Installation Manual',
+                  subtitle: 'PDF · 2.4 MB'),
+              DocLink(url: 'specs.pdf', label: 'Technical Specifications',
+                  subtitle: 'PDF · 1.1 MB'),
+              DocLink(url: 'quickstart.pdf', label: 'Quick Start Guide',
+                  subtitle: 'PDF · 680 KB'),
+            ],
+          )),
+      'n14a': NodeModel(id: 'n14a', type: NodeType.task,
+          name: 'Safety Sheets', rect: _task(farRight, _row(5)),
+          content: TaskContent(
+            title: 'Safety Data Sheets',
+            text: 'Review the safety data sheets for all chemicals and '
+                'materials used in the manufacturing process.',
+            links: const [
+              DocLink(url: 'sds-coolant.pdf', label: 'SDS — Coolant Fluid',
+                  subtitle: 'PDF · 340 KB'),
+              DocLink(url: 'sds-lubricant.pdf', label: 'SDS — Lubricant Oil',
+                  subtitle: 'PDF · 290 KB'),
+              DocLink(url: 'sds-cleaning.pdf', label: 'SDS — Cleaning Agent',
+                  subtitle: 'PDF · 310 KB'),
+              DocLink(url: 'risk-assessment.pdf', label: 'Risk Assessment Report',
+                  subtitle: 'PDF · 1.8 MB'),
+            ],
+          )),
+      'n14b': NodeModel(id: 'n14b', type: NodeType.task,
+          name: 'Compliance Docs', rect: _task(farRight, _row(6)),
+          content: TaskContent(
+            title: 'Compliance Documents',
+            text: 'Ensure all regulatory compliance documents are signed '
+                'and filed before proceeding with the installation.',
+            links: const [
+              DocLink(url: 'ce-declaration.pdf', label: 'CE Declaration of Conformity',
+                  subtitle: 'PDF · 520 KB'),
+              DocLink(url: 'iso-cert.pdf', label: 'ISO 9001 Certificate',
+                  subtitle: 'PDF · 180 KB'),
+              DocLink(url: 'warranty.pdf', label: 'Warranty Terms',
+                  subtitle: 'PDF · 95 KB'),
+            ],
+          )),
+
+      // Row 9: Merge task (extra gap to avoid lines crossing branch nodes)
       'n8': NodeModel(id: 'n8', type: NodeType.task,
-          name: 'Confirm Understanding', rect: _task(_cx, _row(6)),
+          name: 'Confirm Understanding', rect: _task(_cx, _row(9)),
           content: TaskContent(
             title: 'Knowledge Check',
             imagePath: img,
           )),
 
-      // Row 7: Gateway — "Need more info?"
+      // Row 10: Gateway — "Need more info?"
       'n9': NodeModel(id: 'n9', type: NodeType.exclusiveGateway,
-          name: 'Need more info?', rect: _gw(_cx, _row(7))),
+          name: 'Need more info?', rect: _gw(_cx, _row(10))),
 
-      // Row 8: Two branches
+      // Row 11: Two branches
       'n10': NodeModel(id: 'n10', type: NodeType.task,
-          name: 'Open Manual', rect: _task(left, _row(8)),
+          name: 'Open Manual', rect: _task(left, _row(11)),
           content: TaskContent(
             title: 'Reference Manual',
             text: 'Full documentation with diagrams and specifications.',
@@ -653,44 +743,63 @@ class SampleDiagrams {
             linkLabel: 'Open Manual PDF',
           )),
       'n11': NodeModel(id: 'n11', type: NodeType.task,
-          name: 'Proceed', rect: _task(right, _row(8)),
+          name: 'Proceed', rect: _task(right, _row(11)),
           content: TaskContent(
             title: 'All Clear',
             text: 'You have completed the training module successfully.',
           )),
 
-      // Row 9: End
+      // Row 12: End
       'n12': NodeModel(id: 'n12', type: NodeType.endEvent,
-          name: 'Complete', rect: _event(_cx, _row(9))),
+          name: 'Complete', rect: _event(_cx, _row(12))),
     };
 
     final edges = <String, EdgeModel>{
       'e1':  EdgeModel(id: 'e1',  sourceId: 'n1',  targetId: 'n2'),
       'e2':  EdgeModel(id: 'e2',  sourceId: 'n2',  targetId: 'n3'),
       'e3':  EdgeModel(id: 'e3',  sourceId: 'n3',  targetId: 'n4'),
-      // 3-way split from gateway
-      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n5',  name: 'Text',
+      // 5-way split from gateway
+      'e4':  EdgeModel(id: 'e4',  sourceId: 'n4',  targetId: 'n13', name: 'Gallery',
+          waypoints: _hv(_cx, _row(3), farLeft, _row(4))),
+      'e4b': EdgeModel(id: 'e4b', sourceId: 'n4',  targetId: 'n5',  name: 'Text',
           waypoints: _hv(_cx, _row(3), left, _row(4))),
       'e5':  EdgeModel(id: 'e5',  sourceId: 'n4',  targetId: 'n6',  name: 'Image'),
       'e6':  EdgeModel(id: 'e6',  sourceId: 'n4',  targetId: 'n7',  name: 'Video',
           waypoints: _hv(_cx, _row(3), right, _row(4))),
-      // 3-way merge — go down first, then horizontal to avoid crossing n6
-      'e7':  EdgeModel(id: 'e7',  sourceId: 'n5',  targetId: 'n8',
-          waypoints: _vh(left, _row(4), _cx, _row(6))),
-      'e8':  EdgeModel(id: 'e8',  sourceId: 'n6',  targetId: 'n8'),
-      'e9':  EdgeModel(id: 'e9',  sourceId: 'n7',  targetId: 'n8',
-          waypoints: _vh(right, _row(4), _cx, _row(6))),
+      'e4c': EdgeModel(id: 'e4c', sourceId: 'n4',  targetId: 'n14', name: 'PDFs',
+          waypoints: _hv(_cx, _row(3), farRight, _row(4))),
+      // Image gallery chain: n13 → n13a → n13b
+      'e13a': EdgeModel(id: 'e13a', sourceId: 'n13',  targetId: 'n13a'),
+      'e13b': EdgeModel(id: 'e13b', sourceId: 'n13a', targetId: 'n13b'),
+      // Video branch chain: n7 → n7a → n7b → n7c
+      'e6a': EdgeModel(id: 'e6a', sourceId: 'n7',  targetId: 'n7a'),
+      'e6b': EdgeModel(id: 'e6b', sourceId: 'n7a', targetId: 'n7b'),
+      'e6c': EdgeModel(id: 'e6c', sourceId: 'n7b', targetId: 'n7c'),
+      // PDF branch chain: n14 → n14a → n14b
+      'e14a': EdgeModel(id: 'e14a', sourceId: 'n14',  targetId: 'n14a'),
+      'e14b': EdgeModel(id: 'e14b', sourceId: 'n14a', targetId: 'n14b'),
+      // 5-way merge
+      'e7':  EdgeModel(id: 'e7',  sourceId: 'n13b', targetId: 'n8',
+          waypoints: _vh(farLeft, _row(6), _cx, _row(9))),
+      'e7b': EdgeModel(id: 'e7b', sourceId: 'n5',   targetId: 'n8',
+          waypoints: _vh(left, _row(4), _cx, _row(9))),
+      'e8':  EdgeModel(id: 'e8',  sourceId: 'n6',   targetId: 'n8',
+          waypoints: _vh(_cx, _row(4), _cx, _row(9))),
+      'e9':  EdgeModel(id: 'e9',  sourceId: 'n7c',  targetId: 'n8',
+          waypoints: _vh(right, _row(7), _cx, _row(9))),
+      'e9b': EdgeModel(id: 'e9b', sourceId: 'n14b', targetId: 'n8',
+          waypoints: _vh(farRight, _row(6), _cx, _row(9))),
       // Second gateway
       'e10': EdgeModel(id: 'e10', sourceId: 'n8',  targetId: 'n9'),
       'e11': EdgeModel(id: 'e11', sourceId: 'n9',  targetId: 'n10', name: 'Yes',
-          waypoints: _hv(_cx, _row(7), left, _row(8))),
+          waypoints: _hv(_cx, _row(10), left, _row(11))),
       'e12': EdgeModel(id: 'e12', sourceId: 'n9',  targetId: 'n11', name: 'No',
-          waypoints: _hv(_cx, _row(7), right, _row(8))),
+          waypoints: _hv(_cx, _row(10), right, _row(11))),
       // Both paths to end
       'e13': EdgeModel(id: 'e13', sourceId: 'n10', targetId: 'n12',
-          waypoints: _hv(left, _row(8), _cx, _row(9))),
+          waypoints: _hv(left, _row(11), _cx, _row(12))),
       'e14': EdgeModel(id: 'e14', sourceId: 'n11', targetId: 'n12',
-          waypoints: _hv(right, _row(8), _cx, _row(9))),
+          waypoints: _hv(right, _row(11), _cx, _row(12))),
     };
 
     return DiagramModel(nodes: nodes, edges: edges);

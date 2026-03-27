@@ -538,26 +538,30 @@ class _EmbedStepContent extends StatelessWidget {
           outgoing.map((e) => e.name.isNotEmpty ? e.name : 'Option').toList();
     }
 
+    // Fullscreen image mode: image fills the card, title on gradient.
+    final fullscreenImage = hasImage && text == null;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: fullscreenImage ? EdgeInsets.zero : const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 8),
-
-          // Title — centered.
-          Text(
-            displayTitle,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
+          if (!fullscreenImage) ...[
+            const SizedBox(height: 8),
+            // Title — centered.
+            Text(
+              displayTitle,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
+          ],
 
           // Body text.
           if (text != null) ...[
@@ -577,8 +581,49 @@ class _EmbedStepContent extends StatelessWidget {
             ),
           ],
 
-          // Image.
-          if (hasImage) ...[
+          // Image — fullscreen with gradient title when no text.
+          if (hasImage && text == null) ...[
+            const SizedBox(height: 12),
+            Expanded(
+              flex: 5,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(imagePath, fit: BoxFit.cover),
+                    Positioned(
+                      left: 0, right: 0, bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.7),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: Text(
+                          displayTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          // Image thumbnail when text is also present.
+          if (hasImage && text != null) ...[
             const SizedBox(height: 12),
             Expanded(
               flex: 3,
@@ -613,6 +658,40 @@ class _EmbedStepContent extends StatelessWidget {
           ],
 
           if (!hasImage && !hasVideo && text == null) const Spacer(),
+
+          // Document links.
+          if (content != null && content.links.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final link in content.links)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                margin: const EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.picture_as_pdf, size: 18, color: Colors.red[400]),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(link.label,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          if (link.subtitle != null)
+                            Text(link.subtitle!,
+                                style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                  ],
+                ),
+              ),
+          ],
 
           // Gateway options.
           if (isGateway && options.isNotEmpty) ...[

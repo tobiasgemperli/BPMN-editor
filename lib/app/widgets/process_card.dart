@@ -25,6 +25,8 @@ class ProcessCard extends StatelessWidget {
   /// If true, use a bundled asset path instead of a File path for the image.
   final bool imageIsAsset;
 
+  final List<DocLink> _links;
+
   const ProcessCard({
     super.key,
     this.title,
@@ -40,7 +42,8 @@ class ProcessCard extends StatelessWidget {
     this.onOptionSelected,
     this.nodeName = '',
     this.imageIsAsset = false,
-  });
+    List<DocLink> links = const [],
+  }) : _links = links;
 
   /// The outgoing edge target IDs, parallel to [gatewayOptions].
   final List<String> gatewayTargetIds;
@@ -75,6 +78,7 @@ class ProcessCard extends StatelessWidget {
       onOptionSelected: onOptionSelected,
       nodeName: node.name,
       imageIsAsset: imgPath != null && imgPath.startsWith('assets/'),
+      links: content?.links ?? const [],
     );
   }
 
@@ -429,7 +433,7 @@ class ProcessCard extends StatelessWidget {
               ),
               )
             else
-              // Full-size image when no text.
+              // Full-size image when no text — with gradient title overlay.
               Expanded(
                 flex: 5,
                 child: GestureDetector(
@@ -442,12 +446,39 @@ class ProcessCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(11),
                       child: Stack(
+                        fit: StackFit.passthrough,
                         children: [
                           SizedBox(
                             width: double.infinity,
                             height: double.infinity,
                             child: _buildImage(imagePath!, BoxFit.cover),
                           ),
+                          // Gradient title overlay at bottom.
+                          if (displayTitle.isNotEmpty)
+                            Positioned(
+                              left: 0, right: 0, bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.7),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                                child: Text(
+                                  displayTitle,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
                           Positioned(
                             right: 8,
                             top: 8,
@@ -471,26 +502,32 @@ class ProcessCard extends StatelessWidget {
 
           if (linkUrl != null) ...[
             const SizedBox(height: 16),
-            GestureDetector(
+            _DocLinkRow(
+              label: linkLabel ?? linkUrl!,
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Opening ${linkUrl!}')),
                 );
               },
-              child: Row(
-                children: [
-                  Icon(Icons.link, size: 16, color: Colors.grey[500]),
-                  const SizedBox(width: 6),
-                  Text(
-                    linkLabel ?? linkUrl!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
             ),
+          ],
+
+          // Multiple document links.
+          if (_links.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final link in _links)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _DocLinkRow(
+                  label: link.label,
+                  subtitle: link.subtitle,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Opening ${link.url}')),
+                    );
+                  },
+                ),
+              ),
           ],
 
           SizedBox(height: hasImage ? 24 : 80),
@@ -777,6 +814,85 @@ class _ImageDetailView extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Mobile-style document link row — file icon, label, subtitle, chevron.
+class _DocLinkRow extends StatefulWidget {
+  final String label;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  const _DocLinkRow({required this.label, this.subtitle, required this.onTap});
+
+  @override
+  State<_DocLinkRow> createState() => _DocLinkRowState();
+}
+
+class _DocLinkRowState extends State<_DocLinkRow> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedOpacity(
+        opacity: _pressed ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.picture_as_pdf, size: 20, color: Colors.red[400]),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (widget.subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.subtitle!,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }

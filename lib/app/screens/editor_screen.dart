@@ -6,7 +6,7 @@ import '../widgets/close_circle_button.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
-import 'discover_screen.dart' show showCreatorProfile, dismissToDashboard;
+import 'discover_screen.dart' show showCreatorProfile;
 import 'presentation_screen.dart';
 
 /// Role determines what the user can do with the diagram.
@@ -49,7 +49,51 @@ class _EditorScreenState extends State<EditorScreen> {
     _controller = EditorController();
     if (widget.initialDiagram != null) {
       _controller.loadDiagram(widget.initialDiagram!);
+      // Center the diagram in the viewport after the first frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _centerDiagram();
+      });
     }
+  }
+
+  void _centerDiagram() {
+    final diagram = _controller.diagram;
+    if (diagram.nodes.isEmpty) return;
+
+    final canvasBox =
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (canvasBox == null) return;
+    final viewSize = canvasBox.size;
+
+    // Compute bounding box.
+    double minX = double.infinity, minY = double.infinity;
+    double maxX = -double.infinity, maxY = -double.infinity;
+    for (final node in diagram.nodes.values) {
+      if (node.rect.left < minX) minX = node.rect.left;
+      if (node.rect.top < minY) minY = node.rect.top;
+      if (node.rect.right > maxX) maxX = node.rect.right;
+      if (node.rect.bottom > maxY) maxY = node.rect.bottom;
+    }
+
+    const padding = 120.0;
+    final dw = maxX - minX + padding * 2;
+    final dh = maxY - minY + padding * 2;
+    final scale = (viewSize.width / dw).clamp(0.15, 1.0) <
+            (viewSize.height / dh).clamp(0.15, 1.0)
+        ? (viewSize.width / dw).clamp(0.15, 1.0)
+        : (viewSize.height / dh).clamp(0.15, 1.0);
+
+    final cx = (minX + maxX) / 2;
+    final cy = (minY + maxY) / 2;
+    final tx = viewSize.width / 2 - cx * scale;
+    final ty = viewSize.height / 2 - cy * scale;
+
+    final m = Matrix4.identity();
+    m.setEntry(0, 3, tx);
+    m.setEntry(1, 3, ty);
+    m.setEntry(0, 0, scale);
+    m.setEntry(1, 1, scale);
+    _transformController.value = m;
   }
 
 
@@ -181,16 +225,18 @@ class _EditorScreenState extends State<EditorScreen> {
               top: topPad + 8,
               left: 16,
               child: CloseCircleButton(
-                onPressed: () => dismissToDashboard(context),
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).pop(),
               ),
             ),
-          // Close button (right) — pops all the way to dashboard.
+          // Close button (right) — dismisses the entire modal.
           if (widget.showBackButton)
             Positioned(
               top: topPad + 8,
               right: 16,
               child: CloseCircleButton(
-                onPressed: () => dismissToDashboard(context),
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).pop(),
               ),
             ),
           Positioned(

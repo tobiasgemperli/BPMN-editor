@@ -5,6 +5,16 @@ import '../edit/hit_test.dart';
 enum NodeType { startEvent, endEvent, task, exclusiveGateway }
 
 /// Content attached to a Task node.
+/// A single document link.
+class DocLink {
+  final String url;
+  final String label;
+  final String? subtitle;
+
+  const DocLink({required this.url, required this.label, this.subtitle});
+}
+
+/// Content attached to a Task node.
 class TaskContent {
   String? title;
   String? text;        // plain text → <bpmn:documentation>
@@ -12,6 +22,7 @@ class TaskContent {
   String? videoPath;   // local file path (later: URL)
   String? linkUrl;
   String? linkLabel;
+  List<DocLink> links;
 
   TaskContent({
     this.title,
@@ -20,11 +31,12 @@ class TaskContent {
     this.videoPath,
     this.linkUrl,
     this.linkLabel,
+    this.links = const [],
   });
 
   bool get hasMedia => imagePath != null || videoPath != null;
   bool get isEmpty =>
-      title == null && text == null && !hasMedia && linkUrl == null;
+      title == null && text == null && !hasMedia && linkUrl == null && links.isEmpty;
 
   TaskContent copy() => TaskContent(
         title: title,
@@ -33,6 +45,7 @@ class TaskContent {
         videoPath: videoPath,
         linkUrl: linkUrl,
         linkLabel: linkLabel,
+        links: links,
       );
 }
 

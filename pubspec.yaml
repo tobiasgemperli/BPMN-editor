@@ -68,6 +68,9 @@ flutter:
     - assets/recipe_video_3.mp4
     - assets/recipe_video_4.mp4
     - assets/recipe_video_5.mp4
+    - assets/machine_1.jpg
+    - assets/machine_2.png
+    - assets/machine_3.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

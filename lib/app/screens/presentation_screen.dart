@@ -5,7 +5,6 @@ import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
 import '../widgets/mini_process_map.dart';
 import '../widgets/process_card.dart';
-import 'discover_screen.dart' show dismissToDashboard;
 import 'editor_screen.dart';
 
 /// Full-screen presentation mode — swipe vertically through process steps.
@@ -149,8 +148,8 @@ class _PresentationScreenState extends State<PresentationScreen> {
   }
 
   void _openEditor(BuildContext context) {
-    Navigator.push(
-      context,
+    // Push inside the nested navigator (right-to-left).
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EditorScreen(
           initialDiagram: widget.diagram,
@@ -161,6 +160,13 @@ class _PresentationScreenState extends State<PresentationScreen> {
         ),
       ),
     );
+  }
+
+  /// Dismiss the entire modal (pop the outer navigator).
+  void _dismissModal(BuildContext context) {
+    // The outer navigator is above the nested one.
+    final outerNav = Navigator.of(context, rootNavigator: true);
+    outerNav.pop();
   }
 
   /// True if the user is on a gateway that hasn't been resolved yet
@@ -237,12 +243,12 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Close button top-right — pops to dashboard.
+            // Close button top-right — dismisses the entire modal.
             Positioned(
               top: topPad + 8,
               right: 16,
               child: CloseCircleButton(
-                onPressed: () => dismissToDashboard(context),
+                onPressed: () => _dismissModal(context),
               ),
             ),
             // Mini process map bottom-right — tap to open full view.

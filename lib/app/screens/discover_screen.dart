@@ -298,7 +298,7 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
     {String? title}) {
   Navigator.push(
     context,
-    _bottomToTopRoute(PresentationScreen(
+    _bottomToTopRoute(_ModalNavigatorShell(
       diagram: diagram,
       title: title,
       role: DiagramRole.owner,
@@ -310,13 +310,44 @@ void _openPresentation(BuildContext context, DiagramModel diagram,
     {String? title, SampleCreator? creator}) {
   Navigator.push(
     context,
-    _bottomToTopRoute(PresentationScreen(
+    _bottomToTopRoute(_ModalNavigatorShell(
       diagram: diagram,
       title: title,
       role: DiagramRole.viewer,
       creator: creator,
     )),
   );
+}
+
+/// Modal shell with a nested Navigator inside.
+/// The stepper is the initial route; subsequent screens (editor, etc.)
+/// push inside the nested navigator. Close dismisses the entire modal.
+class _ModalNavigatorShell extends StatelessWidget {
+  final DiagramModel diagram;
+  final String? title;
+  final DiagramRole role;
+  final SampleCreator? creator;
+
+  const _ModalNavigatorShell({
+    required this.diagram,
+    this.title,
+    this.role = DiagramRole.owner,
+    this.creator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      onGenerateRoute: (_) => MaterialPageRoute(
+        builder: (_) => PresentationScreen(
+          diagram: diagram,
+          title: title,
+          role: role,
+          creator: creator,
+        ),
+      ),
+    );
+  }
 }
 
 Route<T> _bottomToTopRoute<T>(Widget page) {
@@ -374,7 +405,7 @@ class _CreatorAvatar extends StatelessWidget {
   final SampleCreator creator;
   final double size;
 
-  const _CreatorAvatar({required this.creator, this.size = 28});
+  const _CreatorAvatar({required this.creator, this.size = 34});
 
   @override
   Widget build(BuildContext context) {
@@ -407,7 +438,7 @@ class _CreatorRow extends StatelessWidget {
 
   const _CreatorRow({
     required this.creator,
-    this.avatarSize = 22,
+    this.avatarSize = 28,
     this.fontSize = 12,
   });
 
@@ -900,7 +931,7 @@ class _SmallCard extends StatelessWidget {
             const Spacer(),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              child: _CreatorRow(creator: entry.creator, avatarSize: 18, fontSize: 11),
+              child: _CreatorRow(creator: entry.creator, avatarSize: 24, fontSize: 11),
             ),
           ],
         ),
@@ -923,7 +954,7 @@ class _ListCard extends StatelessWidget {
       onTap: () => _openPresentation(context, diagram,
                               title: entry.name, creator: entry.creator),
       child: Container(
-        height: 88,
+        height: 96,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -940,7 +971,7 @@ class _ListCard extends StatelessWidget {
             _TeaserPreview(
               diagram: diagram,
               width: 90,
-              height: 88,
+              height: 96,
               borderRadius:
                   const BorderRadius.horizontal(left: Radius.circular(12)),
             ),
@@ -966,7 +997,7 @@ class _ListCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     _CreatorRow(
                         creator: entry.creator,
-                        avatarSize: 18,
+                        avatarSize: 24,
                         fontSize: 11),
                   ],
                 ),
