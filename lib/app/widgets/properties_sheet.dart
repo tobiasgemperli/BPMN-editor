@@ -129,6 +129,7 @@ class _PropertiesSheetContentState extends State<_PropertiesSheetContent> {
               _typeLabel(widget.node.type),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1C1C1E),
                   ),
             ),
             const SizedBox(height: 4),

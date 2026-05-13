@@ -502,28 +502,104 @@ class EditorController extends ChangeNotifier {
     activeTool = EditorTool.select;
   }
 
-  /// Track where the last toolbar-added node was placed and the scroll offset.
-  Offset? _lastAddCenter;
-  Offset? _lastAddScrollCenter;
-
-  /// Add a node at the visible [screenCenter]. If the user hasn't scrolled
-  /// since the last add, offset from the previous node instead.
+  /// Add a node at the visible [screenCenter]. If a node is selected and can
+  /// connect, place the new node below it and auto-connect.
   void addNodeNear(NodeType type, Offset screenCenter) {
-    const nudge = Offset(3, -3);
-    Offset position;
-
-    if (_lastAddCenter != null &&
-        _lastAddScrollCenter != null &&
-        (screenCenter - _lastAddScrollCenter!).distance < 1.0) {
-      // Same scroll position — offset from previous node.
-      position = _lastAddCenter! + nudge;
-    } else {
-      position = screenCenter;
+    // If a node is selected and can have outgoing edges, place below & connect.
+    if (selectedNodeId != null) {
+      final source = diagram.nodes[selectedNodeId!];
+      if (source != null && _canAddOutgoing(source, type)) {
+        _addConnectedNode(type, source);
+        return;
+      }
     }
 
-    _lastAddScrollCenter = screenCenter;
-    _lastAddCenter = position;
+    final position = _findFreePosition(type, screenCenter, 170.0, '');
     addNodeAtPosition(type, position);
+  }
+
+  /// Whether [source] can have an outgoing edge to a new node of [targetType].
+  bool _canAddOutgoing(NodeModel source, NodeType targetType) {
+    if (source.type == NodeType.endEvent) return false;
+    if (targetType == NodeType.startEvent) return false;
+    final outgoing = diagram.outgoingEdges(source.id);
+    if (source.type == NodeType.startEvent && outgoing.isNotEmpty) return false;
+    if (source.type == NodeType.task && outgoing.isNotEmpty) return false;
+    // Gateways can have multiple outgoing.
+    return true;
+  }
+
+  /// Add a new node below [source], connect them, and select the new node.
+  void _addConnectedNode(NodeType type, NodeModel source) {
+    const spacing = 130.0;
+    const lateralOffset = 170.0;
+
+    final belowCenter = Offset(source.center.dx, source.center.dy + spacing);
+    final position = _findFreePosition(type, belowCenter, lateralOffset, source.id);
+
+    final prefix = switch (type) {
+      NodeType.startEvent => 'start',
+      NodeType.endEvent => 'end',
+      NodeType.task => 'task',
+      NodeType.exclusiveGateway => 'gateway',
+    };
+    final nodeId = _idGen.next(prefix);
+    final node = NodeModel(
+      id: nodeId,
+      type: type,
+      rect: NodeModel.defaultRect(type, position),
+    );
+    _exec(AddNodeCommand(node));
+
+    // Connect source → new node.
+    final edgeId = _idGen.next('flow');
+    final edge = EdgeModel(
+      id: edgeId,
+      sourceId: source.id,
+      targetId: nodeId,
+    );
+    _exec(AddEdgeCommand(edge));
+    _assignPortsAndRoute();
+
+    selectedNodeId = nodeId;
+    _triggerBounce(nodeId);
+    activeTool = EditorTool.select;
+  }
+
+  /// Find a free position starting from [preferred]. If occupied, try right
+  /// and left of the blocking node, expanding outward.
+  Offset _findFreePosition(NodeType type, Offset preferred, double lateral, String excludeId) {
+    const maxAttempts = 10;
+    var candidate = preferred;
+    for (var i = 0; i < maxAttempts; i++) {
+      final rect = NodeModel.defaultRect(type, candidate);
+      final blocker = _findBlocker(rect, excludeId);
+      if (blocker == null) return candidate;
+
+      // Try right of the blocker, then left.
+      final rightPos = Offset(blocker.center.dx + lateral, candidate.dy);
+      final rightRect = NodeModel.defaultRect(type, rightPos);
+      if (_findBlocker(rightRect, excludeId) == null) return rightPos;
+
+      final leftPos = Offset(blocker.center.dx - lateral, candidate.dy);
+      final leftRect = NodeModel.defaultRect(type, leftPos);
+      if (_findBlocker(leftRect, excludeId) == null) return leftPos;
+
+      // Both sides blocked — shift right and try again next iteration.
+      candidate = Offset(rightPos.dx + lateral, candidate.dy);
+    }
+    return candidate;
+  }
+
+  /// Returns the first node whose rect overlaps [rect], or null.
+  NodeModel? _findBlocker(Rect rect, String excludeId) {
+    const margin = 20.0;
+    final expanded = rect.inflate(margin);
+    for (final node in diagram.nodes.values) {
+      if (node.id == excludeId) continue;
+      if (expanded.overlaps(node.rect)) return node;
+    }
+    return null;
   }
 
   void deleteSelected() {

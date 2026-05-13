@@ -25,6 +25,9 @@ class ProcessCard extends StatelessWidget {
   /// If true, use a bundled asset path instead of a File path for the image.
   final bool imageIsAsset;
 
+  /// If true, use BoxFit.contain instead of cover for fullscreen images.
+  final bool imageContain;
+
   final List<DocLink> _links;
 
   const ProcessCard({
@@ -42,6 +45,7 @@ class ProcessCard extends StatelessWidget {
     this.onOptionSelected,
     this.nodeName = '',
     this.imageIsAsset = false,
+    this.imageContain = false,
     List<DocLink> links = const [],
   }) : _links = links;
 
@@ -78,6 +82,7 @@ class ProcessCard extends StatelessWidget {
       onOptionSelected: onOptionSelected,
       nodeName: node.name,
       imageIsAsset: imgPath != null && imgPath.startsWith('assets/'),
+      imageContain: content?.imageContain ?? false,
       links: content?.links ?? const [],
     );
   }
@@ -105,6 +110,39 @@ class ProcessCard extends StatelessWidget {
 
   Widget _buildImageFull(BuildContext context) {
     final displayTitle = title ?? nodeName;
+    if (imageContain) {
+      return GestureDetector(
+        onTap: () => _showMediaModal(context, isVideo: false),
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              if (displayTitle.isNotEmpty)
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    child: Text(
+                      displayTitle,
+                      style: const TextStyle(
+                        color: const Color(0xFF1C1C1E),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: _buildImage(imagePath!, BoxFit.contain),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return GestureDetector(
       onTap: () => _showMediaModal(context, isVideo: false),
       child: Stack(
@@ -153,6 +191,7 @@ class ProcessCard extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                 fontWeight: FontWeight.w300,
                 fontSize: 32,
+                color: const Color(0xFF1C1C1E),
               ),
           textAlign: TextAlign.center,
         ),
@@ -178,6 +217,7 @@ class ProcessCard extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.w300,
                     fontSize: 32,
+                    color: const Color(0xFF1C1C1E),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -230,6 +270,7 @@ class ProcessCard extends StatelessWidget {
                     nodeName.isNotEmpty ? nodeName : 'Choose',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1C1C1E),
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -358,9 +399,11 @@ class ProcessCard extends StatelessWidget {
                     ? Theme.of(context).textTheme.headlineLarge?.copyWith(
                           fontWeight: FontWeight.w300,
                           fontSize: 32,
+                          color: const Color(0xFF1C1C1E),
                         )
                     : Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1C1C1E),
                         ),
                 textAlign: titleOnly ? TextAlign.center : TextAlign.start,
                 maxLines: 5,
@@ -372,7 +415,7 @@ class ProcessCard extends StatelessWidget {
                 text!,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       height: 1.6,
-                      color: Colors.grey[700],
+                      color: const Color(0xFF3A3A3C),
                     ),
               ),
             ],
@@ -397,6 +440,7 @@ class ProcessCard extends StatelessWidget {
               displayTitle,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1C1C1E),
                   ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -413,7 +457,7 @@ class ProcessCard extends StatelessWidget {
                   text!,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         height: 1.6,
-                        color: Colors.grey[700],
+                        color: const Color(0xFF3A3A3C),
                       ),
                   overflow: TextOverflow.fade,
                 ),
@@ -603,14 +647,14 @@ class ProcessCard extends StatelessWidget {
                         style: Theme.of(context)
                             .textTheme
                             .headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                            ?.copyWith(fontWeight: FontWeight.w600, color: const Color(0xFF1C1C1E)),
                       ),
                     const SizedBox(height: 20),
                     Text(
                       fullText,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             height: 1.6,
-                            color: Colors.grey[700],
+                            color: const Color(0xFF3A3A3C),
                           ),
                     ),
                   ],
@@ -701,7 +745,7 @@ class ProcessCard extends StatelessWidget {
     return Container(
       color: Colors.grey[200],
       child: Center(
-        child: Icon(Icons.image_outlined, size: 48, color: Colors.grey[400]),
+        child: Icon(Icons.image_outlined, size: 48, color: Colors.grey[600]),
       ),
     );
   }
@@ -914,6 +958,7 @@ class _DocLinkRowState extends State<_DocLinkRow> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
+                        color: Color(0xFF1C1C1E),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -922,7 +967,7 @@ class _DocLinkRowState extends State<_DocLinkRow> {
                       const SizedBox(height: 2),
                       Text(
                         widget.subtitle!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -930,7 +975,7 @@ class _DocLinkRowState extends State<_DocLinkRow> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
+              Icon(Icons.chevron_right, size: 20, color: Colors.grey[600]),
             ],
           ),
         ),

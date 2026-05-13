@@ -7,8 +7,16 @@ import 'presentation_screen.dart';
 import 'editor_screen.dart';
 
 /// YouTube-inspired discovery screen for browsing process content.
-class DiscoverScreen extends StatelessWidget {
+class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
+
+  @override
+  State<DiscoverScreen> createState() => _DiscoverScreenState();
+}
+
+class _DiscoverScreenState extends State<DiscoverScreen> {
+  static const _categories = ['All', 'Tutorials', 'Technical', 'Certification', 'Templates', 'Recent'];
+  String _selected = 'All';
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +36,8 @@ class DiscoverScreen extends StatelessWidget {
         s.name.contains('Text Only') ||
         s.name.contains('Car Configurator') ||
         s.name.contains('Pasta') ||
-        s.name.contains('Car Import')).toList();
+        s.name.contains('Car Import') ||
+        s.name.contains('Electric Step')).toList();
     final certification = rest.where((s) =>
         s.name.contains('FDA') ||
         s.name.contains('CE Marking') ||
@@ -43,6 +52,13 @@ class DiscoverScreen extends StatelessWidget {
         !tutorials.contains(s) &&
         !certification.contains(s) &&
         !technical.contains(s)).toList();
+
+    final showFeatured = _selected == 'All' || _selected == 'Recent';
+    final showMyFlowcharts = _selected == 'All' || _selected == 'Recent';
+    final showTutorials = _selected == 'All' || _selected == 'Tutorials' || _selected == 'Recent';
+    final showCertification = _selected == 'All' || _selected == 'Certification' || _selected == 'Recent';
+    final showTechnical = _selected == 'All' || _selected == 'Technical' || _selected == 'Recent';
+    final showPatterns = _selected == 'All' || _selected == 'Templates' || _selected == 'Recent';
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -61,6 +77,7 @@ class DiscoverScreen extends StatelessWidget {
                       'Processes',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1C1C1E),
                           ),
                     ),
                     const Spacer(),
@@ -94,13 +111,13 @@ class DiscoverScreen extends StatelessWidget {
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: const [
-                      _CategoryChip(label: 'All', selected: true),
-                      _CategoryChip(label: 'Tutorials'),
-                      _CategoryChip(label: 'Technical'),
-                      _CategoryChip(label: 'Certification'),
-                      _CategoryChip(label: 'Templates'),
-                      _CategoryChip(label: 'Recent'),
+                    children: [
+                      for (final cat in _categories)
+                        _CategoryChip(
+                          label: cat,
+                          selected: _selected == cat,
+                          onTap: () => setState(() => _selected = cat),
+                        ),
                     ],
                   ),
                 ),
@@ -108,7 +125,7 @@ class DiscoverScreen extends StatelessWidget {
             ),
 
             // ── Featured card ───────────────────────────────────
-            if (featured != null)
+            if (showFeatured && featured != null)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
@@ -117,7 +134,7 @@ class DiscoverScreen extends StatelessWidget {
               ),
 
             // ── My Flowcharts section ──────────────────────────
-            if (SampleDiagrams.myDiagrams.isNotEmpty) ...[
+            if (showMyFlowcharts && SampleDiagrams.myDiagrams.isNotEmpty) ...[
               _sectionHeader(context, 'My Flowcharts'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -137,7 +154,7 @@ class DiscoverScreen extends StatelessWidget {
             ],
 
             // ── Tutorials section ───────────────────────────────
-            if (tutorials.isNotEmpty) ...[
+            if (showTutorials && tutorials.isNotEmpty) ...[
               _sectionHeader(context, 'Tutorials'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -155,7 +172,7 @@ class DiscoverScreen extends StatelessWidget {
             ],
 
             // ── Certification section ─────────────────────────────
-            if (certification.isNotEmpty) ...[
+            if (showCertification && certification.isNotEmpty) ...[
               _sectionHeader(context, 'Certification Processes'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -173,7 +190,7 @@ class DiscoverScreen extends StatelessWidget {
             ],
 
             // ── Technical section ───────────────────────────────
-            if (technical.isNotEmpty) ...[
+            if (showTechnical && technical.isNotEmpty) ...[
               _sectionHeader(context, 'Technical'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -191,7 +208,7 @@ class DiscoverScreen extends StatelessWidget {
             ],
 
             // ── Flow Patterns section ───────────────────────────
-            if (patterns.isNotEmpty) ...[
+            if (showPatterns && patterns.isNotEmpty) ...[
               _sectionHeader(context, 'Flow Patterns'),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -222,6 +239,7 @@ class DiscoverScreen extends StatelessWidget {
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
+                color: const Color(0xFF1C1C1E),
               ),
         ),
       ),
@@ -388,14 +406,28 @@ class _CreatorAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         color: Color(creator.colorValue),
       ),
-      child: Center(
-        child: Text(
-          creator.initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.38,
-            fontWeight: FontWeight.w700,
-          ),
+      child: creator.avatarUrl != null
+          ? ClipOval(
+              child: Image.network(
+                creator.avatarUrl!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _initialsFallback(),
+              ),
+            )
+          : _initialsFallback(),
+    );
+  }
+
+  Widget _initialsFallback() {
+    return Center(
+      child: Text(
+        creator.initials,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: size * 0.38,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -505,14 +537,14 @@ class _ProfileDiagramCard extends StatelessWidget {
                   children: [
                     Text(name,
                         style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600),
+                            fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Text(subtitle,
                           style: TextStyle(
-                              fontSize: 12, color: Colors.grey[500])),
+                              fontSize: 12, color: Colors.grey[600])),
                     ],
                   ],
                 ),
@@ -520,7 +552,7 @@ class _ProfileDiagramCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: Icon(Icons.chevron_right, color: Colors.grey[400]),
+              child: Icon(Icons.chevron_right, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -563,26 +595,30 @@ class _ProfileDiagramCard extends StatelessWidget {
 class _CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
+  final VoidCallback? onTap;
 
-  const _CategoryChip({required this.label, this.selected = false});
+  const _CategoryChip({required this.label, this.selected = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? Colors.black : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: selected ? null : Border.all(color: Colors.grey[300]!),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : Colors.black87,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? Colors.black : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: selected ? null : Border.all(color: Colors.grey[300]!),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: selected ? Colors.white : Colors.black87,
+            ),
           ),
         ),
       ),
@@ -805,7 +841,7 @@ class _FeaturedCard extends StatelessWidget {
                     Text(
                       entry.name,
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w700),
+                          fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1C1C1E)),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -886,7 +922,7 @@ class _SmallCard extends StatelessWidget {
               child: Text(
                 entry.name,
                 style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600),
+                    fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -895,7 +931,7 @@ class _SmallCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 _subtitle(entry.name),
-                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF636366)),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -957,14 +993,14 @@ class _ListCard extends StatelessWidget {
                     Text(
                       entry.name,
                       style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600),
+                          fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
                     Text(
                       _subtitle(entry.name),
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF636366)),
                     ),
                     const SizedBox(height: 6),
                     _CreatorRow(
@@ -977,7 +1013,7 @@ class _ListCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: Icon(Icons.chevron_right, color: Colors.grey[400]),
+              child: Icon(Icons.chevron_right, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -1071,7 +1107,7 @@ class _CreatorProfileScreen extends StatelessWidget {
                   Text(
                     '${_formatNumber(creator.followers)} followers · '
                     '${creatorDiagrams.length} processes',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 16),
                   Text(

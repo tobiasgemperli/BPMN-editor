@@ -23,6 +23,7 @@ class TaskContent {
   String? linkUrl;
   String? linkLabel;
   List<DocLink> links;
+  bool imageContain;   // true → BoxFit.contain (instruction images)
 
   TaskContent({
     this.title,
@@ -32,6 +33,7 @@ class TaskContent {
     this.linkUrl,
     this.linkLabel,
     this.links = const [],
+    this.imageContain = false,
   });
 
   bool get hasMedia => imagePath != null || videoPath != null;
@@ -46,6 +48,7 @@ class TaskContent {
         linkUrl: linkUrl,
         linkLabel: linkLabel,
         links: links,
+        imageContain: imageContain,
       );
 }
 

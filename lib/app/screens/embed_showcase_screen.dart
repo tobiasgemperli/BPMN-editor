@@ -38,6 +38,7 @@ class EmbedShowcaseScreen extends StatelessWidget {
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
+                      color: Color(0xFF1C1C1E),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -93,6 +94,7 @@ class EmbedShowcaseScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
+                      color: Color(0xFF1C1C1E),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -126,6 +128,7 @@ class EmbedShowcaseScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
+                              color: Color(0xFF1C1C1E),
                             ),
                           ),
                         ),
@@ -377,6 +380,7 @@ class _FramedStepperState extends State<_FramedStepper> {
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
+                color: Color(0xFF1C1C1E),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -529,6 +533,7 @@ class _EmbedStepContent extends StatelessWidget {
     final videoPath = content?.videoPath;
     final hasImage = imagePath != null;
     final hasVideo = videoPath != null;
+    final imageContain = content?.imageContain ?? false;
     final isGateway = node.type == NodeType.exclusiveGateway;
 
     List<String> options = [];
@@ -556,6 +561,7 @@ class _EmbedStepContent extends StatelessWidget {
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
+                color: Color(0xFF1C1C1E),
               ),
               textAlign: TextAlign.center,
               maxLines: 3,
@@ -586,39 +592,69 @@ class _EmbedStepContent extends StatelessWidget {
             const SizedBox(height: 12),
             Expanded(
               flex: 5,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(imagePath, fit: BoxFit.cover),
-                    Positioned(
-                      left: 0, right: 0, bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.7),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                        child: Text(
-                          displayTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+              child: imageContain
+                ? Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ],
-                ),
-              ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          child: Text(
+                            displayTitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1C1C1E),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Image.asset(imagePath, fit: BoxFit.contain),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.asset(imagePath, fit: BoxFit.cover),
+                        Positioned(
+                          left: 0, right: 0, bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.7),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                            child: Text(
+                              displayTitle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
             ),
           ],
 
@@ -680,14 +716,14 @@ class _EmbedStepContent extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(link.label,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1C1C1E))),
                           if (link.subtitle != null)
                             Text(link.subtitle!,
-                                style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                    Icon(Icons.chevron_right, size: 18, color: Colors.grey[600]),
                   ],
                 ),
               ),
@@ -760,6 +796,7 @@ class _FullDiagramOverlay extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
+                color: Color(0xFF1C1C1E),
               ),
               textAlign: TextAlign.center,
             ),

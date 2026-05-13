@@ -33,6 +33,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   xml: ^6.5.0
   video_player: ^2.11.1
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +72,20 @@ flutter:
     - assets/machine_1.jpg
     - assets/machine_2.png
     - assets/machine_3.png
+    - assets/komplement_1.png
+    - assets/komplement_2.png
+    - assets/komplement_3.png
+    - assets/komplement_4.png
+    - assets/komplement_5.png
+    - assets/komplement_6.png
+    - assets/komplement_7.png
+    - assets/komplement_8.png
+    - assets/komplement_9.png
+    - assets/komplement_info.png
+    - assets/kwikee_p1.png
+    - assets/kwikee_p2.png
+    - assets/kwikee_p3.png
+    - assets/kwikee_p4.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

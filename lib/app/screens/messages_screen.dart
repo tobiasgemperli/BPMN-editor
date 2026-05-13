@@ -23,6 +23,7 @@ class MessagesScreen extends StatelessWidget {
                   'Messages',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1C1C1E),
                       ),
                 ),
               ),
@@ -34,20 +35,20 @@ class MessagesScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.chat_bubble_outline,
-                        size: 56, color: Colors.grey[300]),
+                        size: 56, color: Colors.grey[600]),
                     const SizedBox(height: 16),
                     Text(
                       'No messages yet',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[500],
+                        color: Colors.grey[700],
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Messages from collaborators will appear here.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
                 ),

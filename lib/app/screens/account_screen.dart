@@ -23,6 +23,7 @@ class AccountScreen extends StatelessWidget {
                   'Account',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1C1C1E),
                       ),
                 ),
               ),
@@ -64,11 +65,11 @@ class AccountScreen extends StatelessWidget {
                           children: [
                             Text('My Account',
                                 style: TextStyle(
-                                    fontSize: 17, fontWeight: FontWeight.w600)),
+                                    fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E))),
                             SizedBox(height: 4),
                             Text('Manage your profile and preferences',
                                 style: TextStyle(
-                                    fontSize: 13, color: Colors.grey)),
+                                    fontSize: 13, color: Color(0xFF636366))),
                           ],
                         ),
                       ),
@@ -161,10 +162,10 @@ class _SettingsRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 15),
+                style: const TextStyle(fontSize: 15, color: Color(0xFF1C1C1E)),
               ),
             ),
-            Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
+            Icon(Icons.chevron_right, size: 20, color: Colors.grey[600]),
           ],
         ),
       ),

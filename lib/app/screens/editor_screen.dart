@@ -6,6 +6,7 @@ import '../widgets/close_circle_button.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
+import '../widgets/chat_sheet.dart';
 import 'discover_screen.dart' show showCreatorProfile;
 import 'presentation_screen.dart';
 
@@ -120,19 +121,46 @@ class _EditorScreenState extends State<EditorScreen> {
             transformationController: _transformController,
             readOnly: !_isOwner,
           ),
-          // ── Right-side shape palette (owner only) ──
+          // ── Right-side shape palette + chat button (owner only) ──
           if (_isOwner)
             Positioned(
               right: 12,
               top: 0,
               bottom: 0,
               child: Center(
-                child: EditorToolbar(
-                controller: _controller,
-                transformationController: _transformController,
-                canvasKey: _canvasKey,
-                vertical: true,
-              ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Chat button above toolbar.
+                    GestureDetector(
+                      onTap: () => showChatSheet(context, _controller),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.auto_awesome, size: 22,
+                            color: Color(0xFF007AFF)),
+                      ),
+                    ),
+                    EditorToolbar(
+                      controller: _controller,
+                      transformationController: _transformController,
+                      canvasKey: _canvasKey,
+                      vertical: true,
+                    ),
+                  ],
+                ),
               ),
             ),
           // ── Bottom action bar (owner only) ──
@@ -247,7 +275,7 @@ class _EditorScreenState extends State<EditorScreen> {
               child: Text(
                 widget.title ?? 'New Diagram',
                 style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w600),
+                    fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
               ),
             ),
           ),
@@ -348,16 +376,35 @@ class _FloatingCreatorChipState extends State<_FloatingCreatorChip> {
                   shape: BoxShape.circle,
                   color: Color(widget.creator.colorValue),
                 ),
-                child: Center(
-                  child: Text(
-                    widget.creator.initials,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                child: widget.creator.avatarUrl != null
+                    ? ClipOval(
+                        child: Image.network(
+                          widget.creator.avatarUrl!,
+                          width: 30,
+                          height: 30,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Center(
+                            child: Text(
+                              widget.creator.initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          widget.creator.initials,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -365,6 +412,7 @@ class _FloatingCreatorChipState extends State<_FloatingCreatorChip> {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
+                  color: Color(0xFF1C1C1E),
                 ),
               ),
             ],
@@ -424,7 +472,7 @@ class _FloatingMessageButtonState extends State<_FloatingMessageButton> {
               SizedBox(width: 6),
               Text(
                 'Message',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
               ),
             ],
           ),

@@ -10,6 +10,24 @@ void main() {
   runApp(const BpmnEditorApp());
 }
 
+ThemeData _buildLightTheme() {
+  final scheme = ColorScheme.fromSeed(
+    seedColor: Colors.indigo,
+    brightness: Brightness.light,
+    onSurface: Colors.black,
+    onSurfaceVariant: const Color(0xFF48484A),
+  );
+  return ThemeData(
+    colorScheme: scheme,
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.grey[50],
+    textTheme: ThemeData.light().textTheme.apply(
+          bodyColor: Colors.black,
+          displayColor: Colors.black,
+        ),
+  );
+}
+
 class BpmnEditorApp extends StatelessWidget {
   const BpmnEditorApp({super.key});
 
@@ -18,11 +36,7 @@ class BpmnEditorApp extends StatelessWidget {
     return MaterialApp(
       title: 'BPMN Editor',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        useMaterial3: true,
-        brightness: Brightness.light,
-      ),
+      theme: _buildLightTheme(),
       darkTheme: ThemeData(
         colorSchemeSeed: Colors.indigo,
         useMaterial3: true,
@@ -62,27 +76,29 @@ class _MainTabShellState extends State<_MainTabShell> {
         children: _tabs,
       ),
       bottomNavigationBar: NavigationBar(
+        height: 56,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined, size: 22),
+            selectedIcon: Icon(Icons.home, size: 22),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.search),
-            selectedIcon: Icon(Icons.search),
+            icon: Icon(Icons.search, size: 22),
+            selectedIcon: Icon(Icons.search, size: 22),
             label: 'Search',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
+            icon: Icon(Icons.chat_bubble_outline, size: 22),
+            selectedIcon: Icon(Icons.chat_bubble, size: 22),
             label: 'Messages',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+            icon: Icon(Icons.person_outline, size: 22),
+            selectedIcon: Icon(Icons.person, size: 22),
             label: 'Account',
           ),
         ],

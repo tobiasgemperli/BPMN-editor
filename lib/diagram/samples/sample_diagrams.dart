@@ -1622,6 +1622,7 @@ class SampleDiagrams {
           'Passionate about lean operations and visual work instructions. '
           '12 years of experience in industrial process design.',
       followers: 2340,
+      avatarUrl: 'https://i.pravatar.cc/150?u=maria',
     ),
     'alex': SampleCreator(
       id: 'alex',
@@ -1632,6 +1633,7 @@ class SampleDiagrams {
           'Writes about debugging strategies, CI/CD pipelines, and '
           'engineering best practices. Speaker at QCon and StrangeLoop.',
       followers: 5120,
+      avatarUrl: 'https://i.pravatar.cc/150?u=alex',
     ),
     'sam': SampleCreator(
       id: 'sam',
@@ -1642,6 +1644,7 @@ class SampleDiagrams {
           'Certified Scrum Master and SAFe Program Consultant. '
           'Creator of workflow templates used by 500+ teams.',
       followers: 8900,
+      avatarUrl: 'https://i.pravatar.cc/150?u=sam',
     ),
     'jordan': SampleCreator(
       id: 'jordan',
@@ -1652,6 +1655,7 @@ class SampleDiagrams {
           'Specializes in making complex processes understandable '
           'through visual design and interactive documentation.',
       followers: 1580,
+      avatarUrl: 'https://i.pravatar.cc/150?u=jordan',
     ),
   };
 
@@ -1997,12 +2001,454 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// IKEA KOMPLEMENT drawer assembly manual.
+  static DiagramModel ikeaKomplement() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Start', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Mount Runners', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Step 1: Mount Drawer Runners',
+            imagePath: 'assets/komplement_1.png',
+            imageContain: true,
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Attach Back Panel', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            title: 'Step 2: Attach Back Panel',
+            imagePath: 'assets/komplement_2.png',
+            imageContain: true,
+          )),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Insert Dowels', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            title: 'Step 3: Insert Dowels & Side Panels',
+            imagePath: 'assets/komplement_3.png',
+            imageContain: true,
+          )),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Cam Locks', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            title: 'Step 4: Secure with Cam Locks',
+            imagePath: 'assets/komplement_4.png',
+            imageContain: true,
+          )),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Top Panel', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'Step 5: Attach Top Panel',
+            imagePath: 'assets/komplement_5.png',
+            imageContain: true,
+          )),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Back Nails', rect: _task(_cx, _row(6)),
+          content: TaskContent(
+            title: 'Step 6: Nail Back Panel',
+            imagePath: 'assets/komplement_6.png',
+            imageContain: true,
+          )),
+
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Slide Position', rect: _task(_cx, _row(7)),
+          content: TaskContent(
+            title: 'Info: Drawer Slide Positions',
+            imagePath: 'assets/komplement_info.png',
+            imageContain: true,
+          )),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.task,
+          name: 'Install Slides', rect: _task(_cx, _row(8)),
+          content: TaskContent(
+            title: 'Step 7: Install Drawer Slides',
+            imagePath: 'assets/komplement_7.png',
+            imageContain: true,
+          )),
+
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Insert Drawer', rect: _task(_cx, _row(9)),
+          content: TaskContent(
+            title: 'Step 8: Slide In the Drawer',
+            imagePath: 'assets/komplement_8.png',
+            imageContain: true,
+          )),
+
+      'n11': NodeModel(id: 'n11', type: NodeType.task,
+          name: 'Final Check', rect: _task(_cx, _row(10)),
+          content: TaskContent(
+            title: 'Step 9: Final Clip & Check',
+            imagePath: 'assets/komplement_9.png',
+            imageContain: true,
+          )),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.endEvent,
+          name: 'Done', rect: _event(_cx, _row(11))),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n9', targetId: 'n10'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n10', targetId: 'n11'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n11', targetId: 'n12'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Kwikee Electric Step Troubleshooting Flowchart (4-page PDF).
+  static DiagramModel kwikeeStepTroubleshooting() {
+    final right = _cx + _branchX;
+
+    final nodes = <String, NodeModel>{
+      // ── Page 1: Battery & Ground Checks ──────────────────────
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Step does not operate', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Check Battery', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            title: 'Check Battery Voltage',
+            text: 'Using a multimeter, measure the battery voltage. '
+                'It should read 12V or more for the step system to operate.',
+            imagePath: 'assets/kwikee_p1.png',
+            imageContain: true,
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway,
+          name: '12V or more?', rect: _gw(_cx, _row(2))),
+
+      'f1': NodeModel(id: 'f1', type: NodeType.task,
+          name: 'Recharge Battery', rect: _task(right, _row(2)),
+          content: TaskContent(
+            title: 'Recharge or Repair',
+            text: 'Recharge battery or repair charging system. '
+                'Verify voltage is 12V or more before continuing.',
+          )),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Check Ground Wires', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            title: 'Check All Ground Wires',
+            text: 'Inspect all ground wire connections. '
+                'They must be clean and tight for proper operation.',
+          )),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway,
+          name: 'Clean & tight?', rect: _gw(_cx, _row(4))),
+
+      'f2': NodeModel(id: 'f2', type: NodeType.task,
+          name: 'Clean & Repair', rect: _task(right, _row(4)),
+          content: TaskContent(
+            title: 'Clean & Repair Connections',
+            text: 'Clean corroded connections and tighten any loose ground wires.',
+          )),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Disconnect & Check RED', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            title: 'Disconnect Plug & Check RED Wire',
+            text: 'Disconnect the 4-wire plug connection at the step.\n\n'
+                'Check voltage on the RED wire (coach side) using a multimeter.',
+          )),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.exclusiveGateway,
+          name: 'Battery voltage?', rect: _gw(_cx, _row(6))),
+
+      'f3': NodeModel(id: 'f3', type: NodeType.task,
+          name: 'Fix RED Wire', rect: _task(right, _row(6)),
+          content: TaskContent(
+            title: 'Check RED Wire',
+            text: 'Check RED wire for:\n'
+                '- Poor connection\n'
+                '- Break in wire\n'
+                '- Bad 20 amp fuse',
+          )),
+
+      // ── Page 2: YELLOW & WHITE Wire Checks ───────────────────
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Check YELLOW Wire', rect: _task(_cx, _row(7)),
+          content: TaskContent(
+            title: 'Check YELLOW Wire (Ignition RUN)',
+            text: 'With the ignition in the RUN position, '
+                'check the YELLOW wire for battery voltage.',
+            imagePath: 'assets/kwikee_p2.png',
+            imageContain: true,
+          )),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.exclusiveGateway,
+          name: 'Battery voltage?', rect: _gw(_cx, _row(8))),
+
+      'f4': NodeModel(id: 'f4', type: NodeType.task,
+          name: 'Fix YELLOW Wire', rect: _task(right, _row(8)),
+          content: TaskContent(
+            title: 'Check YELLOW Wire Issues',
+            text: 'Check YELLOW wire for:\n'
+                '- Poor connection\n'
+                '- Bad 6 amp fuse\n'
+                '- Improper connection to YELLOW wire from another circuit',
+          )),
+
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Ignition OFF', rect: _task(_cx, _row(9)),
+          content: TaskContent(
+            title: 'Turn Ignition OFF',
+            text: 'Turn the ignition to the OFF position. '
+                'The YELLOW wire should now read 0 volts.',
+          )),
+
+      'n11': NodeModel(id: 'n11', type: NodeType.exclusiveGateway,
+          name: '0V on YELLOW?', rect: _gw(_cx, _row(10))),
+
+      'f5': NodeModel(id: 'f5', type: NodeType.task,
+          name: 'Fix YELLOW Conn', rect: _task(right, _row(10)),
+          content: TaskContent(
+            title: 'Check YELLOW Connection',
+            text: 'Check for improper connection of YELLOW wire. '
+                'It should not have voltage when ignition is OFF.',
+          )),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.task,
+          name: 'Check WHITE Wire', rect: _task(_cx, _row(11)),
+          content: TaskContent(
+            title: 'Check WHITE Wire (Override ON)',
+            text: 'Turn the Override Switch ON.\n\n'
+                'Check the WHITE wire for battery voltage.',
+          )),
+
+      'n13': NodeModel(id: 'n13', type: NodeType.exclusiveGateway,
+          name: 'Battery volts?', rect: _gw(_cx, _row(12))),
+
+      'f6': NodeModel(id: 'f6', type: NodeType.task,
+          name: 'Fix WHITE Wire', rect: _task(right, _row(12)),
+          content: TaskContent(
+            title: 'Check WHITE Wire Issues',
+            text: 'Check WHITE wire connections.\n'
+                'Check 5 amp fuse.\n'
+                'Check Override Switch.',
+          )),
+
+      'n14': NodeModel(id: 'n14', type: NodeType.task,
+          name: 'Override OFF', rect: _task(_cx, _row(13)),
+          content: TaskContent(
+            title: 'Turn Override Switch OFF',
+            text: 'Turn the Override Switch OFF. '
+                'The WHITE wire should now read 0 volts.',
+          )),
+
+      'n15': NodeModel(id: 'n15', type: NodeType.exclusiveGateway,
+          name: '0V on WHITE?', rect: _gw(_cx, _row(14))),
+
+      'f7': NodeModel(id: 'f7', type: NodeType.task,
+          name: 'Fix WHITE Conn', rect: _task(right, _row(14)),
+          content: TaskContent(
+            title: 'Check WHITE Connection',
+            text: 'Check for improper connection to another circuit. '
+                'WHITE wire should read 0V when Override is OFF.',
+          )),
+
+      // ── Page 3: Door Switch & Motor Prep ─────────────────────
+      'n16': NodeModel(id: 'n16', type: NodeType.task,
+          name: 'Check BROWN & RED', rect: _task(_cx, _row(15)),
+          content: TaskContent(
+            title: 'Check BROWN & RED Wire',
+            text: 'With the door closed, check voltage between '
+                'the BROWN and RED wires.',
+            imagePath: 'assets/kwikee_p3.png',
+            imageContain: true,
+          )),
+
+      'n17': NodeModel(id: 'n17', type: NodeType.exclusiveGateway,
+          name: 'Battery voltage?', rect: _gw(_cx, _row(16))),
+
+      'f8': NodeModel(id: 'f8', type: NodeType.task,
+          name: 'Fix BROWN Wire', rect: _task(right, _row(16)),
+          content: TaskContent(
+            title: 'Check BROWN Wire & Door Switch',
+            text: 'Check BROWN wire for good connections.\n\n'
+                'If OK, check door switch with Ohmmeter.',
+          )),
+
+      'n18': NodeModel(id: 'n18', type: NodeType.task,
+          name: 'Open Door', rect: _task(_cx, _row(17)),
+          content: TaskContent(
+            title: 'Open Door & Recheck',
+            text: 'Open the door and recheck the voltage between '
+                'BROWN and RED wires. Should now read 0 volts.',
+          )),
+
+      'n19': NodeModel(id: 'n19', type: NodeType.exclusiveGateway,
+          name: '0 volts?', rect: _gw(_cx, _row(18))),
+
+      'f9': NodeModel(id: 'f9', type: NodeType.task,
+          name: 'Check Switch', rect: _task(right, _row(18)),
+          content: TaskContent(
+            title: 'Confirm Defective Switch',
+            text: 'Check switch with Ohmmeter to confirm it is defective.',
+          )),
+
+      'e_door': NodeModel(id: 'e_door', type: NodeType.endEvent,
+          name: 'Replace Door Switch', rect: _event(right, _row(19))),
+
+      'n20': NodeModel(id: 'n20', type: NodeType.task,
+          name: 'Prepare Motor Test', rect: _task(_cx, _row(19)),
+          content: TaskContent(
+            title: 'Prepare Motor Test',
+            text: '1. Connect the 4-wire connectors.\n'
+                '2. Disconnect the 2-wire connector to motor.\n'
+                '3. Connect (+) lead of meter to RED wire '
+                'and the (-) lead to ground.',
+          )),
+
+      // ── Page 4: Motor & Gearbox ──────────────────────────────
+      'n21': NodeModel(id: 'n21', type: NodeType.task,
+          name: 'Open Coach Door', rect: _task(_cx, _row(20)),
+          content: TaskContent(
+            title: 'OPEN Coach Door',
+            text: 'Open the coach door and check for battery voltage '
+                'on the RED wire at the motor connector.',
+            imagePath: 'assets/kwikee_p4.png',
+            imageContain: true,
+          )),
+
+      'n22': NodeModel(id: 'n22', type: NodeType.exclusiveGateway,
+          name: 'Battery voltage?', rect: _gw(_cx, _row(21))),
+
+      'e_module': NodeModel(id: 'e_module', type: NodeType.endEvent,
+          name: 'Replace Control Module', rect: _event(right, _row(21))),
+
+      'n23': NodeModel(id: 'n23', type: NodeType.task,
+          name: 'Test Retract', rect: _task(_cx, _row(22)),
+          content: TaskContent(
+            title: 'Test Retract Signal',
+            text: 'Change (+) probe to the YELLOW wire.\n\n'
+                'Close the coach door and check for battery voltage.',
+          )),
+
+      'n24': NodeModel(id: 'n24', type: NodeType.task,
+          name: 'Inspect Motor', rect: _task(_cx, _row(23)),
+          content: TaskContent(
+            title: 'Inspect Motor & Gearbox',
+            text: 'Remove motor from main gearbox.\n\n'
+                'Check for internal damage, broken or worn gears.',
+          )),
+
+      'n25': NodeModel(id: 'n25', type: NodeType.exclusiveGateway,
+          name: 'Broken gears?', rect: _gw(_cx, _row(24))),
+
+      'e_motor': NodeModel(id: 'e_motor', type: NodeType.endEvent,
+          name: 'Replace Motor', rect: _event(right, _row(24))),
+
+      'e_gearbox': NodeModel(id: 'e_gearbox', type: NodeType.endEvent,
+          name: 'Replace Gearbox/Linkage', rect: _event(_cx, _row(25))),
+    };
+
+    final edges = <String, EdgeModel>{
+      // ── Main flow (Yes paths) ──
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4', name: 'Yes'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6', name: 'Yes'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8', name: 'Yes'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n9', targetId: 'n10', name: 'Yes'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n10', targetId: 'n11'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n11', targetId: 'n12', name: 'Yes'),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n12', targetId: 'n13'),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n13', targetId: 'n14', name: 'Yes'),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n14', targetId: 'n15'),
+      'e15': EdgeModel(id: 'e15', sourceId: 'n15', targetId: 'n16', name: 'Yes'),
+      'e16': EdgeModel(id: 'e16', sourceId: 'n16', targetId: 'n17'),
+      'e17': EdgeModel(id: 'e17', sourceId: 'n17', targetId: 'n18', name: 'Yes'),
+      'e18': EdgeModel(id: 'e18', sourceId: 'n18', targetId: 'n19'),
+      'e19': EdgeModel(id: 'e19', sourceId: 'n19', targetId: 'n20', name: 'Yes'),
+      'e20': EdgeModel(id: 'e20', sourceId: 'n20', targetId: 'n21'),
+      'e21': EdgeModel(id: 'e21', sourceId: 'n21', targetId: 'n22'),
+      'e22': EdgeModel(id: 'e22', sourceId: 'n22', targetId: 'n23', name: 'Yes'),
+      'e23': EdgeModel(id: 'e23', sourceId: 'n23', targetId: 'n24'),
+      'e24': EdgeModel(id: 'e24', sourceId: 'n24', targetId: 'n25'),
+      'e25': EdgeModel(id: 'e25', sourceId: 'n25', targetId: 'e_gearbox', name: 'Yes'),
+
+      // ── No branches: fix & rejoin ──
+      'no3': EdgeModel(id: 'no3', sourceId: 'n3', targetId: 'f1', name: 'No',
+          waypoints: _hv(_cx, _row(2), right, _row(2))),
+      'r3': EdgeModel(id: 'r3', sourceId: 'f1', targetId: 'n4',
+          waypoints: _vh(right, _row(2), _cx, _row(3))),
+
+      'no5': EdgeModel(id: 'no5', sourceId: 'n5', targetId: 'f2', name: 'No',
+          waypoints: _hv(_cx, _row(4), right, _row(4))),
+      'r5': EdgeModel(id: 'r5', sourceId: 'f2', targetId: 'n6',
+          waypoints: _vh(right, _row(4), _cx, _row(5))),
+
+      'no7': EdgeModel(id: 'no7', sourceId: 'n7', targetId: 'f3', name: 'No',
+          waypoints: _hv(_cx, _row(6), right, _row(6))),
+      'r7': EdgeModel(id: 'r7', sourceId: 'f3', targetId: 'n8',
+          waypoints: _vh(right, _row(6), _cx, _row(7))),
+
+      'no9': EdgeModel(id: 'no9', sourceId: 'n9', targetId: 'f4', name: 'No',
+          waypoints: _hv(_cx, _row(8), right, _row(8))),
+      'r9': EdgeModel(id: 'r9', sourceId: 'f4', targetId: 'n10',
+          waypoints: _vh(right, _row(8), _cx, _row(9))),
+
+      'no11': EdgeModel(id: 'no11', sourceId: 'n11', targetId: 'f5', name: 'No',
+          waypoints: _hv(_cx, _row(10), right, _row(10))),
+      'r11': EdgeModel(id: 'r11', sourceId: 'f5', targetId: 'n12',
+          waypoints: _vh(right, _row(10), _cx, _row(11))),
+
+      'no13': EdgeModel(id: 'no13', sourceId: 'n13', targetId: 'f6', name: 'No',
+          waypoints: _hv(_cx, _row(12), right, _row(12))),
+      'r13': EdgeModel(id: 'r13', sourceId: 'f6', targetId: 'n14',
+          waypoints: _vh(right, _row(12), _cx, _row(13))),
+
+      'no15': EdgeModel(id: 'no15', sourceId: 'n15', targetId: 'f7', name: 'No',
+          waypoints: _hv(_cx, _row(14), right, _row(14))),
+      'r15': EdgeModel(id: 'r15', sourceId: 'f7', targetId: 'n16',
+          waypoints: _vh(right, _row(14), _cx, _row(15))),
+
+      'no17': EdgeModel(id: 'no17', sourceId: 'n17', targetId: 'f8', name: 'No',
+          waypoints: _hv(_cx, _row(16), right, _row(16))),
+      'r17': EdgeModel(id: 'r17', sourceId: 'f8', targetId: 'n18',
+          waypoints: _vh(right, _row(16), _cx, _row(17))),
+
+      // ── No branches: terminal ──
+      'no19': EdgeModel(id: 'no19', sourceId: 'n19', targetId: 'f9', name: 'No',
+          waypoints: _hv(_cx, _row(18), right, _row(18))),
+      'r19': EdgeModel(id: 'r19', sourceId: 'f9', targetId: 'e_door'),
+
+      'no22': EdgeModel(id: 'no22', sourceId: 'n22', targetId: 'e_module', name: 'No',
+          waypoints: _hv(_cx, _row(21), right, _row(21))),
+
+      'no25': EdgeModel(id: 'no25', sourceId: 'n25', targetId: 'e_motor', name: 'No',
+          waypoints: _hv(_cx, _row(24), right, _row(24))),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
     SampleDiagramEntry(name: 'Content Showcase', builder: contentShowcase,
         creator: _creators['jordan']!),
     SampleDiagramEntry(name: 'IKEA KALLAX Assembly', builder: ikeaAssembly,
         creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'IKEA KOMPLEMENT Manual', builder: ikeaKomplement,
+        creator: _creators['maria']!),
+    SampleDiagramEntry(name: 'Electric Step Troubleshooting', builder: kwikeeStepTroubleshooting,
+        creator: _creators['alex']!),
     SampleDiagramEntry(name: 'Emergency: Fire Evacuation', builder: emergencyProcedure,
         creator: _creators['maria']!),
     SampleDiagramEntry(name: 'Debug: API 500 Errors', builder: technicalDebugging,
@@ -2076,6 +2522,7 @@ class SampleCreator {
   final int colorValue;
   final String bio;
   final int followers;
+  final String? avatarUrl;
 
   const SampleCreator({
     required this.id,
@@ -2084,6 +2531,7 @@ class SampleCreator {
     required this.colorValue,
     required this.bio,
     required this.followers,
+    this.avatarUrl,
   });
 }
 

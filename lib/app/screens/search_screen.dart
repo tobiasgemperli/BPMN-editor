@@ -51,6 +51,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   'Search',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1C1C1E),
                       ),
                 ),
               ),
@@ -70,9 +71,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: 'Search processes...',
-                    hintStyle: TextStyle(color: Colors.grey[500], fontSize: 15),
+                    hintStyle: TextStyle(color: Colors.grey[600], fontSize: 15),
                     prefixIcon:
-                        Icon(Icons.search, size: 20, color: Colors.grey[500]),
+                        Icon(Icons.search, size: 20, color: Colors.grey[600]),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -85,7 +86,7 @@ class _SearchScreenState extends State<SearchScreen> {
               child: filtered.isEmpty
                   ? Center(
                       child: Text('No results',
-                          style: TextStyle(color: Colors.grey[500])),
+                          style: TextStyle(color: Colors.grey[600])),
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.symmetric(
@@ -172,7 +173,7 @@ class _SearchResultCardState extends State<_SearchResultCard> {
                       Text(
                         entry.name,
                         style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600),
+                            fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -181,7 +182,7 @@ class _SearchResultCardState extends State<_SearchResultCard> {
                         Text(
                           subtitle,
                           style:
-                              TextStyle(fontSize: 12, color: Colors.grey[500]),
+                              TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
                       ],
                       const SizedBox(height: 6),
@@ -210,7 +211,7 @@ class _SearchResultCardState extends State<_SearchResultCard> {
                             child: Text(
                               entry.creator.name,
                               style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.w500),
+                                  fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF636366)),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -223,7 +224,7 @@ class _SearchResultCardState extends State<_SearchResultCard> {
               ),
               Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: Icon(Icons.chevron_right, color: Colors.grey[400]),
+                child: Icon(Icons.chevron_right, color: Colors.grey[600]),
               ),
             ],
           ),

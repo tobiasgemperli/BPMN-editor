@@ -229,8 +229,8 @@ class _ToolButtonState extends State<_ToolButton>
   @override
   Widget build(BuildContext context) {
     final color = widget.enabled
-        ? Theme.of(context).colorScheme.onSurface
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3);
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFF1C1C1E).withValues(alpha: 0.3);
 
     return GestureDetector(
       onTapDown: (_) => _handleTap(),

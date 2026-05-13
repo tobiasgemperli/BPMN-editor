@@ -298,7 +298,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                     width: 140,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => _dismissModal(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
                         foregroundColor: Colors.white,
