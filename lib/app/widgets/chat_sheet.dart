@@ -87,6 +87,7 @@ class _ChatSheetState extends State<_ChatSheet> {
       final diagram = _parseDiagram(response);
       if (diagram != null) {
         widget.controller.loadDiagram(diagram);
+        widget.controller.autoLayout();
         setState(() {
           _messages.add(_ChatMessage(
             role: 'assistant',

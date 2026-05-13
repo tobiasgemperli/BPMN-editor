@@ -683,84 +683,213 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Auto-layout all nodes in a clean top-down tree and reroute edges.
+  /// Auto-layout: clean grid-based layered layout.
+  ///
+  /// 1. Longest-path layering from roots (topological)
+  /// 2. Order nodes within each layer by parent position
+  /// 3. Place on a clean grid with round coordinates
+  /// 4. Center single-child chains and merge nodes
+  /// 5. Reroute all edges
   void autoLayout() {
     if (diagram.nodes.isEmpty) return;
 
-    const colSpacing = 170.0;
-    const rowSpacing = 130.0;
-    const startY = 80.0;
-    const centerX = 400.0;
+    const colW = 180.0; // horizontal spacing between node centers
+    const rowH = 130.0; // vertical spacing between layers
+    const startY = 100.0;
 
-    // Build adjacency: source → [target ids] in edge order.
-    final children = <String, List<String>>{};
-    final hasParent = <String>{};
+    // ── Build adjacency ──
+    final childMap = <String, List<String>>{};
+    final parentMap = <String, List<String>>{};
     for (final edge in diagram.edges.values) {
-      children.putIfAbsent(edge.sourceId, () => []).add(edge.targetId);
-      hasParent.add(edge.targetId);
+      childMap.putIfAbsent(edge.sourceId, () => []).add(edge.targetId);
+      parentMap.putIfAbsent(edge.targetId, () => []).add(edge.sourceId);
     }
 
-    // Find roots (nodes with no incoming edges).
+    // ── Find roots (prefer startEvent) ──
     var roots = diagram.nodes.keys
-        .where((id) => !hasParent.contains(id))
+        .where((id) => (parentMap[id]?.isEmpty ?? true))
         .toList();
+    roots.sort((a, b) {
+      final aS = diagram.nodes[a]?.type == NodeType.startEvent ? 0 : 1;
+      final bS = diagram.nodes[b]?.type == NodeType.startEvent ? 0 : 1;
+      return aS.compareTo(bS);
+    });
     if (roots.isEmpty) roots = [diagram.nodes.keys.first];
 
-    // BFS to assign rows and columns.
-    final visited = <String>{};
-    final rowAssign = <String, int>{};
-    final colAssign = <String, int>{};
-    // Track how many nodes are on each row for centering.
-    final rowNodes = <int, List<String>>{};
-
-    final queue = <(String, int)>[];
+    // ── 1. Longest-path layering (push nodes as deep as possible) ──
+    final layer = <String, int>{};
+    void assignLayer(String id, int depth) {
+      if (layer.containsKey(id) && layer[id]! >= depth) return;
+      layer[id] = depth;
+      for (final kid in childMap[id] ?? <String>[]) {
+        assignLayer(kid, depth + 1);
+      }
+    }
     for (final root in roots) {
-      queue.add((root, 0));
+      assignLayer(root, 0);
+    }
+    // Orphan nodes go at the end.
+    var orphanLayer = (layer.values.fold(0, (a, b) => a > b ? a : b)) + 1;
+    for (final id in diagram.nodes.keys) {
+      layer.putIfAbsent(id, () => orphanLayer++);
     }
 
-    while (queue.isNotEmpty) {
-      final (nodeId, row) = queue.removeAt(0);
-      if (visited.contains(nodeId)) continue;
-      visited.add(nodeId);
-      rowAssign[nodeId] = row;
-      rowNodes.putIfAbsent(row, () => []).add(nodeId);
+    // Forward children = children in a deeper layer.
+    List<String> fwdKids(String id) =>
+        (childMap[id] ?? <String>[])
+            .where((k) => layer.containsKey(k) && layer[k]! > layer[id]!)
+            .toList();
 
-      final kids = children[nodeId] ?? [];
-      for (final kid in kids) {
-        if (!visited.contains(kid)) {
-          queue.add((kid, row + 1));
+    // ── 2. Compute subtree widths (in slots) ──
+    final subtreeW = <String, int>{};
+    final computing = <String>{};
+    int getSubtreeWidth(String id) {
+      if (subtreeW.containsKey(id)) return subtreeW[id]!;
+      if (computing.contains(id)) {
+        subtreeW[id] = 1;
+        return 1;
+      }
+      computing.add(id);
+      final kids = fwdKids(id);
+      if (kids.isEmpty) {
+        subtreeW[id] = 1;
+        return 1;
+      }
+      var w = 0;
+      for (final k in kids) {
+        w += getSubtreeWidth(k);
+      }
+      subtreeW[id] = w;
+      return w;
+    }
+    for (final r in roots) {
+      getSubtreeWidth(r);
+    }
+    for (final id in diagram.nodes.keys) {
+      subtreeW.putIfAbsent(id, () => 1);
+    }
+
+    // ── 3. Place tree top-down, centering each node in its subtree span ──
+    final xSlot = <String, double>{}; // slot position (multiply by colW later)
+    final placed = <String>{};
+
+    void placeSubtree(String id, double leftSlot) {
+      if (placed.contains(id)) return;
+      placed.add(id);
+      final w = subtreeW[id]!;
+      xSlot[id] = leftSlot + w / 2.0;
+
+      final kids = fwdKids(id).where((k) => !placed.contains(k)).toList();
+      // Sort kids by subtree width descending so wider subtrees go center.
+      // Actually, keep original edge order for predictable layout.
+      var kidLeft = leftSlot;
+      for (final k in kids) {
+        placeSubtree(k, kidLeft);
+        kidLeft += subtreeW[k]!;
+      }
+    }
+
+    var nextRootSlot = 0.0;
+    for (final r in roots) {
+      placeSubtree(r, nextRootSlot);
+      nextRootSlot += subtreeW[r]! + 1; // gap between root trees
+    }
+    // Place any remaining unplaced nodes.
+    for (final id in diagram.nodes.keys) {
+      if (!placed.contains(id)) {
+        xSlot[id] = nextRootSlot;
+        nextRootSlot += 1;
+      }
+    }
+
+    // ── 4. Refinement: center parents over children, merge nodes between parents ──
+    // Build layer lists sorted by current x.
+    Map<int, List<String>> buildLayers() {
+      final layers = <int, List<String>>{};
+      for (final e in layer.entries) {
+        layers.putIfAbsent(e.value, () => []).add(e.key);
+      }
+      for (final l in layers.values) {
+        l.sort((a, b) => xSlot[a]!.compareTo(xSlot[b]!));
+      }
+      return layers;
+    }
+
+    for (var pass = 0; pass < 6; pass++) {
+      final layers = buildLayers();
+      final sortedKeys = layers.keys.toList()..sort();
+
+      // Top-down: align nodes under their parents.
+      for (final li in sortedKeys) {
+        for (final id in layers[li]!) {
+          final parents = (parentMap[id] ?? [])
+              .where((p) => xSlot.containsKey(p))
+              .toList();
+          if (parents.isEmpty) continue;
+          final avgParentX =
+              parents.map((p) => xSlot[p]!).reduce((a, b) => a + b) /
+                  parents.length;
+          // Single child of single parent: snap directly under parent.
+          if (parents.length == 1) {
+            final siblingCount = fwdKids(parents.first).length;
+            if (siblingCount == 1) {
+              xSlot[id] = xSlot[parents.first]!;
+              continue;
+            }
+          }
+          // Merge node (multiple parents): center between them.
+          if (parents.length >= 2) {
+            xSlot[id] = avgParentX;
+          }
+        }
+      }
+
+      // Bottom-up: center parents over their children.
+      for (final li in sortedKeys.reversed) {
+        for (final id in layers[li]!) {
+          final kids = fwdKids(id)
+              .where((k) => xSlot.containsKey(k))
+              .toList();
+          if (kids.isEmpty) continue;
+          final avgChildX =
+              kids.map((k) => xSlot[k]!).reduce((a, b) => a + b) /
+                  kids.length;
+          xSlot[id] = avgChildX;
+        }
+      }
+
+      // Push apart overlaps within each layer (minimum 1 slot apart).
+      for (final li in sortedKeys) {
+        final ids = layers[li]!;
+        ids.sort((a, b) => xSlot[a]!.compareTo(xSlot[b]!));
+        for (var i = 1; i < ids.length; i++) {
+          if (xSlot[ids[i]]! - xSlot[ids[i - 1]]! < 1.0) {
+            xSlot[ids[i]] = xSlot[ids[i - 1]]! + 1.0;
+          }
         }
       }
     }
 
-    // Place orphan nodes (not reached by BFS).
-    var orphanRow = (rowNodes.keys.fold(0, (a, b) => a > b ? a : b)) + 1;
-    for (final nodeId in diagram.nodes.keys) {
-      if (!visited.contains(nodeId)) {
-        rowAssign[nodeId] = orphanRow;
-        rowNodes.putIfAbsent(orphanRow, () => []).add(nodeId);
-        orphanRow++;
-      }
+    // ── 5. Convert slots to pixel coordinates, round to integers ──
+    // Center the diagram around x=400.
+    final allSlots = xSlot.values.toList();
+    final minSlot = allSlots.reduce((a, b) => a < b ? a : b);
+    final maxSlot = allSlots.reduce((a, b) => a > b ? a : b);
+    final centerSlot = (minSlot + maxSlot) / 2;
+
+    for (final id in diagram.nodes.keys) {
+      final node = diagram.nodes[id]!;
+      final x = 400.0 + (xSlot[id]! - centerSlot) * colW;
+      final y = startY + layer[id]! * rowH;
+      // Round to nearest 10 for clean coordinates.
+      final rx = (x / 10).round() * 10.0;
+      final ry = (y / 10).round() * 10.0;
+      node.rect = NodeModel.defaultRect(node.type, Offset(rx, ry));
     }
 
-    // Assign column indices per row, then compute x positions centered.
-    for (final entry in rowNodes.entries) {
-      final nodes = entry.value;
-      for (int i = 0; i < nodes.length; i++) {
-        colAssign[nodes[i]] = i;
-      }
-    }
-
-    // Move nodes in place.
-    for (final nodeId in diagram.nodes.keys) {
-      final node = diagram.nodes[nodeId]!;
-      final row = rowAssign[nodeId] ?? 0;
-      final col = colAssign[nodeId] ?? 0;
-      final nodesInRow = rowNodes[row]?.length ?? 1;
-      final rowWidth = (nodesInRow - 1) * colSpacing;
-      final x = centerX - rowWidth / 2 + col * colSpacing;
-      final y = startY + row * rowSpacing;
-      node.rect = NodeModel.defaultRect(node.type, Offset(x, y));
+    // Clear all waypoints so they get freshly routed.
+    for (final edge in diagram.edges.values) {
+      edge.waypoints = [];
     }
 
     _assignPortsAndRoute();
