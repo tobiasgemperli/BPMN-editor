@@ -815,46 +815,76 @@ class EditorController extends ChangeNotifier {
       return layers;
     }
 
+    // Identify merge nodes (2+ forward parents) — these need centering.
+    final mergeNodes = <String>{};
+    for (final id in diagram.nodes.keys) {
+      final parents = (parentMap[id] ?? [])
+          .where((p) => layer.containsKey(p) && layer[p]! < layer[id]!)
+          .toList();
+      if (parents.length >= 2) mergeNodes.add(id);
+    }
+
+    // Shift a node and all its unique descendants by delta.
+    void shiftSubtree(String id, double delta, Set<String> visited) {
+      for (final kid in fwdKids(id)) {
+        if (visited.contains(kid)) continue;
+        visited.add(kid);
+        xSlot[kid] = (xSlot[kid] ?? 0) + delta;
+        shiftSubtree(kid, delta, visited);
+      }
+    }
+
     for (var pass = 0; pass < 6; pass++) {
       final layers = buildLayers();
       final sortedKeys = layers.keys.toList()..sort();
 
-      // Top-down: align nodes under their parents.
-      for (final li in sortedKeys) {
-        for (final id in layers[li]!) {
-          final parents = (parentMap[id] ?? [])
-              .where((p) => xSlot.containsKey(p))
-              .toList();
-          if (parents.isEmpty) continue;
-          final avgParentX =
-              parents.map((p) => xSlot[p]!).reduce((a, b) => a + b) /
-                  parents.length;
-          // Single child of single parent: snap directly under parent.
-          if (parents.length == 1) {
-            final siblingCount = fwdKids(parents.first).length;
-            if (siblingCount == 1) {
-              xSlot[id] = xSlot[parents.first]!;
-              continue;
-            }
-          }
-          // Merge node (multiple parents): center between them.
-          if (parents.length >= 2) {
-            xSlot[id] = avgParentX;
-          }
-        }
-      }
-
-      // Bottom-up: center parents over their children.
+      // Bottom-up first: center branch points (2+ children) over children.
+      // This establishes good positions for branch nodes.
       for (final li in sortedKeys.reversed) {
         for (final id in layers[li]!) {
           final kids = fwdKids(id)
               .where((k) => xSlot.containsKey(k))
               .toList();
-          if (kids.isEmpty) continue;
+          if (kids.length < 2) continue;
           final avgChildX =
               kids.map((k) => xSlot[k]!).reduce((a, b) => a + b) /
                   kids.length;
           xSlot[id] = avgChildX;
+        }
+      }
+
+      // Top-down: align single-child chains and center merge nodes.
+      // When a merge node moves, shift its entire subtree.
+      for (final li in sortedKeys) {
+        for (final id in layers[li]!) {
+          final parents = (parentMap[id] ?? [])
+              .where((p) => xSlot.containsKey(p) &&
+                  layer.containsKey(p) && layer[p]! < layer[id]!)
+              .toList();
+          if (parents.isEmpty) continue;
+
+          if (mergeNodes.contains(id)) {
+            // Merge node: center between all parents.
+            final avgX =
+                parents.map((p) => xSlot[p]!).reduce((a, b) => a + b) /
+                    parents.length;
+            final oldX = xSlot[id]!;
+            xSlot[id] = avgX;
+            // Shift descendants so they move with the merge node.
+            if ((avgX - oldX).abs() > 0.01) {
+              shiftSubtree(id, avgX - oldX, {id});
+            }
+          } else if (parents.length == 1) {
+            // Single parent → single child: align directly under parent.
+            final pid = parents.first;
+            if (fwdKids(pid).length == 1) {
+              final oldX = xSlot[id]!;
+              xSlot[id] = xSlot[pid]!;
+              if ((xSlot[pid]! - oldX).abs() > 0.01) {
+                shiftSubtree(id, xSlot[pid]! - oldX, {id});
+              }
+            }
+          }
         }
       }
 
