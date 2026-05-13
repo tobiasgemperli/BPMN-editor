@@ -131,7 +131,32 @@ class _EditorScreenState extends State<EditorScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Chat button above toolbar.
+                    // Cleanup button — auto-layout + reroute.
+                    GestureDetector(
+                      onTap: () {
+                        _controller.autoLayout();
+                        _centerDiagram();
+                      },
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.cleaning_services, size: 22,
+                            color: Color(0xFF007AFF)),
+                      ),
+                    ),
+                    // Chat button — AI diagram builder.
                     GestureDetector(
                       onTap: () => showChatSheet(context, _controller),
                       child: Container(

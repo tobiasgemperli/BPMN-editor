@@ -275,6 +275,7 @@ class _ChatSheetState extends State<_ChatSheet> {
                 Expanded(
                   child: TextField(
                     controller: _textController,
+                    style: const TextStyle(color: Color(0xFF1C1C1E)),
                     decoration: InputDecoration(
                       hintText: 'Describe your process...',
                       hintStyle: TextStyle(color: Colors.grey[600]),

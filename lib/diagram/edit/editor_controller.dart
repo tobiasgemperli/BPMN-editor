@@ -683,6 +683,90 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Auto-layout all nodes in a clean top-down tree and reroute edges.
+  void autoLayout() {
+    if (diagram.nodes.isEmpty) return;
+
+    const colSpacing = 170.0;
+    const rowSpacing = 130.0;
+    const startY = 80.0;
+    const centerX = 400.0;
+
+    // Build adjacency: source → [target ids] in edge order.
+    final children = <String, List<String>>{};
+    final hasParent = <String>{};
+    for (final edge in diagram.edges.values) {
+      children.putIfAbsent(edge.sourceId, () => []).add(edge.targetId);
+      hasParent.add(edge.targetId);
+    }
+
+    // Find roots (nodes with no incoming edges).
+    var roots = diagram.nodes.keys
+        .where((id) => !hasParent.contains(id))
+        .toList();
+    if (roots.isEmpty) roots = [diagram.nodes.keys.first];
+
+    // BFS to assign rows and columns.
+    final visited = <String>{};
+    final rowAssign = <String, int>{};
+    final colAssign = <String, int>{};
+    // Track how many nodes are on each row for centering.
+    final rowNodes = <int, List<String>>{};
+
+    final queue = <(String, int)>[];
+    for (final root in roots) {
+      queue.add((root, 0));
+    }
+
+    while (queue.isNotEmpty) {
+      final (nodeId, row) = queue.removeAt(0);
+      if (visited.contains(nodeId)) continue;
+      visited.add(nodeId);
+      rowAssign[nodeId] = row;
+      rowNodes.putIfAbsent(row, () => []).add(nodeId);
+
+      final kids = children[nodeId] ?? [];
+      for (final kid in kids) {
+        if (!visited.contains(kid)) {
+          queue.add((kid, row + 1));
+        }
+      }
+    }
+
+    // Place orphan nodes (not reached by BFS).
+    var orphanRow = (rowNodes.keys.fold(0, (a, b) => a > b ? a : b)) + 1;
+    for (final nodeId in diagram.nodes.keys) {
+      if (!visited.contains(nodeId)) {
+        rowAssign[nodeId] = orphanRow;
+        rowNodes.putIfAbsent(orphanRow, () => []).add(nodeId);
+        orphanRow++;
+      }
+    }
+
+    // Assign column indices per row, then compute x positions centered.
+    for (final entry in rowNodes.entries) {
+      final nodes = entry.value;
+      for (int i = 0; i < nodes.length; i++) {
+        colAssign[nodes[i]] = i;
+      }
+    }
+
+    // Move nodes in place.
+    for (final nodeId in diagram.nodes.keys) {
+      final node = diagram.nodes[nodeId]!;
+      final row = rowAssign[nodeId] ?? 0;
+      final col = colAssign[nodeId] ?? 0;
+      final nodesInRow = rowNodes[row]?.length ?? 1;
+      final rowWidth = (nodesInRow - 1) * colSpacing;
+      final x = centerX - rowWidth / 2 + col * colSpacing;
+      final y = startY + row * rowSpacing;
+      node.rect = NodeModel.defaultRect(node.type, Offset(x, y));
+    }
+
+    _assignPortsAndRoute();
+    notifyListeners();
+  }
+
   /// Assign ports to all edges, distributing outputs from the same node
   /// across different sides, then route each edge.
   void _assignPortsAndRoute() {
