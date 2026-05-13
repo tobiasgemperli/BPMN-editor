@@ -60,13 +60,25 @@ class _ChatSheet extends StatefulWidget {
 
 class _ChatSheetState extends State<_ChatSheet> {
   final _textController = TextEditingController();
+  final _focusNode = FocusNode();
   final _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [];
   bool _loading = false;
+  bool _showHint = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-focus the text field after the sheet animates in.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _textController.dispose();
+    _focusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -79,6 +91,7 @@ class _ChatSheetState extends State<_ChatSheet> {
     setState(() {
       _messages.add(_ChatMessage(role: 'user', text: text));
       _loading = true;
+      _showHint = false;
     });
     _scrollToBottom();
 
@@ -113,7 +126,6 @@ class _ChatSheetState extends State<_ChatSheet> {
   Future<String> _callMistral(String userMessage) async {
     final apiMessages = [
       {'role': 'system', 'content': _systemPrompt},
-      // Include conversation history for context.
       for (final m in _messages)
         {'role': m.role, 'content': m.text},
     ];
@@ -142,7 +154,6 @@ class _ChatSheetState extends State<_ChatSheet> {
 
   DiagramModel? _parseDiagram(String response) {
     try {
-      // Extract JSON from response (handle markdown code blocks).
       var jsonStr = response;
       final codeBlock = RegExp(r'```(?:json)?\s*([\s\S]*?)```');
       final match = codeBlock.firstMatch(jsonStr);
@@ -208,12 +219,12 @@ class _ChatSheetState extends State<_ChatSheet> {
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.55,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Handle bar.
           Padding(
@@ -227,36 +238,22 @@ class _ChatSheetState extends State<_ChatSheet> {
               ),
             ),
           ),
-          // Title.
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text(
-              'AI Diagram Builder',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+          // Messages (only shown after first send).
+          if (_messages.isNotEmpty) ...[
+            const Divider(height: 1),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.3,
+              ),
+              child: ListView.builder(
+                controller: _scrollController,
+                shrinkWrap: true,
+                padding: const EdgeInsets.all(16),
+                itemCount: _messages.length,
+                itemBuilder: (_, i) => _MessageBubble(message: _messages[i]),
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          // Messages.
-          Expanded(
-            child: _messages.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Text(
-                        'Describe a process and I\'ll create a BPMN diagram for you.\n\n'
-                        'Example: "Customer order flow with payment check and shipping"',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 15, height: 1.5),
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) => _MessageBubble(message: _messages[i]),
-                  ),
-          ),
+          ],
           // Loading indicator.
           if (_loading)
             const Padding(
@@ -267,55 +264,114 @@ class _ChatSheetState extends State<_ChatSheet> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-          const Divider(height: 1),
           // Input field.
           Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 8, bottomPad > 0 ? bottomPad : 8),
-            child: Row(
+            padding: EdgeInsets.fromLTRB(
+                12, 8, 8, bottomPad > 0 ? bottomPad : 8),
+            child: Stack(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    style: const TextStyle(color: Color(0xFF1C1C1E)),
-                    decoration: InputDecoration(
-                      hintText: 'Describe your process...',
-                      hintStyle: TextStyle(color: Colors.grey[600]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        focusNode: _focusNode,
+                        style:
+                            const TextStyle(color: Color(0xFF1C1C1E)),
+                        decoration: InputDecoration(
+                          hintText: 'Describe your process...',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide:
+                                BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide:
+                                BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF007AFF)),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _send(),
+                        minLines: 1,
+                        maxLines: 4,
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(color: Color(0xFF007AFF)),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      filled: true,
-                      fillColor: Colors.grey[50],
                     ),
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _send(),
-                    minLines: 1,
-                    maxLines: 4,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _send,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF007AFF),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _send,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF007AFF),
+                        ),
+                        child: const Icon(Icons.arrow_upward,
+                            color: Colors.white, size: 20),
+                      ),
                     ),
-                    child: const Icon(Icons.arrow_upward, color: Colors.white, size: 20),
-                  ),
+                  ],
                 ),
+                // First-time info overlay — appears above the input.
+                if (_showHint && _messages.isEmpty)
+                  Positioned(
+                    bottom: 52,
+                    left: 0,
+                    right: 48,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _showHint = false),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.auto_awesome,
+                                    size: 16,
+                                    color: Color(0xFF007AFF)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'AI Diagram Builder',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1C1C1E),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Describe a process and I\'ll create a BPMN diagram.\n'
+                              'e.g. "Customer order flow with payment check"',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
