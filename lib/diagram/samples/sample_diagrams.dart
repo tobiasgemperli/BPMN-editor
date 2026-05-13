@@ -2442,19 +2442,19 @@ class SampleDiagrams {
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
     SampleDiagramEntry(name: 'Content Showcase', builder: contentShowcase,
-        creator: _creators['jordan']!),
+        creator: _creators['jordan']!, isFavorite: true),
     SampleDiagramEntry(name: 'IKEA KALLAX Assembly', builder: ikeaAssembly,
-        creator: _creators['maria']!),
+        creator: _creators['maria']!, isFavorite: true, isPaid: true),
     SampleDiagramEntry(name: 'IKEA KOMPLEMENT Manual', builder: ikeaKomplement,
-        creator: _creators['maria']!),
+        creator: _creators['maria']!, isPaid: true),
     SampleDiagramEntry(name: 'Electric Step Troubleshooting', builder: kwikeeStepTroubleshooting,
         creator: _creators['alex']!),
     SampleDiagramEntry(name: 'Emergency: Fire Evacuation', builder: emergencyProcedure,
-        creator: _creators['maria']!),
+        creator: _creators['maria']!, isFavorite: true),
     SampleDiagramEntry(name: 'Debug: API 500 Errors', builder: technicalDebugging,
         creator: _creators['alex']!),
     SampleDiagramEntry(name: 'Sprint Cycle', builder: sprintCycle,
-        creator: _creators['sam']!),
+        creator: _creators['sam']!, isPaid: true),
     SampleDiagramEntry(name: 'Linear Flow', builder: linear,
         creator: _creators['jordan']!),
     SampleDiagramEntry(name: 'Diamond (2 merge)', builder: diamond,
@@ -2501,6 +2501,7 @@ class SampleDiagrams {
     colorValue: 0xFF42A5F5,
     bio: '',
     followers: 0,
+    avatarUrl: 'https://i.pravatar.cc/150?u=me',
   );
 
   /// Diagrams owned by the current user.
@@ -2540,10 +2541,14 @@ class SampleDiagramEntry {
   final String name;
   final DiagramModel Function() builder;
   final SampleCreator creator;
+  final bool isFavorite;
+  final bool isPaid;
 
   const SampleDiagramEntry({
     required this.name,
     required this.builder,
     required this.creator,
+    this.isFavorite = false,
+    this.isPaid = false,
   });
 }

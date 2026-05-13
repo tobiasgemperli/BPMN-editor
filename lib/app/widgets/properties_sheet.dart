@@ -2,96 +2,122 @@ import 'package:flutter/material.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
 
-/// Shows a bottom sheet to edit node properties (name + content for tasks).
+/// The display type determines how a task card renders in presentation mode.
+enum DisplayType { text, image, document, video }
+
+/// Opens the node editor for the currently selected node.
 void showPropertiesSheet(BuildContext context, EditorController controller) {
   final nodeId = controller.selectedNodeId;
   if (nodeId == null) return;
-
   final node = controller.diagram.nodes[nodeId];
   if (node == null) return;
+  _openNodeEditor(context, node, controller);
+}
 
+/// Opens the node editor for a specific node (used by long-press).
+void showNodeEditor(
+    BuildContext context, NodeModel node, EditorController controller) {
+  controller.selectedNodeId = node.id;
+  _openNodeEditor(context, node, controller);
+}
+
+void _openNodeEditor(
+    BuildContext context, NodeModel node, EditorController controller) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (context) {
-      return _PropertiesSheetContent(
-        node: node,
-        controller: controller,
-      );
-    },
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => _NodeEditorSheet(node: node, controller: controller),
   );
 }
 
-class _PropertiesSheetContent extends StatefulWidget {
+class _NodeEditorSheet extends StatefulWidget {
   final NodeModel node;
   final EditorController controller;
 
-  const _PropertiesSheetContent({
-    required this.node,
-    required this.controller,
-  });
+  const _NodeEditorSheet({required this.node, required this.controller});
 
   @override
-  State<_PropertiesSheetContent> createState() =>
-      _PropertiesSheetContentState();
+  State<_NodeEditorSheet> createState() => _NodeEditorSheetState();
 }
 
-class _PropertiesSheetContentState extends State<_PropertiesSheetContent> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _titleController;
-  late final TextEditingController _textController;
-  late final TextEditingController _imageController;
-  late final TextEditingController _videoController;
-  late final TextEditingController _urlController;
-  late final TextEditingController _urlLabelController;
+class _NodeEditorSheetState extends State<_NodeEditorSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _textCtrl;
+  late final TextEditingController _imageCtrl;
+  late final TextEditingController _videoCtrl;
+  late final TextEditingController _urlCtrl;
+  late final TextEditingController _urlLabelCtrl;
+
+  late DisplayType _displayType;
 
   bool get _isTask => widget.node.type == NodeType.task;
 
   @override
   void initState() {
     super.initState();
-    final content = widget.node.content;
-    _nameController = TextEditingController(text: widget.node.name);
-    _titleController = TextEditingController(text: content?.title ?? '');
-    _textController = TextEditingController(text: content?.text ?? '');
-    _imageController = TextEditingController(text: content?.imagePath ?? '');
-    _videoController = TextEditingController(text: content?.videoPath ?? '');
-    _urlController = TextEditingController(text: content?.linkUrl ?? '');
-    _urlLabelController =
-        TextEditingController(text: content?.linkLabel ?? '');
+    final c = widget.node.content;
+    _nameCtrl = TextEditingController(text: widget.node.name);
+    _titleCtrl = TextEditingController(text: c?.title ?? '');
+    _textCtrl = TextEditingController(text: c?.text ?? '');
+    _imageCtrl = TextEditingController(text: c?.imagePath ?? '');
+    _videoCtrl = TextEditingController(text: c?.videoPath ?? '');
+    _urlCtrl = TextEditingController(text: c?.linkUrl ?? '');
+    _urlLabelCtrl = TextEditingController(text: c?.linkLabel ?? '');
+    _displayType = _inferDisplayType(c);
+  }
+
+  DisplayType _inferDisplayType(TaskContent? c) {
+    if (c == null) return DisplayType.text;
+    if (c.videoPath != null) return DisplayType.video;
+    if (c.imagePath != null && (c.text != null || c.linkUrl != null)) {
+      return DisplayType.document;
+    }
+    if (c.imagePath != null) return DisplayType.image;
+    if (c.linkUrl != null || c.links.isNotEmpty) return DisplayType.document;
+    return DisplayType.text;
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _titleController.dispose();
-    _textController.dispose();
-    _imageController.dispose();
-    _videoController.dispose();
-    _urlController.dispose();
-    _urlLabelController.dispose();
+    _nameCtrl.dispose();
+    _titleCtrl.dispose();
+    _textCtrl.dispose();
+    _imageCtrl.dispose();
+    _videoCtrl.dispose();
+    _urlCtrl.dispose();
+    _urlLabelCtrl.dispose();
     super.dispose();
   }
 
   void _save() {
-    widget.controller.renameNode(widget.node.id, _nameController.text);
+    widget.controller.renameNode(widget.node.id, _nameCtrl.text);
 
     if (_isTask) {
-      final title =
-          _titleController.text.isNotEmpty ? _titleController.text : null;
-      final text =
-          _textController.text.isNotEmpty ? _textController.text : null;
-      final image =
-          _imageController.text.isNotEmpty ? _imageController.text : null;
-      final video =
-          _videoController.text.isNotEmpty ? _videoController.text : null;
-      final url =
-          _urlController.text.isNotEmpty ? _urlController.text : null;
-      final urlLabel =
-          _urlLabelController.text.isNotEmpty ? _urlLabelController.text : null;
+      final title = _titleCtrl.text.isNotEmpty ? _titleCtrl.text : null;
+      final text = _textCtrl.text.isNotEmpty ? _textCtrl.text : null;
+
+      String? image;
+      String? video;
+      String? url;
+      String? urlLabel;
+
+      switch (_displayType) {
+        case DisplayType.image:
+          image = _imageCtrl.text.isNotEmpty ? _imageCtrl.text : null;
+          break;
+        case DisplayType.document:
+          image = _imageCtrl.text.isNotEmpty ? _imageCtrl.text : null;
+          url = _urlCtrl.text.isNotEmpty ? _urlCtrl.text : null;
+          urlLabel = _urlLabelCtrl.text.isNotEmpty ? _urlLabelCtrl.text : null;
+          break;
+        case DisplayType.video:
+          video = _videoCtrl.text.isNotEmpty ? _videoCtrl.text : null;
+          break;
+        case DisplayType.text:
+          break;
+      }
 
       final content = TaskContent(
         title: title,
@@ -113,137 +139,358 @@ class _PropertiesSheetContentState extends State<_PropertiesSheetContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _typeLabel(widget.node.type),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1C1C1E),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar.
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 6),
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Header with type badge and save.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 12, 0),
+            child: Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _nodeTypeColor(widget.node.type).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'ID: ${widget.node.id}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
+                  child: Text(
+                    _nodeTypeLabel(widget.node.type),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _nodeTypeColor(widget.node.type),
+                    ),
                   ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: _save,
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF007AFF),
+                    foregroundColor: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: const Text('Save',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _nameController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+          ),
+          const SizedBox(height: 8),
+          // Scrollable content.
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                  20, 0, 20, (bottomInset > 0 ? bottomInset : bottomPad) + 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Node name ──
+                  _SectionLabel(label: 'Name'),
+                  const SizedBox(height: 6),
+                  _StyledField(
+                    controller: _nameCtrl,
+                    placeholder: widget.node.type == NodeType.exclusiveGateway
+                        ? 'Question...'
+                        : 'Step name...',
+                    autofocus: true,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1C1C1E),
+                    ),
+                  ),
+
+                  // ── Display type picker (task only) ──
+                  if (_isTask) ...[
+                    const SizedBox(height: 20),
+                    _SectionLabel(label: 'Display'),
+                    const SizedBox(height: 8),
+                    _DisplayTypePicker(
+                      selected: _displayType,
+                      onChanged: (t) => setState(() => _displayType = t),
+                    ),
+
+                    // ── Content fields ──
+                    const SizedBox(height: 20),
+                    _SectionLabel(label: 'Content'),
+                    const SizedBox(height: 8),
+
+                    // Title — all types.
+                    _StyledField(
+                      controller: _titleCtrl,
+                      placeholder: 'Title (optional)',
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Body text — text, document, video.
+                    if (_displayType != DisplayType.image) ...[
+                      _StyledField(
+                        controller: _textCtrl,
+                        placeholder: 'Body text...',
+                        maxLines: 6,
+                        minLines: 3,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    // Image — image, document.
+                    if (_displayType == DisplayType.image ||
+                        _displayType == DisplayType.document) ...[
+                      _StyledField(
+                        controller: _imageCtrl,
+                        placeholder: 'Image path or URL',
+                        prefixIcon: Icons.image_outlined,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    // Video — video.
+                    if (_displayType == DisplayType.video) ...[
+                      _StyledField(
+                        controller: _videoCtrl,
+                        placeholder: 'Video path',
+                        prefixIcon: Icons.videocam_outlined,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    // Link — document.
+                    if (_displayType == DisplayType.document) ...[
+                      _StyledField(
+                        controller: _urlCtrl,
+                        placeholder: 'Link URL',
+                        prefixIcon: Icons.link,
+                      ),
+                      const SizedBox(height: 10),
+                      _StyledField(
+                        controller: _urlLabelCtrl,
+                        placeholder: 'Link label',
+                      ),
+                    ],
+                  ],
+                ],
               ),
-              onSubmitted: (_) => _save(),
             ),
-            if (_isTask) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _textController,
-                decoration: const InputDecoration(
-                  labelText: 'Text',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 4,
-                minLines: 2,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _imageController,
-                decoration: InputDecoration(
-                  labelText: 'Image path',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: _imageController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() => _imageController.clear());
-                          },
-                        )
-                      : null,
-                ),
-                onChanged: (val) {
-                  if (val.isNotEmpty) {
-                    setState(() => _videoController.clear());
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _videoController,
-                decoration: InputDecoration(
-                  labelText: 'Video path',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: _videoController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() => _videoController.clear());
-                          },
-                        )
-                      : null,
-                ),
-                onChanged: (val) {
-                  if (val.isNotEmpty) {
-                    setState(() => _imageController.clear());
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _urlController,
-                decoration: const InputDecoration(
-                  labelText: 'URL',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _urlLabelController,
-                decoration: const InputDecoration(
-                  labelText: 'URL label',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _save,
-                child: const Text('Save'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-String _typeLabel(NodeType type) {
+// ── Section label ────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label.toUpperCase(),
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey[500],
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+}
+
+// ── Styled text field ────────────────────────────────────────
+
+class _StyledField extends StatelessWidget {
+  final TextEditingController controller;
+  final String placeholder;
+  final int maxLines;
+  final int minLines;
+  final bool autofocus;
+  final TextStyle? style;
+  final IconData? prefixIcon;
+
+  const _StyledField({
+    required this.controller,
+    required this.placeholder,
+    this.maxLines = 1,
+    this.minLines = 1,
+    this.autofocus = false,
+    this.style,
+    this.prefixIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      autofocus: autofocus,
+      maxLines: maxLines,
+      minLines: minLines,
+      style: style ??
+          const TextStyle(fontSize: 15, color: Color(0xFF1C1C1E)),
+      decoration: InputDecoration(
+        hintText: placeholder,
+        hintStyle: TextStyle(color: Colors.grey[400]),
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, size: 20, color: Colors.grey[500])
+            : null,
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[200]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF007AFF)),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
+}
+
+// ── Display type picker ──────────────────────────────────────
+
+class _DisplayTypePicker extends StatelessWidget {
+  final DisplayType selected;
+  final ValueChanged<DisplayType> onChanged;
+
+  const _DisplayTypePicker({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: DisplayType.values.map((type) {
+        final isSelected = type == selected;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(type),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: EdgeInsets.only(
+                  right: type != DisplayType.video ? 8 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF007AFF).withValues(alpha: 0.1)
+                    : Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected
+                      ? const Color(0xFF007AFF)
+                      : Colors.grey[200]!,
+                  width: isSelected ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    _iconFor(type),
+                    size: 22,
+                    color: isSelected
+                        ? const Color(0xFF007AFF)
+                        : Colors.grey[500],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _labelFor(type),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected
+                          ? const Color(0xFF007AFF)
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  IconData _iconFor(DisplayType type) {
+    switch (type) {
+      case DisplayType.text:
+        return Icons.text_fields;
+      case DisplayType.image:
+        return Icons.image_outlined;
+      case DisplayType.document:
+        return Icons.article_outlined;
+      case DisplayType.video:
+        return Icons.videocam_outlined;
+    }
+  }
+
+  String _labelFor(DisplayType type) {
+    switch (type) {
+      case DisplayType.text:
+        return 'Text';
+      case DisplayType.image:
+        return 'Image';
+      case DisplayType.document:
+        return 'Document';
+      case DisplayType.video:
+        return 'Video';
+    }
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+Color _nodeTypeColor(NodeType type) {
+  switch (type) {
+    case NodeType.startEvent:
+      return const Color(0xFF34C759);
+    case NodeType.endEvent:
+      return const Color(0xFFFF3B30);
+    case NodeType.task:
+      return const Color(0xFF007AFF);
+    case NodeType.exclusiveGateway:
+      return const Color(0xFFFF9500);
+  }
+}
+
+String _nodeTypeLabel(NodeType type) {
   switch (type) {
     case NodeType.startEvent:
       return 'Start Event';
@@ -252,6 +499,6 @@ String _typeLabel(NodeType type) {
     case NodeType.task:
       return 'Task';
     case NodeType.exclusiveGateway:
-      return 'Exclusive Gateway';
+      return 'Gateway';
   }
 }

@@ -64,66 +64,66 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: Colors.grey[50],
-        body: CustomScrollView(
-          slivers: [
-            // ── Top bar ─────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(
-                    top: topPad + 16, left: 20, right: 20, bottom: 8),
-                child: Row(
-                  children: [
-                    Text(
-                      'Processes',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1C1C1E),
-                          ),
-                    ),
-                    const Spacer(),
-                    _Pressable(
-                      onTap: () => Navigator.push(
-                        context,
-                        _bottomToTopRoute(
-                            const EditorScreen(showCloseButton: true)),
-                      ),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFF007AFF),
+        body: Column(
+          children: [
+            // ── Fixed header ──────────────────────────────────
+            Padding(
+              padding: EdgeInsets.only(
+                  top: topPad + 16, left: 20, right: 20, bottom: 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Processes',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1C1C1E),
                         ),
-                        child: const Icon(Icons.add, size: 22, color: Colors.white),
-                      ),
+                  ),
+                  const Spacer(),
+                  _Pressable(
+                    onTap: () => Navigator.push(
+                      context,
+                      _bottomToTopRoute(
+                          const EditorScreen(showCloseButton: true)),
                     ),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF007AFF),
+                      ),
+                      child: const Icon(Icons.add, size: 22, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Fixed category chips ──────────────────────────
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: SizedBox(
+                height: 36,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    for (final cat in _categories)
+                      _CategoryChip(
+                        label: cat,
+                        selected: _selected == cat,
+                        onTap: () => setState(() => _selected = cat),
+                      ),
                   ],
                 ),
               ),
             ),
 
-            // ── Category chips ──────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 8),
-                child: SizedBox(
-                  height: 36,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      for (final cat in _categories)
-                        _CategoryChip(
-                          label: cat,
-                          selected: _selected == cat,
-                          onTap: () => setState(() => _selected = cat),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
+            // ── Scrollable content ────────────────────────────
+            Expanded(
+              child: CustomScrollView(
+                slivers: [
             // ── Featured card ───────────────────────────────────
             if (showFeatured && featured != null)
               SliverToBoxAdapter(
@@ -225,6 +225,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
 
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -874,6 +877,63 @@ class _FeaturedCard extends StatelessWidget {
   }
 }
 
+// ── Badge icons (favorite / paid) ─────────────────────────────────
+
+class _BadgeIcons extends StatelessWidget {
+  final bool isFavorite;
+  final bool isPaid;
+
+  const _BadgeIcons({this.isFavorite = false, this.isPaid = false});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isFavorite && !isPaid) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isFavorite)
+          _BadgeCircle(
+            icon: Icons.favorite,
+            color: const Color(0xFFFF2D55),
+            bgColor: const Color(0xFFFF2D55).withValues(alpha: 0.12),
+          ),
+        if (isFavorite && isPaid) const SizedBox(width: 4),
+        if (isPaid)
+          _BadgeCircle(
+            icon: Icons.attach_money,
+            color: const Color(0xFF34C759),
+            bgColor: const Color(0xFF34C759).withValues(alpha: 0.12),
+          ),
+      ],
+    );
+  }
+}
+
+class _BadgeCircle extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+
+  const _BadgeCircle({
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: bgColor,
+      ),
+      child: Icon(icon, size: 14, color: color),
+    );
+  }
+}
+
 // ── Small card (horizontal scroll) ───────────────────────────────
 
 class _SmallCard extends StatelessWidget {
@@ -907,40 +967,51 @@ class _SmallCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            _TeaserPreview(
-              diagram: diagram,
-              width: 160,
-              height: 100,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TeaserPreview(
+                  diagram: diagram,
+                  width: 160,
+                  height: 100,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+                  child: Text(
+                    entry.name,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    _subtitle(entry.name),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF636366)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                  child: _CreatorRow(creator: entry.creator, avatarSize: 24, fontSize: 11),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-              child: Text(
-                entry.name,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            if (entry.isFavorite || entry.isPaid)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: _BadgeIcons(
+                    isFavorite: entry.isFavorite, isPaid: entry.isPaid),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                _subtitle(entry.name),
-                style: const TextStyle(fontSize: 11, color: Color(0xFF636366)),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              child: _CreatorRow(creator: entry.creator, avatarSize: 24, fontSize: 11),
-            ),
           ],
         ),
       ),
@@ -974,47 +1045,58 @@ class _ListCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
+        child: Stack(
           children: [
-            _TeaserPreview(
-              diagram: diagram,
-              width: 90,
-              height: 96,
-              borderRadius:
-                  const BorderRadius.horizontal(left: Radius.circular(12)),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      entry.name,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _subtitle(entry.name),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF636366)),
-                    ),
-                    const SizedBox(height: 6),
-                    _CreatorRow(
-                        creator: entry.creator,
-                        avatarSize: 24,
-                        fontSize: 11),
-                  ],
+            Row(
+              children: [
+                _TeaserPreview(
+                  diagram: diagram,
+                  width: 90,
+                  height: 96,
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(12)),
                 ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          entry.name,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _subtitle(entry.name),
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF636366)),
+                        ),
+                        const SizedBox(height: 6),
+                        _CreatorRow(
+                            creator: entry.creator,
+                            avatarSize: 24,
+                            fontSize: 11),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(Icons.chevron_right, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            if (entry.isFavorite || entry.isPaid)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: _BadgeIcons(
+                    isFavorite: entry.isFavorite, isPaid: entry.isPaid),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Icon(Icons.chevron_right, color: Colors.grey[600]),
-            ),
           ],
         ),
       ),

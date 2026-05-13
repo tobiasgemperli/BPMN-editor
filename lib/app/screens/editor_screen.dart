@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../diagram/edit/editor_controller.dart';
+import '../../diagram/io/bpmn_serializer.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -216,14 +218,16 @@ class _EditorScreenState extends State<EditorScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.undo, size: 22),
+                            icon: Icon(Icons.undo, size: 22,
+                                color: _controller.canUndo ? const Color(0xFF1C1C1E) : Colors.grey[400]),
                             onPressed: _controller.canUndo
                                 ? _controller.undo
                                 : null,
                             tooltip: 'Undo',
                           ),
                           IconButton(
-                            icon: const Icon(Icons.redo, size: 22),
+                            icon: Icon(Icons.redo, size: 22,
+                                color: _controller.canRedo ? const Color(0xFF1C1C1E) : Colors.grey[400]),
                             onPressed: _controller.canRedo
                                 ? _controller.redo
                                 : null,
@@ -232,19 +236,32 @@ class _EditorScreenState extends State<EditorScreen> {
                           if (_controller.selectedNodeId != null ||
                               _controller.selectedEdgeId != null)
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 22),
+                              icon: const Icon(Icons.delete_outline, size: 22, color: Color(0xFF1C1C1E)),
                               onPressed: _controller.deleteSelected,
                               tooltip: 'Delete',
                             ),
                           if (_controller.selectedNodeId != null)
                             IconButton(
-                              icon: const Icon(Icons.edit, size: 22),
+                              icon: const Icon(Icons.edit, size: 22, color: Color(0xFF1C1C1E)),
                               onPressed: () =>
                                   showPropertiesSheet(context, _controller),
                               tooltip: 'Properties',
                             ),
                           IconButton(
-                            icon: const Icon(Icons.play_arrow, size: 22),
+                            icon: const Icon(Icons.cleaning_services, size: 22, color: Color(0xFF1C1C1E)),
+                            onPressed: () {
+                              _controller.autoLayout();
+                              _centerDiagram();
+                            },
+                            tooltip: 'Clean up',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.auto_awesome, size: 22, color: Color(0xFF1C1C1E)),
+                            onPressed: () => showChatSheet(context, _controller),
+                            tooltip: 'AI Builder',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.play_arrow, size: 22, color: Color(0xFF1C1C1E)),
                             onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -253,6 +270,17 @@ class _EditorScreenState extends State<EditorScreen> {
                               ),
                             ),
                             tooltip: 'Presentation Mode',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy, size: 22, color: Color(0xFF1C1C1E)),
+                            onPressed: () {
+                              final xml = BpmnSerializer().serialize(_controller.diagram);
+                              Clipboard.setData(ClipboardData(text: xml));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('BPMN XML copied to clipboard')),
+                              );
+                            },
+                            tooltip: 'Copy BPMN',
                           ),
                         ],
                       ),

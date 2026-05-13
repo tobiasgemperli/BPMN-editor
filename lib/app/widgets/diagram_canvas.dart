@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/edit/hit_test.dart';
 import '../../diagram/render/diagram_painter.dart';
+import 'properties_sheet.dart';
 
 /// The interactive diagram canvas with pan/zoom support.
 class DiagramCanvas extends StatefulWidget {
@@ -24,6 +26,13 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     with TickerProviderStateMixin {
   bool _isDiagramDrag = false;
   int? _activePointer;
+
+  // Long-press detection.
+  Timer? _longPressTimer;
+  Offset? _longPressStart;
+  String? _longPressNodeId;
+  static const _longPressDuration = Duration(milliseconds: 500);
+  static const _longPressMoveThreshold = 10.0;
 
   // Bounce animation (add / select / drop).
   late final AnimationController _blobAnimController;
@@ -80,6 +89,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
 
   @override
   void dispose() {
+    _cancelLongPress();
     widget.controller.removeListener(_checkNewNode);
     _blobAnimController.removeListener(_onBlobTick);
     _blobAnimController.dispose();
@@ -131,6 +141,32 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     }
   }
 
+  void _cancelLongPress() {
+    _longPressTimer?.cancel();
+    _longPressTimer = null;
+    _longPressNodeId = null;
+    _longPressStart = null;
+  }
+
+  void _onLongPress() {
+    final nodeId = _longPressNodeId;
+    _cancelLongPress();
+    if (nodeId == null) return;
+
+    final node = widget.controller.diagram.nodes[nodeId];
+    if (node == null) return;
+
+    // Cancel any drag in progress.
+    widget.controller.cancelPendingDrag();
+    if (widget.controller.liftNodeId != null) {
+      _endLift();
+    }
+    _isDiagramDrag = false;
+
+    // Open the node editor.
+    showNodeEditor(context, node, widget.controller);
+  }
+
   Widget _buildCanvas() {
     const canvasSize = Size(4000, 4000);
     return Listener(
@@ -139,6 +175,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
         if (widget.readOnly) return;
         final canvasPoint = event.localPosition;
         _activePointer = event.pointer;
+        _cancelLongPress();
 
         final ctrl = widget.controller;
         ctrl.updateDebugClosest(canvasPoint);
@@ -152,8 +189,11 @@ class _DiagramCanvasState extends State<DiagramCanvas>
           ctrl.startConnectionFromHandle(hit.connectorSide!);
         } else if (hit.hitNode) {
           _isDiagramDrag = true;
-          // Grow the touched node.
+          // Start long-press timer for node editing.
           if (hit.nodeId != null) {
+            _longPressNodeId = hit.nodeId;
+            _longPressStart = canvasPoint;
+            _longPressTimer = Timer(_longPressDuration, _onLongPress);
             _startLift(hit.nodeId!);
           }
           ctrl.onDragStart(canvasPoint);
@@ -164,10 +204,18 @@ class _DiagramCanvasState extends State<DiagramCanvas>
       },
       onPointerMove: (event) {
         if (_isDiagramDrag && event.pointer == _activePointer) {
+          // Cancel long-press if finger moved too far.
+          if (_longPressStart != null) {
+            final d = (event.localPosition - _longPressStart!).distance;
+            if (d > _longPressMoveThreshold) {
+              _cancelLongPress();
+            }
+          }
           widget.controller.onDragUpdate(event.localPosition);
         }
       },
       onPointerUp: (event) {
+        _cancelLongPress();
         if (_isDiagramDrag && event.pointer == _activePointer) {
           final ctrl = widget.controller;
           // End lift animation (shrink back).
@@ -193,6 +241,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
         _activePointer = null;
       },
       onPointerCancel: (event) {
+        _cancelLongPress();
         if (_isDiagramDrag && event.pointer == _activePointer) {
           if (widget.controller.liftNodeId != null) {
             _endLift();
