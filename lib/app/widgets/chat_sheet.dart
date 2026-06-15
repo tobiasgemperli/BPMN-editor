@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
 
-const _mistralApiKey = 'YlJe3gf4rtnSuhKvA8gzIBfpr8Uoomvo';
+const _mistralApiKey = String.fromEnvironment('MISTRAL_API_KEY');
 const _mistralModel = 'mistral-small-latest';
 
 const _systemPrompt = '''
