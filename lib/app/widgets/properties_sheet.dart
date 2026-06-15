@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
 
@@ -23,25 +25,24 @@ void showNodeEditor(
 
 void _openNodeEditor(
     BuildContext context, NodeModel node, EditorController controller) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (ctx) => _NodeEditorSheet(node: node, controller: controller),
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => _NodeEditorScreen(node: node, controller: controller),
+    ),
   );
 }
 
-class _NodeEditorSheet extends StatefulWidget {
+class _NodeEditorScreen extends StatefulWidget {
   final NodeModel node;
   final EditorController controller;
 
-  const _NodeEditorSheet({required this.node, required this.controller});
+  const _NodeEditorScreen({required this.node, required this.controller});
 
   @override
-  State<_NodeEditorSheet> createState() => _NodeEditorSheetState();
+  State<_NodeEditorScreen> createState() => _NodeEditorScreenState();
 }
 
-class _NodeEditorSheetState extends State<_NodeEditorSheet> {
+class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _titleCtrl;
   late final TextEditingController _textCtrl;
@@ -51,8 +52,14 @@ class _NodeEditorSheetState extends State<_NodeEditorSheet> {
   late final TextEditingController _urlLabelCtrl;
 
   late DisplayType _displayType;
+  final _picker = ImagePicker();
+
+  // Gateway outgoing edge label controllers.
+  final Map<String, TextEditingController> _edgeLabelCtrls = {};
+  late final List<EdgeModel> _outgoingEdges;
 
   bool get _isTask => widget.node.type == NodeType.task;
+  bool get _isGateway => widget.node.type == NodeType.exclusiveGateway;
 
   @override
   void initState() {
@@ -66,6 +73,12 @@ class _NodeEditorSheetState extends State<_NodeEditorSheet> {
     _urlCtrl = TextEditingController(text: c?.linkUrl ?? '');
     _urlLabelCtrl = TextEditingController(text: c?.linkLabel ?? '');
     _displayType = _inferDisplayType(c);
+
+    // Build edge label controllers for gateway nodes.
+    _outgoingEdges = widget.controller.diagram.outgoingEdges(widget.node.id);
+    for (final edge in _outgoingEdges) {
+      _edgeLabelCtrls[edge.id] = TextEditingController(text: edge.name);
+    }
   }
 
   DisplayType _inferDisplayType(TaskContent? c) {
@@ -88,11 +101,50 @@ class _NodeEditorSheetState extends State<_NodeEditorSheet> {
     _videoCtrl.dispose();
     _urlCtrl.dispose();
     _urlLabelCtrl.dispose();
+    for (final ctrl in _edgeLabelCtrls.values) {
+      ctrl.dispose();
+    }
     super.dispose();
+  }
+
+  Widget _buildEdgeLabelField(EdgeModel edge, int index) {
+    final targetNode = widget.controller.diagram.nodes[edge.targetId];
+    final targetName = targetNode?.name ?? edge.targetId;
+    return _StyledField(
+      controller: _edgeLabelCtrls[edge.id]!,
+      placeholder: 'Option ${index + 1}',
+      prefixIcon: Icons.arrow_forward,
+      suffix: Text(
+        '→ $targetName',
+        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+      ),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final file = await _picker.pickImage(source: ImageSource.gallery);
+    if (file != null) {
+      setState(() => _imageCtrl.text = file.path);
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    final file = await _picker.pickVideo(source: ImageSource.gallery);
+    if (file != null) {
+      setState(() => _videoCtrl.text = file.path);
+    }
   }
 
   void _save() {
     widget.controller.renameNode(widget.node.id, _nameCtrl.text);
+
+    // Save gateway edge labels.
+    for (final edge in _outgoingEdges) {
+      final ctrl = _edgeLabelCtrls[edge.id];
+      if (ctrl != null) {
+        widget.controller.renameEdge(edge.id, ctrl.text);
+      }
+    }
 
     if (_isTask) {
       final title = _titleCtrl.text.isNotEmpty ? _titleCtrl.text : null;
@@ -139,37 +191,21 @@ class _NodeEditorSheetState extends State<_NodeEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final topPad = MediaQuery.of(context).padding.top;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Column(
         children: [
-          // Handle bar.
+          // Header with back, type badge, and save.
           Padding(
-            padding: const EdgeInsets.only(top: 10, bottom: 6),
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          // Header with type badge and save.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 12, 0),
+            padding: EdgeInsets.fromLTRB(8, topPad + 8, 12, 0),
             child: Row(
               children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -207,10 +243,10 @@ class _NodeEditorSheetState extends State<_NodeEditorSheet> {
           ),
           const SizedBox(height: 8),
           // Scrollable content.
-          Flexible(
+          Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
-                  20, 0, 20, (bottomInset > 0 ? bottomInset : bottomPad) + 16),
+                  20, 0, 20, MediaQuery.of(context).padding.bottom + 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -229,6 +265,18 @@ class _NodeEditorSheetState extends State<_NodeEditorSheet> {
                       color: Color(0xFF1C1C1E),
                     ),
                   ),
+
+                  // ── Gateway branch labels ──
+                  if (_isGateway && _outgoingEdges.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _SectionLabel(label: 'Options'),
+                    const SizedBox(height: 8),
+                    for (int i = 0; i < _outgoingEdges.length; i++) ...[
+                      _buildEdgeLabelField(_outgoingEdges[i], i),
+                      if (i < _outgoingEdges.length - 1)
+                        const SizedBox(height: 10),
+                    ],
+                  ],
 
                   // ── Display type picker (task only) ──
                   if (_isTask) ...[
@@ -266,20 +314,24 @@ class _NodeEditorSheetState extends State<_NodeEditorSheet> {
                     // Image — image, document.
                     if (_displayType == DisplayType.image ||
                         _displayType == DisplayType.document) ...[
-                      _StyledField(
-                        controller: _imageCtrl,
-                        placeholder: 'Image path or URL',
-                        prefixIcon: Icons.image_outlined,
+                      _MediaPickerField(
+                        path: _imageCtrl.text.isEmpty ? null : _imageCtrl.text,
+                        label: 'Photo',
+                        icon: Icons.image_outlined,
+                        onPick: () => _pickImage(),
+                        onClear: () => setState(() => _imageCtrl.text = ''),
                       ),
                       const SizedBox(height: 10),
                     ],
 
                     // Video — video.
                     if (_displayType == DisplayType.video) ...[
-                      _StyledField(
-                        controller: _videoCtrl,
-                        placeholder: 'Video path',
-                        prefixIcon: Icons.videocam_outlined,
+                      _MediaPickerField(
+                        path: _videoCtrl.text.isEmpty ? null : _videoCtrl.text,
+                        label: 'Video',
+                        icon: Icons.videocam_outlined,
+                        onPick: () => _pickVideo(),
+                        onClear: () => setState(() => _videoCtrl.text = ''),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -338,6 +390,7 @@ class _StyledField extends StatelessWidget {
   final bool autofocus;
   final TextStyle? style;
   final IconData? prefixIcon;
+  final Widget? suffix;
 
   const _StyledField({
     required this.controller,
@@ -347,6 +400,7 @@ class _StyledField extends StatelessWidget {
     this.autofocus = false,
     this.style,
     this.prefixIcon,
+    this.suffix,
   });
 
   @override
@@ -364,6 +418,14 @@ class _StyledField extends StatelessWidget {
         prefixIcon: prefixIcon != null
             ? Icon(prefixIcon, size: 20, color: Colors.grey[500])
             : null,
+        suffixIcon: suffix != null
+            ? Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: suffix,
+              )
+            : null,
+        suffixIconConstraints:
+            const BoxConstraints(minHeight: 0, minWidth: 0),
         filled: true,
         fillColor: Colors.grey[50],
         border: OutlineInputBorder(
@@ -380,6 +442,103 @@ class _StyledField extends StatelessWidget {
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
+}
+
+// ── Media picker field ───────────────────────────────────────
+
+class _MediaPickerField extends StatelessWidget {
+  final String? path;
+  final String label;
+  final IconData icon;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  const _MediaPickerField({
+    required this.path,
+    required this.label,
+    required this.icon,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasFile = path != null && path!.isNotEmpty;
+    return GestureDetector(
+      onTap: onPick,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: hasFile
+            ? Row(
+                children: [
+                  // Show thumbnail for images.
+                  if (path!.startsWith('/'))
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(path!),
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 48,
+                          height: 48,
+                          color: Colors.grey[200],
+                          child: Icon(icon, size: 22, color: Colors.grey[500]),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, size: 22, color: Colors.grey[500]),
+                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      path!.split('/').last,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: onClear,
+                    child: Icon(Icons.close, size: 18, color: Colors.grey[500]),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 22, color: const Color(0xFF007AFF)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Choose $label',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF007AFF),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

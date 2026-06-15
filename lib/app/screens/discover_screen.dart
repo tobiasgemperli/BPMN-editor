@@ -29,6 +29,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final tutorials = rest.where((s) =>
         s.name.contains('IKEA') ||
         s.name.contains('Content') ||
+        s.name.contains('Employee') ||
         s.name.contains('Emergency') ||
         s.name.contains('Coffee') ||
         s.name.contains('Flat Tire') ||
@@ -253,6 +254,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 // ── Helpers ──────────────────────────────────────────────────────
 
 String _subtitle(String name) {
+  if (name.contains('Employee Onboarding')) return '14 steps · HR & Compliance';
   if (name.contains('IKEA')) return '9 steps · Assembly guide';
   if (name.contains('Emergency')) return '11 steps · Safety procedure';
   if (name.contains('Debug')) return '12 steps · Technical';
@@ -300,7 +302,7 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
 }
 
 void _openPresentation(BuildContext context, DiagramModel diagram,
-    {String? title, SampleCreator? creator}) {
+    {String? title, SampleCreator? creator, SampleDiagramEntry? entry}) {
   Navigator.push(
     context,
     _bottomToTopRoute(_ModalNavigatorShell(
@@ -308,6 +310,7 @@ void _openPresentation(BuildContext context, DiagramModel diagram,
       title: title,
       role: DiagramRole.viewer,
       creator: creator,
+      entry: entry,
     )),
   );
 }
@@ -320,12 +323,14 @@ class _ModalNavigatorShell extends StatelessWidget {
   final String? title;
   final DiagramRole role;
   final SampleCreator? creator;
+  final SampleDiagramEntry? entry;
 
   const _ModalNavigatorShell({
     required this.diagram,
     this.title,
     this.role = DiagramRole.owner,
     this.creator,
+    this.entry,
   });
 
   @override
@@ -337,6 +342,7 @@ class _ModalNavigatorShell extends StatelessWidget {
           title: title,
           role: role,
           creator: creator,
+          entry: entry,
         ),
       ),
     );
@@ -794,7 +800,7 @@ class _FeaturedCard extends StatelessWidget {
     final diagram = entry.builder();
     return _Pressable(
       onTap: () => _openPresentation(context, diagram,
-                              title: entry.name, creator: entry.creator),
+                              title: entry.name, creator: entry.creator, entry: entry),
       child: Container(
         height: 220,
         decoration: BoxDecoration(
@@ -860,7 +866,7 @@ class _FeaturedCard extends StatelessWidget {
                         const Spacer(),
                         _Pressable(
                           onTap: () => _openPresentation(context, diagram,
-                              title: entry.name, creator: entry.creator),
+                              title: entry.name, creator: entry.creator, entry: entry),
                           child: Icon(Icons.play_circle_filled,
                               size: 32, color: Colors.grey[800]),
                         ),
@@ -951,7 +957,7 @@ class _SmallCard extends StatelessWidget {
           _openOwnedEditor(context, diagram, title: entry.name);
         } else {
           _openPresentation(context, diagram,
-              title: entry.name, creator: entry.creator);
+              title: entry.name, creator: entry.creator, entry: entry);
         }
       },
       child: Container(
@@ -1031,7 +1037,7 @@ class _ListCard extends StatelessWidget {
     final diagram = entry.builder();
     return _Pressable(
       onTap: () => _openPresentation(context, diagram,
-                              title: entry.name, creator: entry.creator),
+                              title: entry.name, creator: entry.creator, entry: entry),
       child: Container(
         height: 96,
         decoration: BoxDecoration(

@@ -751,7 +751,8 @@ class ProcessCard extends StatelessWidget {
   }
 }
 
-/// Plays a bundled asset video in a loop, filling its parent.
+/// Plays a video in a loop, filling its parent.
+/// Supports both bundled assets and local file paths.
 class _AssetVideoPlayer extends StatefulWidget {
   final String videoPath;
   final Widget child;
@@ -769,7 +770,10 @@ class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    _vController = VideoPlayerController.asset(widget.videoPath)
+    _vController = widget.videoPath.startsWith('/')
+        ? VideoPlayerController.file(File(widget.videoPath))
+        : VideoPlayerController.asset(widget.videoPath);
+    _vController
       ..setLooping(true)
       ..setVolume(0)
       ..initialize().then((_) {

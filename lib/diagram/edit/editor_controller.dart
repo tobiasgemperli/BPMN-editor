@@ -524,18 +524,37 @@ class EditorController extends ChangeNotifier {
     if (targetType == NodeType.startEvent) return false;
     final outgoing = diagram.outgoingEdges(source.id);
     if (source.type == NodeType.startEvent && outgoing.isNotEmpty) return false;
-    if (source.type == NodeType.task && outgoing.isNotEmpty) return false;
-    // Gateways can have multiple outgoing.
+    // Tasks and gateways can always add more outgoing (branching).
     return true;
   }
 
   /// Add a new node below [source], connect them, and select the new node.
+  /// If [source] already has children below, place the new node beside them.
   void _addConnectedNode(NodeType type, NodeModel source) {
     const spacing = 130.0;
     const lateralOffset = 170.0;
 
-    final belowCenter = Offset(source.center.dx, source.center.dy + spacing);
-    final position = _findFreePosition(type, belowCenter, lateralOffset, source.id);
+    final outgoing = diagram.outgoingEdges(source.id);
+    Offset position;
+
+    if (outgoing.isNotEmpty) {
+      // Find existing children positions to place new node beside them.
+      final childXs = <double>[];
+      for (final edge in outgoing) {
+        final child = diagram.nodes[edge.targetId];
+        if (child != null) childXs.add(child.center.dx);
+      }
+      childXs.sort();
+
+      // Place to the right of the rightmost child.
+      final rightX = childXs.last + lateralOffset;
+      final belowY = source.center.dy + spacing;
+      position = _findFreePosition(
+          type, Offset(rightX, belowY), lateralOffset, source.id);
+    } else {
+      final belowCenter = Offset(source.center.dx, source.center.dy + spacing);
+      position = _findFreePosition(type, belowCenter, lateralOffset, source.id);
+    }
 
     final prefix = switch (type) {
       NodeType.startEvent => 'start',
@@ -615,6 +634,10 @@ class EditorController extends ChangeNotifier {
 
   void renameNode(String nodeId, String newName) {
     _exec(RenameNodeCommand(nodeId, newName));
+  }
+
+  void renameEdge(String edgeId, String newName) {
+    _exec(RenameEdgeCommand(edgeId, newName));
   }
 
   void updateTaskContent(String nodeId, TaskContent? content) {

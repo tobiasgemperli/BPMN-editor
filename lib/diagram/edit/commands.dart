@@ -214,3 +214,31 @@ class RenameNodeCommand extends Command {
   @override
   String get description => 'Rename node';
 }
+
+class RenameEdgeCommand extends Command {
+  final String edgeId;
+  final String newName;
+  String _oldName = '';
+
+  RenameEdgeCommand(this.edgeId, this.newName);
+
+  @override
+  void execute(DiagramModel model) {
+    final edge = model.edges[edgeId];
+    if (edge != null) {
+      _oldName = edge.name;
+      edge.name = newName;
+    }
+  }
+
+  @override
+  void undo(DiagramModel model) {
+    final edge = model.edges[edgeId];
+    if (edge != null) {
+      edge.name = _oldName;
+    }
+  }
+
+  @override
+  String get description => 'Rename edge';
+}

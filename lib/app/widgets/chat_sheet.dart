@@ -8,7 +8,7 @@ const _mistralApiKey = 'YlJe3gf4rtnSuhKvA8gzIBfpr8Uoomvo';
 const _mistralModel = 'mistral-small-latest';
 
 const _systemPrompt = '''
-You are a BPMN diagram assistant. The user describes a process and you generate a JSON diagram.
+You are a BPMN diagram assistant. The user describes a process and you generate or edit a JSON diagram.
 
 Respond ONLY with a JSON object, no markdown, no explanation. The JSON schema:
 
@@ -33,7 +33,33 @@ Layout rules:
 - For branches from gateways, offset x by ±170.
 - Every diagram must have exactly 1 startEvent and at least 1 endEvent.
 - Edge "name" is optional, use it for gateway branch labels (e.g. "Yes", "No").
+
+When the user provides an existing diagram, modify it according to their instructions. Keep existing node IDs where possible. Always return the complete diagram JSON.
 ''';
+
+String _diagramToJson(DiagramModel diagram) {
+  final nodes = diagram.nodes.values.map((n) => {
+    'id': n.id,
+    'type': switch (n.type) {
+      NodeType.startEvent => 'startEvent',
+      NodeType.endEvent => 'endEvent',
+      NodeType.exclusiveGateway => 'exclusiveGateway',
+      NodeType.task => 'task',
+    },
+    'name': n.name,
+    'x': n.rect.center.dx.round(),
+    'y': n.rect.center.dy.round(),
+  }).toList();
+
+  final edges = diagram.edges.values.map((e) => {
+    'id': e.id,
+    'source': e.sourceId,
+    'target': e.targetId,
+    if (e.name.isNotEmpty) 'name': e.name,
+  }).toList();
+
+  return jsonEncode({'nodes': nodes, 'edges': edges});
+}
 
 /// Shows the AI chat sheet for generating diagrams.
 void showChatSheet(BuildContext context, EditorController controller) {
@@ -124,8 +150,13 @@ class _ChatSheetState extends State<_ChatSheet> {
   }
 
   Future<String> _callMistral(String userMessage) async {
+    final diagram = widget.controller.diagram;
+    final diagramContext = diagram.nodes.isNotEmpty
+        ? '\n\nCurrent diagram:\n${_diagramToJson(diagram)}'
+        : '';
+
     final apiMessages = [
-      {'role': 'system', 'content': _systemPrompt},
+      {'role': 'system', 'content': '$_systemPrompt$diagramContext'},
       for (final m in _messages)
         {'role': m.role, 'content': m.text},
     ];

@@ -1,4 +1,4 @@
-package com.bpmneditor.bpmn_editor
+package ch.milkinteractive.stepchat
 
 import io.flutter.embedding.android.FlutterActivity
 

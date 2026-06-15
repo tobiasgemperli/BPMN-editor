@@ -7,7 +7,7 @@ import 'app/screens/messages_screen.dart';
 import 'app/screens/account_screen.dart';
 
 void main() {
-  runApp(const BpmnEditorApp());
+  runApp(const StepChatApp());
 }
 
 ThemeData _buildLightTheme() {
@@ -28,13 +28,13 @@ ThemeData _buildLightTheme() {
   );
 }
 
-class BpmnEditorApp extends StatelessWidget {
-  const BpmnEditorApp({super.key});
+class StepChatApp extends StatelessWidget {
+  const StepChatApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BPMN Editor',
+      title: 'StepChat',
       debugShowCheckedModeBanner: false,
       theme: _buildLightTheme(),
       darkTheme: ThemeData(
@@ -75,31 +75,37 @@ class _MainTabShellState extends State<_MainTabShell> {
         index: _currentIndex,
         children: _tabs,
       ),
-      bottomNavigationBar: NavigationBar(
-        height: 56,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined, size: 22),
-            selectedIcon: Icon(Icons.home, size: 22),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search, size: 22),
-            selectedIcon: Icon(Icons.search, size: 22),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline, size: 22),
-            selectedIcon: Icon(Icons.chat_bubble, size: 22),
-            label: 'Messages',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline, size: 22),
-            selectedIcon: Icon(Icons.person, size: 22),
-            label: 'Account',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          NavigationBar(
+            height: 56,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (i) => setState(() => _currentIndex = i),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined, size: 22),
+                selectedIcon: Icon(Icons.home, size: 22),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.search, size: 22),
+                selectedIcon: Icon(Icons.search, size: 22),
+                label: 'Search',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.chat_bubble_outline, size: 22),
+                selectedIcon: Icon(Icons.chat_bubble, size: 22),
+                label: 'Messages',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline, size: 22),
+                selectedIcon: Icon(Icons.person, size: 22),
+                label: 'Account',
+              ),
+            ],
           ),
         ],
       ),

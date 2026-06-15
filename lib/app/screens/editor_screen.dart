@@ -115,6 +115,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           DiagramCanvas(
@@ -123,7 +124,7 @@ class _EditorScreenState extends State<EditorScreen> {
             transformationController: _transformController,
             readOnly: !_isOwner,
           ),
-          // ── Right-side shape palette + chat button (owner only) ──
+          // ── Right-side shape palette (owner only) ──
           if (_isOwner)
             Positioned(
               right: 12,
@@ -133,53 +134,6 @@ class _EditorScreenState extends State<EditorScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Cleanup button — auto-layout + reroute.
-                    GestureDetector(
-                      onTap: () {
-                        _controller.autoLayout();
-                        _centerDiagram();
-                      },
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.cleaning_services, size: 22,
-                            color: Color(0xFF007AFF)),
-                      ),
-                    ),
-                    // Chat button — AI diagram builder.
-                    GestureDetector(
-                      onTap: () => showChatSheet(context, _controller),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.auto_awesome, size: 22,
-                            color: Color(0xFF007AFF)),
-                      ),
-                    ),
                     EditorToolbar(
                       controller: _controller,
                       transformationController: _transformController,

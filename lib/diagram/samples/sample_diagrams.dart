@@ -2439,8 +2439,87 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// Employee Onboarding — detailed sample with full metadata.
+  static DiagramModel employeeOnboarding() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'New Hire Starts', rect: _event(_cx, _row(0))),
+      'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Send Welcome Pack', rect: _task(_cx, _row(1)),
+          content: TaskContent(title: 'Welcome Package', text: 'Send offer letter, benefits guide, company handbook, and IT equipment request form. Include login credentials for all required systems.')),
+      'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'IT Setup', rect: _task(_cx, _row(2)),
+          content: TaskContent(title: 'Workstation & Access', text: 'Provision laptop, monitors, and peripherals. Create accounts for email, Slack, Jira, GitHub, and VPN. Set up 2FA and security training enrollment.')),
+      'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Remote or On-site?', rect: _gw(_cx, _row(3))),
+      'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Ship Equipment', rect: _task(_cx - _branchX, _row(4)),
+          content: TaskContent(title: 'Remote Setup', text: 'Ship laptop and peripherals via express courier. Schedule a virtual office tour and remote IT support session. Provide home office stipend info.')),
+      'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Office Tour', rect: _task(_cx + _branchX, _row(4)),
+          content: TaskContent(title: 'In-Person Welcome', text: 'Guided tour of the office including emergency exits, kitchen, meeting rooms, and quiet zones. Issue badge and parking pass.')),
+      'n7': NodeModel(id: 'n7', type: NodeType.exclusiveGateway, name: 'Merge', rect: _gw(_cx, _row(5))),
+      'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Team Introduction', rect: _task(_cx, _row(6)),
+          content: TaskContent(title: 'Meet the Team', text: 'Schedule 1:1 meetings with direct manager, team lead, and key stakeholders. Add to team channels and recurring meetings. Assign an onboarding buddy.')),
+      'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Compliance Training', rect: _task(_cx, _row(7)),
+          content: TaskContent(title: 'Required Training', text: 'Complete mandatory modules: data privacy (GDPR/CCPA), workplace safety, anti-harassment, code of conduct, and information security. All must be completed within first 5 business days.')),
+      'n10': NodeModel(id: 'n10', type: NodeType.exclusiveGateway, name: 'Training Complete?', rect: _gw(_cx, _row(8))),
+      'n11': NodeModel(id: 'n11', type: NodeType.task, name: 'Follow Up', rect: _task(_cx - _branchX, _row(9)),
+          content: TaskContent(title: 'Training Reminder', text: 'Send reminder email with links to incomplete modules. Escalate to manager if not completed by day 7. Offer additional support if needed.')),
+      'n12': NodeModel(id: 'n12', type: NodeType.task, name: 'First Sprint', rect: _task(_cx, _row(10)),
+          content: TaskContent(title: 'First Assignment', text: 'Assign a starter ticket (well-scoped, low-risk). Pair with buddy for first PR. Schedule end-of-week check-in with manager to discuss experience and blockers.')),
+      'n13': NodeModel(id: 'n13', type: NodeType.task, name: '30-Day Review', rect: _task(_cx, _row(11)),
+          content: TaskContent(title: 'One-Month Check-In', text: 'Manager conducts 30-day review covering role clarity, team integration, tooling comfort, and initial performance. Collect feedback on onboarding experience. Adjust goals for next 60 days.')),
+      'n14': NodeModel(id: 'n14', type: NodeType.endEvent, name: 'Onboarded', rect: _event(_cx, _row(12))),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5', name: 'Remote',
+          waypoints: _hv(_cx, _row(3), _cx - _branchX, _row(4))),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n4', targetId: 'n6', name: 'On-site',
+          waypoints: _hv(_cx, _row(3), _cx + _branchX, _row(4))),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n5', targetId: 'n7',
+          waypoints: _hv(_cx - _branchX, _row(4), _cx, _row(5))),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n6', targetId: 'n7',
+          waypoints: _hv(_cx + _branchX, _row(4), _cx, _row(5))),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n7', targetId: 'n8'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n8', targetId: 'n9'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n9', targetId: 'n10'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n10', targetId: 'n11', name: 'No',
+          waypoints: _hv(_cx, _row(8), _cx - _branchX, _row(9))),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n10', targetId: 'n12', name: 'Yes'),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n11', targetId: 'n9',
+          waypoints: _vh(_cx - _branchX, _row(9), _cx, _row(7))),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n12', targetId: 'n13'),
+      'e15': EdgeModel(id: 'e15', sourceId: 'n13', targetId: 'n14'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
+    SampleDiagramEntry(
+      name: 'Employee Onboarding Guide',
+      builder: employeeOnboarding,
+      creator: _creators['maria']!,
+      isFavorite: true,
+      isPaid: false,
+      entryId: 'PROC-2024-0042',
+      sources: 'HR Operations Manual v3.2, ISO 30405:2016',
+      stepsCount: 14,
+      createdDate: '2024-11-15',
+      version: '2.1.0',
+      references: [
+        'SHRM Onboarding Toolkit',
+        'ISO 30405:2016 — Human Resource Management',
+        'Company Policy Handbook §4.2',
+        'GDPR Article 13 — Employee Data Processing',
+      ],
+      categories: ['HR', 'Onboarding', 'Compliance', 'Operations'],
+      isPublic: true,
+      languages: ['en', 'de', 'fr', 'es'],
+      userRating: 4.7,
+      maturityRating: 'General',
+      boardRating: 'Approved',
+    ),
     SampleDiagramEntry(name: 'Content Showcase', builder: contentShowcase,
         creator: _creators['jordan']!, isFavorite: true),
     SampleDiagramEntry(name: 'IKEA KALLAX Assembly', builder: ikeaAssembly,
@@ -2544,11 +2623,37 @@ class SampleDiagramEntry {
   final bool isFavorite;
   final bool isPaid;
 
+  // Extended metadata.
+  final String? entryId;
+  final String? sources;
+  final int? stepsCount;
+  final String? createdDate;
+  final String? version;
+  final List<String> references;
+  final List<String> categories;
+  final bool isPublic;
+  final List<String> languages;
+  final double? userRating;
+  final String? maturityRating;
+  final String? boardRating;
+
   const SampleDiagramEntry({
     required this.name,
     required this.builder,
     required this.creator,
     this.isFavorite = false,
     this.isPaid = false,
+    this.entryId,
+    this.sources,
+    this.stepsCount,
+    this.createdDate,
+    this.version,
+    this.references = const [],
+    this.categories = const [],
+    this.isPublic = true,
+    this.languages = const ['en'],
+    this.userRating,
+    this.maturityRating,
+    this.boardRating,
   });
 }

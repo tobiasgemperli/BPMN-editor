@@ -69,6 +69,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: TextField(
                   controller: _controller,
                   onChanged: (v) => setState(() => _query = v),
+                  style: const TextStyle(fontSize: 15, color: Color(0xFF1C1C1E)),
                   decoration: InputDecoration(
                     hintText: 'Search processes...',
                     hintStyle: TextStyle(color: Colors.grey[600], fontSize: 15),

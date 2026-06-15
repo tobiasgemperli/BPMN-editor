@@ -1,6 +1,6 @@
 {
-    "name": "bpmn_editor",
-    "short_name": "bpmn_editor",
+    "name": "StepChat",
+    "short_name": "StepChat",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

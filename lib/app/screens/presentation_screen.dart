@@ -13,6 +13,7 @@ class PresentationScreen extends StatefulWidget {
   final String? title;
   final DiagramRole role;
   final SampleCreator? creator;
+  final SampleDiagramEntry? entry;
 
   const PresentationScreen({
     super.key,
@@ -20,6 +21,7 @@ class PresentationScreen extends StatefulWidget {
     this.title,
     this.role = DiagramRole.owner,
     this.creator,
+    this.entry,
   });
 
   @override
@@ -247,8 +249,20 @@ class _PresentationScreenState extends State<PresentationScreen> {
             Positioned(
               top: topPad + 8,
               right: 16,
-              child: CloseCircleButton(
-                onPressed: () => _dismissModal(context),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.entry?.entryId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _InfoCircleButton(
+                        onPressed: () => _showEntryInfo(context, widget.entry!),
+                      ),
+                    ),
+                  CloseCircleButton(
+                    onPressed: () => _dismissModal(context),
+                  ),
+                ],
               ),
             ),
             // Mini process map bottom-right — tap to open full view.
@@ -438,6 +452,277 @@ class _ChooseOptionHintState extends State<_ChooseOptionHint>
           ),
         );
       },
+    );
+  }
+}
+
+// ── Info circle button ─────────────────────────────────────────
+
+class _InfoCircleButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _InfoCircleButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black.withValues(alpha: 0.5),
+        ),
+        child: const Icon(Icons.info_outline, size: 18, color: Colors.white),
+      ),
+    );
+  }
+}
+
+// ── Entry info sheet ───────────────────────────────────────────
+
+void _showEntryInfo(BuildContext context, SampleDiagramEntry entry) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _EntryInfoSheet(entry: entry),
+  );
+}
+
+class _EntryInfoSheet extends StatelessWidget {
+  final SampleDiagramEntry entry;
+
+  const _EntryInfoSheet({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar.
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 6),
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Title.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    entry.name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ),
+                if (entry.userRating != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star, size: 18, color: Color(0xFFFFCC00)),
+                      const SizedBox(width: 4),
+                      Text(
+                        entry.userRating!.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1C1C1E),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          // Scrollable metadata.
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, bottomPad + 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (entry.entryId != null)
+                    _MetaRow(label: 'ID', value: entry.entryId!),
+                  _MetaRow(label: 'Author', value: entry.creator.name),
+                  if (entry.sources != null)
+                    _MetaRow(label: 'Sources', value: entry.sources!),
+                  if (entry.stepsCount != null)
+                    _MetaRow(label: 'Steps', value: '${entry.stepsCount}'),
+                  if (entry.createdDate != null)
+                    _MetaRow(label: 'Created', value: entry.createdDate!),
+                  if (entry.version != null)
+                    _MetaRow(label: 'Version', value: entry.version!),
+                  _MetaRow(
+                    label: 'Visibility',
+                    value: entry.isPublic ? 'Public' : 'Private',
+                  ),
+                  _MetaRow(
+                    label: 'Access',
+                    value: entry.isPaid ? 'Paid' : 'Free',
+                  ),
+                  if (entry.maturityRating != null)
+                    _MetaRow(label: 'Maturity', value: entry.maturityRating!),
+                  if (entry.boardRating != null)
+                    _MetaRow(label: 'Board Rating', value: entry.boardRating!),
+                  if (entry.languages.isNotEmpty)
+                    _MetaRow(
+                      label: 'Languages',
+                      value: entry.languages.map((l) => l.toUpperCase()).join(', '),
+                    ),
+                  if (entry.categories.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _MetaSectionTitle(label: 'Categories'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: entry.categories
+                          .map((c) => _MetaChip(label: c))
+                          .toList(),
+                    ),
+                  ],
+                  if (entry.references.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _MetaSectionTitle(label: 'References'),
+                    const SizedBox(height: 8),
+                    ...entry.references.map((r) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Icon(Icons.circle,
+                                    size: 6, color: Colors.grey[400]),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  r,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF3A3A3C),
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MetaRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[500],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1C1C1E),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaSectionTitle extends StatelessWidget {
+  final String label;
+
+  const _MetaSectionTitle({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label.toUpperCase(),
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey[500],
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final String label;
+
+  const _MetaChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF007AFF),
+        ),
+      ),
     );
   }
 }
