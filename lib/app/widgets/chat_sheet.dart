@@ -4,8 +4,12 @@ import 'package:http/http.dart' as http;
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
 
-const _mistralApiKey = String.fromEnvironment('MISTRAL_API_KEY');
-const _mistralModel = 'mistral-small-latest';
+const _claudeApiKey = String.fromEnvironment('CLAUDE_API_KEY');
+const _claudeModel = 'claude-haiku-4-5-20251001';
+
+// Claude Haiku 4.5 pricing (per token).
+const _inputPricePerToken = 0.80 / 1000000; // $0.80 per 1M input tokens
+const _outputPricePerToken = 4.0 / 1000000; // $4 per 1M output tokens
 
 const _systemPrompt = '''
 You are a BPMN diagram assistant. The user describes a process and you generate or edit a JSON diagram.
@@ -122,8 +126,8 @@ class _ChatSheetState extends State<_ChatSheet> {
     _scrollToBottom();
 
     try {
-      final response = await _callMistral(text);
-      final diagram = _parseDiagram(response);
+      final result = await _callClaude(text);
+      final diagram = _parseDiagram(result.text);
       if (diagram != null) {
         widget.controller.loadDiagram(diagram);
         widget.controller.autoLayout();
@@ -133,11 +137,15 @@ class _ChatSheetState extends State<_ChatSheet> {
             text: 'Diagram created with ${diagram.nodes.length} nodes.',
           ));
         });
-        if (mounted) Navigator.pop(context);
+        if (mounted) {
+          _showCostToast(result.cost);
+          Navigator.pop(context);
+        }
       } else {
         setState(() {
-          _messages.add(_ChatMessage(role: 'assistant', text: response));
+          _messages.add(_ChatMessage(role: 'assistant', text: result.text));
         });
+        if (mounted) _showCostToast(result.cost);
       }
     } catch (e) {
       setState(() {
@@ -149,38 +157,58 @@ class _ChatSheetState extends State<_ChatSheet> {
     }
   }
 
-  Future<String> _callMistral(String userMessage) async {
+  void _showCostToast(double cost) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.showSnackBar(SnackBar(
+      content: Text('API cost: \$${cost.toStringAsFixed(4)}'),
+      duration: const Duration(seconds: 3),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  Future<({String text, double cost})> _callClaude(String userMessage) async {
     final diagram = widget.controller.diagram;
     final diagramContext = diagram.nodes.isNotEmpty
         ? '\n\nCurrent diagram:\n${_diagramToJson(diagram)}'
         : '';
 
     final apiMessages = [
-      {'role': 'system', 'content': '$_systemPrompt$diagramContext'},
       for (final m in _messages)
         {'role': m.role, 'content': m.text},
     ];
 
     final resp = await http.post(
-      Uri.parse('https://api.mistral.ai/v1/chat/completions'),
+      Uri.parse('https://api.anthropic.com/v1/messages'),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_mistralApiKey',
+        'x-api-key': _claudeApiKey,
+        'anthropic-version': '2023-06-01',
       },
       body: jsonEncode({
-        'model': _mistralModel,
+        'model': _claudeModel,
+        'max_tokens': 4096,
+        'system': '$_systemPrompt$diagramContext',
         'messages': apiMessages,
         'temperature': 0.3,
       }),
     );
 
     if (resp.statusCode != 200) {
-      throw Exception('Mistral API error ${resp.statusCode}: ${resp.body}');
+      throw Exception('Claude API error ${resp.statusCode}: ${resp.body}');
     }
 
     final json = jsonDecode(resp.body) as Map<String, dynamic>;
-    final choices = json['choices'] as List;
-    return (choices.first['message']['content'] as String).trim();
+    final content = json['content'] as List;
+    final text = (content.first['text'] as String).trim();
+
+    final usage = json['usage'] as Map<String, dynamic>;
+    final inputTokens = (usage['input_tokens'] as num).toInt();
+    final outputTokens = (usage['output_tokens'] as num).toInt();
+    final cost = inputTokens * _inputPricePerToken +
+        outputTokens * _outputPricePerToken;
+
+    return (text: text, cost: cost);
   }
 
   DiagramModel? _parseDiagram(String response) {

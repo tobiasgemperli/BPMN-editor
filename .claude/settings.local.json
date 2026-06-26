@@ -18,7 +18,31 @@
       "Bash(flutter run:*)",
       "Bash(cp:*)",
       "Bash(flutter pub:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(ls:*)",
+      "Bash(sips:*)",
+      "Bash(git stash:*)",
+      "Bash(flutter clean:*)",
+      "Read(//tmp/**)",
+      "Bash(mdls -name kMDItemNumberOfPages /tmp/pg_troubleshooting.pdf)",
+      "Bash(python3 -c \"import fitz; doc=fitz.open\\(''/tmp/pg_troubleshooting.pdf''\\); print\\(f''Pages: {len\\(doc\\)}''\\)\")",
+      "Bash(pdfinfo /tmp/pg_troubleshooting.pdf)",
+      "Bash(python3:*)",
+      "Bash(flutter:*)",
+      "Bash(rm:*)",
+      "Bash(nslookup:*)",
+      "Bash(git tag:*)",
+      "Read(//Users/tobiasgemperli/development/flutter/packages/flutter_tools/gradle/src/main/**)",
+      "Read(//Users/tobiasgemperli/development/flutter/packages/flutter_tools/gradle/**)",
+      "Bash(\"$HOME/Library/Android/sdk/tools/bin/sdkmanager\":*)",
+      "Bash(mkdir:*)",
+      "Bash(git diff:*)",
+      "Bash(echo:*)",
+      "Bash(zip:*)",
+      "Bash(unzip:*)",
+      "Bash(expect:*)",
+      "Bash(brew list:*)",
+      "Bash(/usr/bin/unzip:*)"
     ]
   }
 }

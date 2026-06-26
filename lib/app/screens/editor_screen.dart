@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/io/bpmn_serializer.dart';
+import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -23,6 +24,8 @@ class EditorScreen extends StatefulWidget {
   final SampleCreator? creator;
   final bool showCloseButton;
   final bool showBackButton;
+  final String? savedId;
+  final VoidCallback? onSaved;
 
   const EditorScreen({
     super.key,
@@ -32,6 +35,8 @@ class EditorScreen extends StatefulWidget {
     this.creator,
     this.showCloseButton = false,
     this.showBackButton = false,
+    this.savedId,
+    this.onSaved,
   });
 
   @override
@@ -43,12 +48,16 @@ class _EditorScreenState extends State<EditorScreen> {
   final TransformationController _transformController =
       TransformationController(Matrix4.diagonal3Values(0.55, 0.55, 1));
   final GlobalKey _canvasKey = GlobalKey();
+  String? _savedId;
+  late String _title;
 
   bool get _isOwner => widget.role == DiagramRole.owner;
 
   @override
   void initState() {
     super.initState();
+    _savedId = widget.savedId;
+    _title = widget.title ?? 'New Diagram';
     _controller = EditorController();
     if (widget.initialDiagram != null) {
       _controller.loadDiagram(widget.initialDiagram!);
@@ -57,6 +66,51 @@ class _EditorScreenState extends State<EditorScreen> {
         _centerDiagram();
       });
     }
+  }
+
+  Future<void> _saveDiagram() async {
+    final meta = await DiagramStorage.instance.save(
+      _controller.diagram,
+      title: _title,
+      id: _savedId,
+    );
+    _savedId = meta.id;
+    widget.onSaved?.call();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Diagram saved')),
+      );
+    }
+  }
+
+  void _editTitle() {
+    final textController = TextEditingController(text: _title);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Diagram'),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Diagram name'),
+          onSubmitted: (_) => Navigator.pop(context, textController.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, textController.text),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    ).then((value) {
+      if (value != null && value.trim().isNotEmpty) {
+        setState(() => _title = value.trim());
+      }
+    });
   }
 
   void _centerDiagram() {
@@ -274,18 +328,37 @@ class _EditorScreenState extends State<EditorScreen> {
                     Navigator.of(context, rootNavigator: true).pop(),
               ),
             ),
-          Positioned(
-            top: topPad + 12,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                widget.title ?? 'New Diagram',
-                style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+          if (_isOwner)
+            Positioned(
+              top: topPad + 12,
+              left: 60,
+              right: 60,
+              child: Center(
+                child: GestureDetector(
+                  onTap: _editTitle,
+                  child: Text(
+                    _title,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ),
-          ),
+          if (!_isOwner)
+            Positioned(
+              top: topPad + 12,
+              left: 60,
+              right: 60,
+              child: Center(
+                child: Text(
+                  _title,
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
           if (_isOwner)
             Positioned(
               top: topPad + 6,
@@ -294,11 +367,7 @@ class _EditorScreenState extends State<EditorScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Diagram saved')),
-                      );
-                    },
+                    onPressed: _saveDiagram,
                     style: TextButton.styleFrom(
                       backgroundColor: const Color(0xFF007AFF),
                       foregroundColor: Colors.white,

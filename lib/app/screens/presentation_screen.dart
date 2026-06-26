@@ -14,6 +14,8 @@ class PresentationScreen extends StatefulWidget {
   final DiagramRole role;
   final SampleCreator? creator;
   final SampleDiagramEntry? entry;
+  final String? savedId;
+  final VoidCallback? onSaved;
 
   const PresentationScreen({
     super.key,
@@ -22,6 +24,8 @@ class PresentationScreen extends StatefulWidget {
     this.role = DiagramRole.owner,
     this.creator,
     this.entry,
+    this.savedId,
+    this.onSaved,
   });
 
   @override
@@ -159,6 +163,8 @@ class _PresentationScreenState extends State<PresentationScreen> {
           role: widget.role,
           creator: widget.creator,
           showBackButton: true,
+          savedId: widget.savedId,
+          onSaved: widget.onSaved,
         ),
       ),
     );

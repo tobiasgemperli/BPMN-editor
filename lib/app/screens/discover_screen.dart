@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -17,6 +18,18 @@ class DiscoverScreen extends StatefulWidget {
 class _DiscoverScreenState extends State<DiscoverScreen> {
   static const _categories = ['All', 'Tutorials', 'Technical', 'Certification', 'Templates', 'Recent'];
   String _selected = 'All';
+  List<SavedDiagramMeta> _savedDiagrams = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    final saved = await DiagramStorage.instance.list();
+    if (mounted) setState(() => _savedDiagrams = saved);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +98,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     onTap: () => Navigator.push(
                       context,
                       _bottomToTopRoute(
-                          const EditorScreen(showCloseButton: true)),
+                          EditorScreen(showCloseButton: true, onSaved: _loadSaved)),
                     ),
                     child: Container(
                       width: 38,
@@ -135,7 +148,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               ),
 
             // ── My Flowcharts section ──────────────────────────
-            if (showMyFlowcharts && SampleDiagrams.myDiagrams.isNotEmpty) ...[
+            if (showMyFlowcharts && (_savedDiagrams.isNotEmpty || SampleDiagrams.myDiagrams.isNotEmpty)) ...[
               _sectionHeader(context, 'My Flowcharts'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -143,12 +156,20 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: SampleDiagrams.myDiagrams.length,
+                    itemCount: _savedDiagrams.length + SampleDiagrams.myDiagrams.length,
                     separatorBuilder: (_, _) => const SizedBox(width: 12),
-                    itemBuilder: (context, i) => _SmallCard(
-                      entry: SampleDiagrams.myDiagrams[i],
-                      isOwned: true,
-                    ),
+                    itemBuilder: (context, i) {
+                      if (i < _savedDiagrams.length) {
+                        return _SavedDiagramCard(
+                          meta: _savedDiagrams[i],
+                          onReturn: _loadSaved,
+                        );
+                      }
+                      return _SmallCard(
+                        entry: SampleDiagrams.myDiagrams[i - _savedDiagrams.length],
+                        isOwned: true,
+                      );
+                    },
                   ),
                 ),
               ),
@@ -290,13 +311,15 @@ String? _findTeaserImage(DiagramModel diagram) {
 }
 
 void _openOwnedEditor(BuildContext context, DiagramModel diagram,
-    {String? title}) {
+    {String? title, String? savedId, VoidCallback? onSaved}) {
   Navigator.push(
     context,
     _bottomToTopRoute(_ModalNavigatorShell(
       diagram: diagram,
       title: title,
       role: DiagramRole.owner,
+      savedId: savedId,
+      onSaved: onSaved,
     )),
   );
 }
@@ -324,6 +347,8 @@ class _ModalNavigatorShell extends StatelessWidget {
   final DiagramRole role;
   final SampleCreator? creator;
   final SampleDiagramEntry? entry;
+  final String? savedId;
+  final VoidCallback? onSaved;
 
   const _ModalNavigatorShell({
     required this.diagram,
@@ -331,6 +356,8 @@ class _ModalNavigatorShell extends StatelessWidget {
     this.role = DiagramRole.owner,
     this.creator,
     this.entry,
+    this.savedId,
+    this.onSaved,
   });
 
   @override
@@ -343,6 +370,8 @@ class _ModalNavigatorShell extends StatelessWidget {
           role: role,
           creator: creator,
           entry: entry,
+          savedId: savedId,
+          onSaved: onSaved,
         ),
       ),
     );
@@ -940,6 +969,112 @@ class _BadgeCircle extends StatelessWidget {
   }
 }
 
+// ── Saved diagram card (horizontal scroll) ──────────────────────
+
+class _SavedDiagramCard extends StatelessWidget {
+  final SavedDiagramMeta meta;
+  final VoidCallback onReturn;
+
+  const _SavedDiagramCard({required this.meta, required this.onReturn});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DiagramModel?>(
+      future: DiagramStorage.instance.load(meta.id),
+      builder: (context, snapshot) {
+        final diagram = snapshot.data;
+        return _Pressable(
+          onTap: () {
+            if (diagram != null) {
+              _openOwnedEditor(
+                context,
+                diagram,
+                title: meta.title,
+                savedId: meta.id,
+                onSaved: onReturn,
+              );
+            }
+          },
+          child: Container(
+            width: 160,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (diagram != null)
+                  _TeaserPreview(
+                    diagram: diagram,
+                    width: 160,
+                    height: 100,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(12)),
+                  )
+                else
+                  Container(
+                    width: 160,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(12)),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+                  child: Text(
+                    meta.title,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    _formatDate(meta.updatedAt),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.day}.${dt.month}.${dt.year}';
+  }
+}
+
 // ── Small card (horizontal scroll) ───────────────────────────────
 
 class _SmallCard extends StatelessWidget {
@@ -1189,6 +1324,7 @@ class _CreatorProfileScreen extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
+                      color: Color(0xFF1C1C1E),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1214,6 +1350,8 @@ class _CreatorProfileScreen extends StatelessWidget {
                         child: OutlinedButton(
                           onPressed: () {},
                           style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1C1C1E),
+                            side: const BorderSide(color: Color(0xFF1C1C1E)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -1236,6 +1374,8 @@ class _CreatorProfileScreen extends StatelessWidget {
                           icon: const Icon(Icons.chat_bubble_outline, size: 16),
                           label: const Text('Message'),
                           style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1C1C1E),
+                            side: const BorderSide(color: Color(0xFF1C1C1E)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
