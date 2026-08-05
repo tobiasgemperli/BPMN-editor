@@ -76,6 +76,12 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
   ApiClient._();
 
+  /// Constructor for testing with a custom HTTP client.
+  ApiClient.withClient(this._httpClient);
+
+  http.Client? _httpClient;
+  http.Client get _client => _httpClient ?? http.Client();
+
   final _parser = BpmnParser();
   final _serializer = BpmnSerializer();
 
@@ -87,7 +93,7 @@ class ApiClient {
 
   /// List models from the server.
   Future<List<ApiModelMeta>> listModels() async {
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$_baseUrl/browser/list'),
       headers: _headers,
       body: jsonEncode({}),
@@ -103,7 +109,7 @@ class ApiClient {
 
   /// Get a single model by ID, including its BpmnXml.
   Future<ApiModel> getModel(String id) async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$_baseUrl/browser/getmodel/$id'),
       headers: _headers,
     );
@@ -140,7 +146,7 @@ class ApiClient {
       if (sources.isNotEmpty) 'Sources': sources,
       if (categories.isNotEmpty) 'Categories': categories,
     };
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$_baseUrl/browser/savemodel'),
       headers: _jsonHeaders,
       body: jsonEncode(body),
@@ -164,7 +170,7 @@ class ApiClient {
     if (diagram != null) body['BpmnXml'] = _serializer.serialize(diagram);
     if (keywords != null) body['Keywords'] = keywords;
 
-    final response = await http.put(
+    final response = await _client.put(
       Uri.parse('$_baseUrl/browser/updatemodel/$id'),
       headers: _jsonHeaders,
       body: jsonEncode(body),
@@ -178,7 +184,7 @@ class ApiClient {
 
   /// Delete a model on the server.
   Future<void> deleteModel(String id) async {
-    final response = await http.delete(
+    final response = await _client.delete(
       Uri.parse('$_baseUrl/browser/deletemodel/$id'),
       headers: _headers,
     );
