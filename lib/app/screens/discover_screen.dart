@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../diagram/io/api_client.dart';
 import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
@@ -19,16 +20,31 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   static const _categories = ['All', 'Tutorials', 'Technical', 'Certification', 'Templates', 'Recent'];
   String _selected = 'All';
   List<SavedDiagramMeta> _savedDiagrams = [];
+  List<ApiModelMeta> _remoteModels = [];
+  bool _remoteLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadSaved();
+    _loadRemote();
   }
 
   Future<void> _loadSaved() async {
     final saved = await DiagramStorage.instance.list();
     if (mounted) setState(() => _savedDiagrams = saved);
+  }
+
+  Future<void> _loadRemote() async {
+    setState(() => _remoteLoading = true);
+    try {
+      final models = await DiagramStorage.instance.listRemote();
+      if (mounted) setState(() => _remoteModels = models);
+    } catch (_) {
+      // Server unavailable — keep empty list.
+    } finally {
+      if (mounted) setState(() => _remoteLoading = false);
+    }
   }
 
   @override
@@ -173,6 +189,48 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   ),
                 ),
               ),
+            ],
+
+            // ── Server Models section ────────────────────────────
+            if (_selected == 'All' || _selected == 'Recent') ...[
+              if (_remoteLoading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Server Models',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1C1C1E),
+                              ),
+                        ),
+                        const SizedBox(width: 12),
+                        const SizedBox(
+                          width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_remoteModels.isNotEmpty) ...[
+                _sectionHeader(context, 'Server Models'),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 210,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: _remoteModels.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, i) =>
+                          _RemoteModelCard(meta: _remoteModels[i]),
+                    ),
+                  ),
+                ),
+              ],
             ],
 
             // ── Tutorials section ───────────────────────────────
@@ -1072,6 +1130,134 @@ class _SavedDiagramCard extends StatelessWidget {
     if (diff.inDays < 1) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dt.day}.${dt.month}.${dt.year}';
+  }
+}
+
+// ── Remote model card (horizontal scroll) ────────────────────────
+
+class _RemoteModelCard extends StatefulWidget {
+  final ApiModelMeta meta;
+
+  const _RemoteModelCard({required this.meta});
+
+  @override
+  State<_RemoteModelCard> createState() => _RemoteModelCardState();
+}
+
+class _RemoteModelCardState extends State<_RemoteModelCard> {
+  DiagramModel? _diagram;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreview();
+  }
+
+  Future<void> _loadPreview() async {
+    setState(() => _loading = true);
+    try {
+      final apiModel = await DiagramStorage.instance.loadRemote(widget.meta.id);
+      if (mounted) setState(() => _diagram = apiModel.diagram);
+    } catch (_) {
+      // Failed to load preview.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _openModel() {
+    if (_diagram == null) return;
+    final ownerName = widget.meta.ownerName;
+    final parts = ownerName.split(' ');
+    final initials = parts.length >= 2
+        ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
+        : ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?';
+    _openPresentation(context, _diagram!,
+        title: widget.meta.name,
+        creator: SampleCreator(
+          id: widget.meta.ownerId,
+          name: ownerName,
+          initials: initials,
+          bio: '',
+          colorValue: 0xFF007AFF,
+          followers: 0,
+        ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _Pressable(
+      onTap: _openModel,
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_diagram != null)
+              _TeaserPreview(
+                diagram: _diagram!,
+                width: 160,
+                height: 100,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
+              )
+            else
+              Container(
+                width: 160,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: Center(
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(Icons.cloud_off, color: Colors.grey[400]),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              child: Text(
+                widget.meta.name,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1C1C1E)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                widget.meta.ownerName.isNotEmpty
+                    ? widget.meta.ownerName
+                    : 'v${widget.meta.version}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
