@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../model/diagram_model.dart';
+import 'api_client.dart';
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
 
@@ -11,12 +13,15 @@ class SavedDiagramMeta {
   String title;
   final DateTime createdAt;
   DateTime updatedAt;
+  /// Server-side model ID, null for local-only diagrams.
+  String? remoteId;
 
   SavedDiagramMeta({
     required this.id,
     required this.title,
     required this.createdAt,
     required this.updatedAt,
+    this.remoteId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -24,6 +29,7 @@ class SavedDiagramMeta {
         'title': title,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
+        if (remoteId != null) 'remoteId': remoteId,
       };
 
   factory SavedDiagramMeta.fromJson(Map<String, dynamic> json) =>
@@ -32,14 +38,17 @@ class SavedDiagramMeta {
         title: json['title'] as String,
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
+        remoteId: json['remoteId'] as String?,
       );
 }
 
-/// Persists diagrams as BPMN XML files in the app documents directory.
+/// Persists diagrams locally and syncs with the Guide API.
 class DiagramStorage {
   static DiagramStorage? _instance;
   static DiagramStorage get instance => _instance ??= DiagramStorage._();
   DiagramStorage._();
+
+  final _api = ApiClient.instance;
 
   Directory? _dir;
   List<SavedDiagramMeta>? _index;
@@ -80,8 +89,8 @@ class DiagramStorage {
     await file.writeAsString(jsonEncode(_index!.map((e) => e.toJson()).toList()));
   }
 
-  /// Save a diagram. If [id] is provided, overwrites that entry.
-  /// Returns the saved metadata.
+  /// Save a diagram locally and sync to the server.
+  /// If [id] is provided, overwrites that entry.
   Future<SavedDiagramMeta> save(
     DiagramModel diagram, {
     required String title,
@@ -109,28 +118,86 @@ class DiagramStorage {
       index.insert(0, meta);
     }
 
+    // Save locally.
     final xml = BpmnSerializer().serialize(diagram);
     await _diagramFile(dir, meta.id).writeAsString(xml);
     await _saveIndex();
+
+    // Sync to server in the background.
+    _syncToServer(meta, diagram);
+
     return meta;
   }
 
-  /// Load a diagram by ID.
+  /// Push a diagram to the server. Fire-and-forget — failures are logged.
+  Future<void> _syncToServer(SavedDiagramMeta meta, DiagramModel diagram) async {
+    try {
+      if (meta.remoteId != null) {
+        await _api.updateModel(
+          meta.remoteId!,
+          name: meta.title,
+          diagram: diagram,
+        );
+      } else {
+        final remote = await _api.saveModel(
+          name: meta.title,
+          diagram: diagram,
+        );
+        meta.remoteId = remote.id;
+        await _saveIndex();
+      }
+    } catch (e) {
+      debugPrint('DiagramStorage: server sync failed: $e');
+    }
+  }
+
+  /// Load a diagram by ID. Tries local first, falls back to server.
   Future<DiagramModel?> load(String id) async {
     final dir = await _getDir();
     final file = _diagramFile(dir, id);
-    if (!await file.exists()) return null;
-    final xml = await file.readAsString();
-    return BpmnParser().parse(xml);
+    if (await file.exists()) {
+      final xml = await file.readAsString();
+      return BpmnParser().parse(xml);
+    }
+    // Try loading from server if the id looks like a remote ID.
+    try {
+      final apiModel = await _api.getModel(id);
+      return apiModel.diagram;
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Delete a diagram by ID.
+  /// Load a diagram from the server by remote model ID.
+  Future<ApiModel> loadRemote(String remoteId) async {
+    return _api.getModel(remoteId);
+  }
+
+  /// Delete a diagram locally and on the server.
   Future<void> delete(String id) async {
     final dir = await _getDir();
     final index = await list();
+    final meta = index.cast<SavedDiagramMeta?>().firstWhere(
+        (e) => e!.id == id,
+        orElse: () => null);
+    final remoteId = meta?.remoteId;
     index.removeWhere((e) => e.id == id);
     final file = _diagramFile(dir, id);
     if (await file.exists()) await file.delete();
     await _saveIndex();
+
+    // Delete on server.
+    if (remoteId != null) {
+      try {
+        await _api.deleteModel(remoteId);
+      } catch (e) {
+        debugPrint('DiagramStorage: server delete failed: $e');
+      }
+    }
+  }
+
+  /// Fetch all models from the server (for the Discover screen).
+  Future<List<ApiModelMeta>> listRemote() async {
+    return _api.listModels();
   }
 }
