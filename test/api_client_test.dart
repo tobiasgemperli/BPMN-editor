@@ -63,13 +63,15 @@ void main() {
       final api = ApiClient.withClient(mockClient);
       final models = await api.listModels();
 
-      expect(models, hasLength(1));
-      expect(models.first.id, '1');
-      expect(models.first.name, 'Test Model');
-      expect(models.first.ownerName, 'Alice');
-      expect(models.first.version, 2);
-      expect(models.first.keywords, ['k1']);
-      expect(models.first.categories, ['ops']);
+      expect(models, hasLength(2));
+      expect(models[0].id, '1');
+      expect(models[0].name, 'Test Model');
+      expect(models[0].ownerName, 'Alice');
+      expect(models[0].version, 2);
+      expect(models[0].keywords, ['k1']);
+      expect(models[0].categories, ['ops']);
+      expect(models[1].id, '2');
+      expect(models[1].name, 'No BPMN');
     });
 
     test('listModels throws ApiException on non-200', () async {

@@ -17,8 +17,11 @@ class DiscoverScreen extends StatefulWidget {
 }
 
 class _DiscoverScreenState extends State<DiscoverScreen> {
+  static const _categories = ['All', 'Tutorials', 'Technical', 'Certification', 'Templates', 'Recent'];
+  String _selected = 'All';
   List<SavedDiagramMeta> _savedDiagrams = [];
   List<ApiModelMeta> _remoteModels = [];
+  final Map<String, DiagramModel> _remoteDiagrams = {};
   bool _remoteLoading = false;
 
   @override
@@ -37,7 +40,23 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     setState(() => _remoteLoading = true);
     try {
       final models = await DiagramStorage.instance.listRemote();
-      if (mounted) setState(() => _remoteModels = models);
+      // Load each model in parallel to check for BpmnXml and cache diagrams.
+      final results = await Future.wait(
+        models.map((m) async {
+          try {
+            final full = await DiagramStorage.instance.loadRemote(m.id);
+            if (full.diagram != null) {
+              _remoteDiagrams[m.id] = full.diagram!;
+              return m;
+            }
+            return null;
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      final valid = results.whereType<ApiModelMeta>().toList();
+      if (mounted) setState(() => _remoteModels = valid);
     } catch (_) {
       // Server unavailable — keep empty list.
     } finally {
@@ -49,7 +68,44 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
 
-    final showMyFlowcharts = true;
+    final samples = SampleDiagrams.all;
+    final featured = samples.isNotEmpty ? samples.first : null;
+    final rest = samples.length > 1 ? samples.sublist(1) : <SampleDiagramEntry>[];
+
+    final tutorials = rest.where((s) =>
+        s.name.contains('IKEA') ||
+        s.name.contains('Content') ||
+        s.name.contains('Employee') ||
+        s.name.contains('Emergency') ||
+        s.name.contains('Coffee') ||
+        s.name.contains('Flat Tire') ||
+        s.name.contains('Plant') ||
+        s.name.contains('Text Only') ||
+        s.name.contains('Car Configurator') ||
+        s.name.contains('Pasta') ||
+        s.name.contains('Car Import') ||
+        s.name.contains('Electric Step')).toList();
+    final certification = rest.where((s) =>
+        s.name.contains('FDA') ||
+        s.name.contains('CE Marking') ||
+        s.name.contains('ISO 13485')).toList();
+    final technical = rest.where((s) =>
+        s.name.contains('Debug') ||
+        s.name.contains('Sprint') ||
+        s.name.contains('Git') ||
+        s.name.contains('CI/CD') ||
+        s.name.contains('Database')).toList();
+    final patterns = rest.where((s) =>
+        !tutorials.contains(s) &&
+        !certification.contains(s) &&
+        !technical.contains(s)).toList();
+
+    final showFeatured = _selected == 'All' || _selected == 'Recent';
+    final showMyFlowcharts = _selected == 'All' || _selected == 'Recent';
+    final showTutorials = _selected == 'All' || _selected == 'Tutorials' || _selected == 'Recent';
+    final showCertification = _selected == 'All' || _selected == 'Certification' || _selected == 'Recent';
+    final showTechnical = _selected == 'All' || _selected == 'Technical' || _selected == 'Recent';
+    final showPatterns = _selected == 'All' || _selected == 'Templates' || _selected == 'Recent';
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -91,13 +147,41 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               ),
             ),
 
+            // ── Fixed category chips ──────────────────────────
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: SizedBox(
+                height: 36,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    for (final cat in _categories)
+                      _CategoryChip(
+                        label: cat,
+                        selected: _selected == cat,
+                        onTap: () => setState(() => _selected = cat),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
             // ── Scrollable content ────────────────────────────
             Expanded(
               child: CustomScrollView(
                 slivers: [
+            // ── Featured card ───────────────────────────────────
+            if (showFeatured && featured != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                  child: _FeaturedCard(entry: featured),
+                ),
+              ),
 
             // ── My Flowcharts section ──────────────────────────
-            if (showMyFlowcharts && _savedDiagrams.isNotEmpty) ...[
+            if (showMyFlowcharts && (_savedDiagrams.isNotEmpty || SampleDiagrams.myDiagrams.isNotEmpty)) ...[
               _sectionHeader(context, 'My Flowcharts'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -105,12 +189,18 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: _savedDiagrams.length,
+                    itemCount: _savedDiagrams.length + SampleDiagrams.myDiagrams.length,
                     separatorBuilder: (_, _) => const SizedBox(width: 12),
                     itemBuilder: (context, i) {
-                      return _SavedDiagramCard(
-                        meta: _savedDiagrams[i],
-                        onReturn: _loadSaved,
+                      if (i < _savedDiagrams.length) {
+                        return _SavedDiagramCard(
+                          meta: _savedDiagrams[i],
+                          onReturn: _loadSaved,
+                        );
+                      }
+                      return _SmallCard(
+                        entry: SampleDiagrams.myDiagrams[i - _savedDiagrams.length],
+                        isOwned: true,
                       );
                     },
                   ),
@@ -119,59 +209,119 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
 
             // ── Server Models section ────────────────────────────
-            if (_remoteLoading)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Discover',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1C1C1E),
-                            ),
+            if (_selected == 'All' || _selected == 'Recent') ...[
+              if (_remoteLoading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Discover',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1C1C1E),
+                              ),
+                        ),
+                        const SizedBox(width: 12),
+                        const SizedBox(
+                          width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_remoteModels.isNotEmpty) ...[
+                _sectionHeader(context, 'Discover'),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 210,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: _remoteModels.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, i) => _RemoteModelCard(
+                        meta: _remoteModels[i],
+                        diagram: _remoteDiagrams[_remoteModels[i].id],
                       ),
-                      const SizedBox(width: 12),
-                      const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (_remoteModels.isNotEmpty) ...[
-              _sectionHeader(context, 'Discover'),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 160 / 210,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, i) => _RemoteModelCard(meta: _remoteModels[i]),
-                    childCount: _remoteModels.length,
-                  ),
-                ),
-              ),
-            ]
-            else
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
-                  child: Center(
-                    child: Text(
-                      'No processes available.\nCheck your connection.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                     ),
                   ),
                 ),
+              ],
+            ],
+
+            // ── Tutorials section ───────────────────────────────
+            if (showTutorials && tutorials.isNotEmpty) ...[
+              _sectionHeader(context, 'Tutorials'),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: tutorials.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) =>
+                        _SmallCard(entry: tutorials[i]),
+                  ),
+                ),
               ),
+            ],
+
+            // ── Certification section ─────────────────────────────
+            if (showCertification && certification.isNotEmpty) ...[
+              _sectionHeader(context, 'Certification Processes'),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: certification.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) =>
+                        _SmallCard(entry: certification[i]),
+                  ),
+                ),
+              ),
+            ],
+
+            // ── Technical section ───────────────────────────────
+            if (showTechnical && technical.isNotEmpty) ...[
+              _sectionHeader(context, 'Technical'),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: technical.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) =>
+                        _SmallCard(entry: technical[i]),
+                  ),
+                ),
+              ),
+            ],
+
+            // ── Flow Patterns section ───────────────────────────
+            if (showPatterns && patterns.isNotEmpty) ...[
+              _sectionHeader(context, 'Flow Patterns'),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ListCard(entry: patterns[i]),
+                    ),
+                    childCount: patterns.length,
+                  ),
+                ),
+              ),
+            ],
 
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
                 ],
@@ -399,6 +549,44 @@ class _CreatorAvatar extends StatelessWidget {
   }
 }
 
+/// Row: avatar + creator name. Tappable to open profile.
+class _CreatorRow extends StatelessWidget {
+  final SampleCreator creator;
+  final double avatarSize;
+  final double fontSize;
+
+  const _CreatorRow({
+    required this.creator,
+    this.avatarSize = 28,
+    this.fontSize = 12,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Pressable(
+      onTap: () => showCreatorProfile(context, creator),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CreatorAvatar(creator: creator, size: avatarSize),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              creator.name,
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey[600],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Creator profile sheet ───────────────────────────────────────
 
 void showCreatorProfile(BuildContext context, SampleCreator creator) {
@@ -512,6 +700,42 @@ class _ProfileDiagramCard extends StatelessWidget {
       ),
       child: Center(
         child: _DiagramThumbnail(diagram: diagram, width: 70, height: 60),
+      ),
+    );
+  }
+}
+
+// ── Category chip ────────────────────────────────────────────────
+
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _CategoryChip({required this.label, this.selected = false, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? Colors.black : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: selected ? null : Border.all(color: Colors.grey[300]!),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: selected ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -670,6 +894,158 @@ class _TeaserPreview extends StatelessWidget {
   }
 }
 
+// ── Featured card (large, top of screen) ─────────────────────────
+
+class _FeaturedCard extends StatelessWidget {
+  final SampleDiagramEntry entry;
+
+  const _FeaturedCard({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final diagram = entry.builder();
+    return _Pressable(
+      onTap: () => _openPresentation(context, diagram,
+                              title: entry.name, creator: entry.creator, entry: entry),
+      child: Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            _TeaserPreview(
+              diagram: diagram,
+              width: 160,
+              height: 220,
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(16)),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'FEATURED',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      entry.name,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1C1C1E)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _subtitle(entry.name),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        _CreatorRow(creator: entry.creator),
+                        const Spacer(),
+                        _Pressable(
+                          onTap: () => _openPresentation(context, diagram,
+                              title: entry.name, creator: entry.creator, entry: entry),
+                          child: Icon(Icons.play_circle_filled,
+                              size: 32, color: Colors.grey[800]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Badge icons (favorite / paid) ─────────────────────────────────
+
+class _BadgeIcons extends StatelessWidget {
+  final bool isFavorite;
+  final bool isPaid;
+
+  const _BadgeIcons({this.isFavorite = false, this.isPaid = false});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isFavorite && !isPaid) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isFavorite)
+          _BadgeCircle(
+            icon: Icons.favorite,
+            color: const Color(0xFFFF2D55),
+            bgColor: const Color(0xFFFF2D55).withValues(alpha: 0.12),
+          ),
+        if (isFavorite && isPaid) const SizedBox(width: 4),
+        if (isPaid)
+          _BadgeCircle(
+            icon: Icons.attach_money,
+            color: const Color(0xFF34C759),
+            bgColor: const Color(0xFF34C759).withValues(alpha: 0.12),
+          ),
+      ],
+    );
+  }
+}
+
+class _BadgeCircle extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+
+  const _BadgeCircle({
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: bgColor,
+      ),
+      child: Icon(icon, size: 14, color: color),
+    );
+  }
+}
+
 // ── Saved diagram card (horizontal scroll) ──────────────────────
 
 class _SavedDiagramCard extends StatelessWidget {
@@ -778,48 +1154,23 @@ class _SavedDiagramCard extends StatelessWidget {
 
 // ── Remote model card (horizontal scroll) ────────────────────────
 
-class _RemoteModelCard extends StatefulWidget {
+class _RemoteModelCard extends StatelessWidget {
   final ApiModelMeta meta;
+  final DiagramModel? diagram;
 
-  const _RemoteModelCard({required this.meta});
+  const _RemoteModelCard({required this.meta, this.diagram});
 
-  @override
-  State<_RemoteModelCard> createState() => _RemoteModelCardState();
-}
-
-class _RemoteModelCardState extends State<_RemoteModelCard> {
-  DiagramModel? _diagram;
-  bool _loading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPreview();
-  }
-
-  Future<void> _loadPreview() async {
-    setState(() => _loading = true);
-    try {
-      final apiModel = await DiagramStorage.instance.loadRemote(widget.meta.id);
-      if (mounted) setState(() => _diagram = apiModel.diagram);
-    } catch (_) {
-      // Failed to load preview.
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _openModel() {
-    if (_diagram == null) return;
-    final ownerName = widget.meta.ownerName;
+  void _openModel(BuildContext context) {
+    if (diagram == null) return;
+    final ownerName = meta.ownerName;
     final parts = ownerName.split(' ');
     final initials = parts.length >= 2
         ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
         : ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?';
-    _openPresentation(context, _diagram!,
-        title: widget.meta.name,
+    _openPresentation(context, diagram!,
+        title: meta.name,
         creator: SampleCreator(
-          id: widget.meta.ownerId,
+          id: meta.ownerId,
           name: ownerName,
           initials: initials,
           bio: '',
@@ -831,7 +1182,7 @@ class _RemoteModelCardState extends State<_RemoteModelCard> {
   @override
   Widget build(BuildContext context) {
     return _Pressable(
-      onTap: _openModel,
+      onTap: () => _openModel(context),
       child: Container(
         width: 160,
         decoration: BoxDecoration(
@@ -848,9 +1199,9 @@ class _RemoteModelCardState extends State<_RemoteModelCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_diagram != null)
+            if (diagram != null)
               _TeaserPreview(
-                diagram: _diagram!,
+                diagram: diagram!,
                 width: 160,
                 height: 100,
                 borderRadius:
@@ -866,19 +1217,13 @@ class _RemoteModelCardState extends State<_RemoteModelCard> {
                       const BorderRadius.vertical(top: Radius.circular(12)),
                 ),
                 child: Center(
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(Icons.cloud_off, color: Colors.grey[400]),
+                  child: Icon(Icons.cloud_off, color: Colors.grey[400]),
                 ),
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
               child: Text(
-                widget.meta.name,
+                meta.name,
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -890,13 +1235,183 @@ class _RemoteModelCardState extends State<_RemoteModelCard> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
-                widget.meta.ownerName.isNotEmpty
-                    ? widget.meta.ownerName
-                    : 'v${widget.meta.version}',
+                meta.ownerName.isNotEmpty
+                    ? meta.ownerName
+                    : 'v${meta.version}',
                 style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 maxLines: 1,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Small card (horizontal scroll) ───────────────────────────────
+
+class _SmallCard extends StatelessWidget {
+  final SampleDiagramEntry entry;
+  final bool isOwned;
+
+  const _SmallCard({required this.entry, this.isOwned = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final diagram = entry.builder();
+    return _Pressable(
+      onTap: () {
+        if (isOwned) {
+          _openOwnedEditor(context, diagram, title: entry.name);
+        } else {
+          _openPresentation(context, diagram,
+              title: entry.name, creator: entry.creator, entry: entry);
+        }
+      },
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TeaserPreview(
+                  diagram: diagram,
+                  width: 160,
+                  height: 100,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+                  child: Text(
+                    entry.name,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    _subtitle(entry.name),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF636366)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                  child: _CreatorRow(creator: entry.creator, avatarSize: 24, fontSize: 11),
+                ),
+              ],
+            ),
+            if (entry.isFavorite || entry.isPaid)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: _BadgeIcons(
+                    isFavorite: entry.isFavorite, isPaid: entry.isPaid),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── List card (vertical list) ────────────────────────────────────
+
+class _ListCard extends StatelessWidget {
+  final SampleDiagramEntry entry;
+
+  const _ListCard({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final diagram = entry.builder();
+    return _Pressable(
+      onTap: () => _openPresentation(context, diagram,
+                              title: entry.name, creator: entry.creator, entry: entry),
+      child: Container(
+        height: 96,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Row(
+              children: [
+                _TeaserPreview(
+                  diagram: diagram,
+                  width: 90,
+                  height: 96,
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(12)),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          entry.name,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _subtitle(entry.name),
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF636366)),
+                        ),
+                        const SizedBox(height: 6),
+                        _CreatorRow(
+                            creator: entry.creator,
+                            avatarSize: 24,
+                            fontSize: 11),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(Icons.chevron_right, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            if (entry.isFavorite || entry.isPaid)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: _BadgeIcons(
+                    isFavorite: entry.isFavorite, isPaid: entry.isPaid),
+              ),
           ],
         ),
       ),
