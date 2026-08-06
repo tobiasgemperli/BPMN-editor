@@ -103,6 +103,10 @@ class ApiClient {
     }
     final list = jsonDecode(response.body) as List;
     return list
+        .where((e) {
+          final bpmn = (e as Map<String, dynamic>)['BpmnXml'];
+          return bpmn != null && bpmn.toString().isNotEmpty;
+        })
         .map((e) => ApiModelMeta.fromJson(e as Map<String, dynamic>))
         .toList();
   }
