@@ -1441,6 +1441,41 @@ void main() {
           reason: 'Independent parallel edges should not overlap');
     });
 
+    test('gateway fan-out then fan-in: no overlapping horizontal segments', () {
+      // Gateway splits to 3 parallel tasks, all merging into one target below.
+      // The horizontal Z-channels must not overlap.
+      final diagram = DiagramModel(
+        nodes: {
+          'GW': _gateway('GW', 400, 260),
+          'A':  _task('A', 220, 420),
+          'B':  _task('B', 400, 420),
+          'C':  _task('C', 580, 420),
+          'M':  _task('M', 400, 580),
+        },
+        edges: {
+          'gA': EdgeModel(id: 'gA', sourceId: 'GW', targetId: 'A'),
+          'gB': EdgeModel(id: 'gB', sourceId: 'GW', targetId: 'B'),
+          'gC': EdgeModel(id: 'gC', sourceId: 'GW', targetId: 'C'),
+          'aM': EdgeModel(id: 'aM', sourceId: 'A', targetId: 'M'),
+          'bM': EdgeModel(id: 'bM', sourceId: 'B', targetId: 'M'),
+          'cM': EdgeModel(id: 'cM', sourceId: 'C', targetId: 'M'),
+        },
+      );
+      routeAllEdges(diagram);
+      final bars = computeMergeBars(diagram);
+
+      // Check the three merge edges (aM, bM, cM) for overlaps.
+      final mergeIds = ['aM', 'bM', 'cM'];
+      for (int i = 0; i < mergeIds.length; i++) {
+        final ri = getRenderedWaypoints(diagram.edges[mergeIds[i]]!, diagram, bars);
+        for (int j = i + 1; j < mergeIds.length; j++) {
+          final rj = getRenderedWaypoints(diagram.edges[mergeIds[j]]!, diagram, bars);
+          expect(hasOverlappingSegments(ri, rj, skipSharedStart: false), isFalse,
+              reason: 'Merge edges ${mergeIds[i]} and ${mergeIds[j]} should not overlap');
+        }
+      }
+    });
+
     test('four sources to one target: vertical segments all distinct', () {
       // 4 sources stacked vertically on the left, one target on the right.
       final diagram = DiagramModel(

@@ -1109,9 +1109,10 @@ class EditorController extends ChangeNotifier {
         channelBias: channelBias[edge.id] ?? 0.0,
       );
 
-      // If the route is a U-turn (6+ waypoints = went backwards around
+      // If the route is a U-turn (8+ waypoints = went backwards around
       // obstacles), try a cross-axis target side for a cleaner L-shape.
-      if (edge.waypoints.length >= 6) {
+      // Threshold is 8 because Z-shapes (normal routes) are exactly 6 points.
+      if (edge.waypoints.length >= 8) {
         final altTarget = s.$1.exitsVertically
             ? (source.center.dx <= target.center.dx
                 ? ConnectorSide.left : ConnectorSide.right)
