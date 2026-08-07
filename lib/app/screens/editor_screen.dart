@@ -272,6 +272,35 @@ class _EditorScreenState extends State<EditorScreen> {
                               onPressed: _controller.deleteSelected,
                               tooltip: 'Delete',
                             ),
+                          if (_controller.diagram.orphanedNodeIds().isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.delete_sweep, size: 22, color: Colors.red),
+                              onPressed: () {
+                                final count = _controller.diagram.orphanedNodeIds().length;
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete disconnected elements?'),
+                                    content: Text('$count element${count == 1 ? '' : 's'} not reachable from any start event will be removed.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(ctx);
+                                          _controller.deleteOrphans();
+                                        },
+                                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              tooltip: 'Delete disconnected elements',
+                            ),
                           if (_controller.selectedNodeId != null)
                             IconButton(
                               icon: const Icon(Icons.edit, size: 22, color: Color(0xFF1C1C1E)),

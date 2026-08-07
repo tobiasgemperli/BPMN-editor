@@ -81,9 +81,10 @@ class DiagramPainter extends CustomPainter {
     canvas.save();
     canvas.translate(_canvasOffset.dx, _canvasOffset.dy);
     final mergeBars = computeMergeBars(controller.diagram);
-    _drawEdges(canvas, mergeBars);
+    final orphans = controller.diagram.orphanedNodeIds();
+    _drawEdges(canvas, mergeBars, orphans);
     _drawMergeBars(canvas, mergeBars);
-    _drawNodes(canvas);
+    _drawNodes(canvas, orphans);
     _drawSnapGuides(canvas, size);
     _drawConnectionPreview(canvas);
     _drawConnectorHandle(canvas);
@@ -99,12 +100,21 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  void _drawEdges(Canvas canvas, Map<String, MergeBarInfo> mergeBars) {
+  static final _orphanEdgePaint = Paint()
+    ..color = Colors.red.withValues(alpha: 0.6)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = _strokeWidth;
+  static final _orphanArrowPaint = Paint()
+    ..color = Colors.red.withValues(alpha: 0.6)
+    ..style = PaintingStyle.fill;
+
+  void _drawEdges(Canvas canvas, Map<String, MergeBarInfo> mergeBars, Set<String> orphans) {
     final diagram = controller.diagram;
     for (final edge in diagram.edges.values) {
       final isSelected = edge.id == controller.selectedEdgeId;
-      final paint = isSelected ? _edgeSelectedPaint : _edgePaint;
-      final arrowFill = isSelected ? _arrowSelectedPaint : _arrowPaint;
+      final isOrphanEdge = orphans.contains(edge.sourceId) || orphans.contains(edge.targetId);
+      final paint = isSelected ? _edgeSelectedPaint : (isOrphanEdge ? _orphanEdgePaint : _edgePaint);
+      final arrowFill = isSelected ? _arrowSelectedPaint : (isOrphanEdge ? _orphanArrowPaint : _arrowPaint);
 
       final source = diagram.nodes[edge.sourceId];
       final target = diagram.nodes[edge.targetId];
@@ -230,19 +240,13 @@ class DiagramPainter extends CustomPainter {
     ..style = PaintingStyle.stroke
     ..strokeWidth = _strokeWidth;
 
-  void _drawNodes(Canvas canvas) {
-    // Compute orphaned nodes: no incoming edges and not a start event.
-    final hasIncoming = <String>{};
-    for (final edge in controller.diagram.edges.values) {
-      hasIncoming.add(edge.targetId);
-    }
-
+  void _drawNodes(Canvas canvas, Set<String> orphans) {
     for (final node in controller.diagram.nodes.values) {
       final isLifted = node.id == controller.liftNodeId;
       final isConnectionTarget = node.id == controller.connectionTargetId;
       final isSelected = node.id == controller.selectedNodeId || isLifted || isConnectionTarget;
       final isBlob = node.id == controller.blobNodeId && controller.blobScale != 1.0;
-      final isOrphan = node.type != NodeType.startEvent && !hasIncoming.contains(node.id);
+      final isOrphan = orphans.contains(node.id);
 
       // Apply scale transforms (lift or blob, lift takes priority).
       final needsScale = (isLifted && controller.liftScale != 1.0) || isBlob;

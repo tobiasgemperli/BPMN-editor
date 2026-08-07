@@ -183,4 +183,27 @@ class DiagramModel {
   List<EdgeModel> incomingEdges(String nodeId) {
     return edges.values.where((e) => e.targetId == nodeId).toList();
   }
+
+  /// Returns the set of node IDs not reachable from any start event.
+  /// These are "orphaned" nodes — disconnected from the main flow.
+  Set<String> orphanedNodeIds() {
+    // BFS from all start events.
+    final reachable = <String>{};
+    final queue = <String>[];
+    for (final node in nodes.values) {
+      if (node.type == NodeType.startEvent) {
+        reachable.add(node.id);
+        queue.add(node.id);
+      }
+    }
+    while (queue.isNotEmpty) {
+      final current = queue.removeLast();
+      for (final edge in edges.values) {
+        if (edge.sourceId == current && reachable.add(edge.targetId)) {
+          queue.add(edge.targetId);
+        }
+      }
+    }
+    return nodes.keys.where((id) => !reachable.contains(id)).toSet();
+  }
 }

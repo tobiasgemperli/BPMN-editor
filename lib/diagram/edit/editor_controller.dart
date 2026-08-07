@@ -674,6 +674,29 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Delete all orphaned nodes and their connected edges.
+  void deleteOrphans() {
+    final orphans = diagram.orphanedNodeIds();
+    if (orphans.isEmpty) return;
+
+    // Delete edges connected to orphans first.
+    final edgesToDelete = diagram.edges.values
+        .where((e) => orphans.contains(e.sourceId) || orphans.contains(e.targetId))
+        .map((e) => e.id)
+        .toList();
+    for (final edgeId in edgesToDelete) {
+      _exec(DeleteEdgeCommand(edgeId));
+    }
+    // Delete orphan nodes.
+    for (final nodeId in orphans) {
+      _exec(DeleteNodeCommand(nodeId));
+    }
+    selectedNodeId = null;
+    selectedEdgeId = null;
+    _assignPortsAndRoute();
+    notifyListeners();
+  }
+
   void renameNode(String nodeId, String newName) {
     _exec(RenameNodeCommand(nodeId, newName));
   }
