@@ -108,19 +108,20 @@ class EditorToolbar extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final startDisabled = controller.hasStartEvent;
+        // Disable adding Step/Decision/End if selected non-gateway node
+        // already has an outgoing edge (only one connection allowed).
+        final sel = controller.selectedNodeId;
+        final selNode = sel != null ? controller.diagram.nodes[sel] : null;
+        final hasOutgoing = sel != null &&
+            selNode != null &&
+            selNode.type != NodeType.exclusiveGateway &&
+            controller.diagram.outgoingEdges(sel).isNotEmpty;
+
         final buttons = [
-              _ToolButton(
-                shape: _ShapeType.startCircle,
-                label: 'Start',
-                enabled: !startDisabled,
-                onPressed: () {
-                  _addNodeAndZoom(NodeType.startEvent);
-                },
-              ),
               _ToolButton(
                 shape: _ShapeType.taskRect,
                 label: 'Step',
+                enabled: !hasOutgoing,
                 onPressed: () {
                   _addNodeAndZoom(NodeType.task);
                 },
@@ -128,6 +129,7 @@ class EditorToolbar extends StatelessWidget {
               _ToolButton(
                 shape: _ShapeType.diamond,
                 label: 'Decision',
+                enabled: !hasOutgoing,
                 onPressed: () {
                   _addNodeAndZoom(NodeType.exclusiveGateway);
                 },
@@ -135,6 +137,7 @@ class EditorToolbar extends StatelessWidget {
               _ToolButton(
                 shape: _ShapeType.endCircle,
                 label: 'End',
+                enabled: !hasOutgoing,
                 onPressed: () {
                   _addNodeAndZoom(NodeType.endEvent);
                 },

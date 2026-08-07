@@ -163,6 +163,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
 
   @override
   void dispose() {
+    _saveData();
     _nameCtrl.dispose();
     _mixedTextCtrl.dispose();
     _mixedUrlCtrl.dispose();
@@ -239,8 +240,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     }
   }
 
-  void _save() {
-    FocusScope.of(context).unfocus();
+  void _saveData() {
     widget.controller.renameNode(widget.node.id, _nameCtrl.text);
 
     // Save gateway edge labels.
@@ -306,8 +306,6 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
         content.isEmpty ? null : content,
       );
     }
-
-    Navigator.pop(context);
   }
 
   @override
@@ -318,33 +316,17 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Header with back, type badge, and save.
+          // Header with back chevron.
           Padding(
             padding: EdgeInsets.fromLTRB(8, topPad + 8, 12, 0),
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Color(0xFF1C1C1E)),
                   onPressed: () {
                     FocusScope.of(context).unfocus();
                     Navigator.pop(context);
                   },
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: _save,
-                  style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFF007AFF),
-                    foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
-                  child: const Text('Save',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),

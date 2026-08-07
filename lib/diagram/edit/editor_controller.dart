@@ -645,6 +645,8 @@ class EditorController extends ChangeNotifier {
 
   void deleteSelected() {
     if (selectedNodeId != null) {
+      final node = diagram.nodes[selectedNodeId!];
+      if (node != null && node.type == NodeType.startEvent) return;
       _exec(DeleteNodeCommand(selectedNodeId!));
       selectedNodeId = null;
     } else if (selectedEdgeId != null) {
