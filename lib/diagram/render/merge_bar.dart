@@ -227,28 +227,37 @@ List<Offset> _perpendicularApproach(
     }
   }
 
-  // Truncate the last segment if it overshoots the slot's cross-axis position.
-  // e.g. a vertical segment going to y=300 when slot is at y=288 would zigzag.
+  // Adjust the last segment to align with the slot's cross-axis position.
+  // This handles both overshoots (truncate) and small undershoots (extend)
+  // to avoid tiny "buck" segments near the merge bar.
   if (result.length >= 2) {
     final prev2 = result[result.length - 2];
     final last = result.last;
     if (bar.isHorizontal) {
-      // Bar is horizontal: truncate horizontal overshoots on the slot's X.
+      // Bar is horizontal: adjust horizontal segments on the slot's X.
       if ((prev2.dy - last.dy).abs() < 0.5) {
-        // Horizontal segment — check if slotPoint.dx is between prev2.dx and last.dx.
         final minX = prev2.dx < last.dx ? prev2.dx : last.dx;
         final maxX = prev2.dx > last.dx ? prev2.dx : last.dx;
+        // Truncate if slot is between endpoints.
         if (slotPoint.dx >= minX && slotPoint.dx <= maxX) {
+          result[result.length - 1] = Offset(slotPoint.dx, last.dy);
+        }
+        // Extend if slot is slightly past the end (within bar offset distance).
+        else if ((slotPoint.dx - last.dx).abs() < mergeBarOffset) {
           result[result.length - 1] = Offset(slotPoint.dx, last.dy);
         }
       }
     } else {
-      // Bar is vertical: truncate vertical overshoots on the slot's Y.
+      // Bar is vertical: adjust vertical segments on the slot's Y.
       if ((prev2.dx - last.dx).abs() < 0.5) {
-        // Vertical segment — check if slotPoint.dy is between prev2.dy and last.dy.
         final minY = prev2.dy < last.dy ? prev2.dy : last.dy;
         final maxY = prev2.dy > last.dy ? prev2.dy : last.dy;
+        // Truncate if slot is between endpoints.
         if (slotPoint.dy >= minY && slotPoint.dy <= maxY) {
+          result[result.length - 1] = Offset(last.dx, slotPoint.dy);
+        }
+        // Extend if slot is slightly past the end (within bar offset distance).
+        else if ((slotPoint.dy - last.dy).abs() < mergeBarOffset) {
           result[result.length - 1] = Offset(last.dx, slotPoint.dy);
         }
       }

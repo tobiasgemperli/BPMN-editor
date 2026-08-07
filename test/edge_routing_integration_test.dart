@@ -1931,5 +1931,41 @@ void main() {
       expect(hasZigzag(rendered), isFalse,
           reason: 'Survey->Evaluate edge should not zigzag: $rendered');
     });
+
+    test('merge bar: no tiny buck segments near the bar', () {
+      // Two edges approaching a target from the same side should produce
+      // clean L-shaped paths to their slots without tiny intermediate segments.
+      final diagram = DiagramModel(
+        nodes: {
+          'GW': NodeModel(id: 'GW', type: NodeType.exclusiveGateway, name: 'GW',
+              rect: const Rect.fromLTWH(0, 0, 56, 56)),
+          'T': NodeModel(id: 'T', type: NodeType.task, name: 'Target',
+              rect: const Rect.fromLTWH(-200, 500, 140, 70)),
+        },
+        edges: {
+          'e1': EdgeModel(id: 'e1', sourceId: 'GW', targetId: 'T',
+              waypoints: [const Offset(14, 42), const Offset(-6, 42),
+                  const Offset(-6, 535), const Offset(-60, 535)]),
+          'e2': EdgeModel(id: 'e2', sourceId: 'GW', targetId: 'T',
+              waypoints: [const Offset(42, 42), const Offset(42, 535),
+                  const Offset(-60, 535)]),
+        },
+      );
+
+      final bars = computeMergeBars(diagram);
+      expect(bars.containsKey('T'), isTrue, reason: 'T should have a merge bar');
+
+      for (final edge in diagram.edges.values) {
+        final rendered = getRenderedWaypoints(edge, diagram, bars);
+        // No segment shorter than 5px (a "buck" would be a tiny segment).
+        for (int i = 0; i < rendered.length - 1; i++) {
+          final len = (rendered[i + 1] - rendered[i]).distance;
+          if (len < 0.5) continue; // skip zero-length deduplication
+          expect(len >= 5.0, isTrue,
+              reason: 'Edge ${edge.id} has a tiny ${len.toStringAsFixed(1)}px '
+                  'segment at index $i: ${rendered[i]} -> ${rendered[i + 1]}');
+        }
+      }
+    });
   });
 }
