@@ -1,6 +1,7 @@
 import 'dart:ui' show Offset;
 import 'package:xml/xml.dart';
 import '../model/diagram_model.dart';
+import '../routing/orthogonal_router.dart';
 
 /// Serializes a DiagramModel into valid BPMN 2.0 XML with BPMN-DI layout.
 class BpmnSerializer {
@@ -159,11 +160,24 @@ class BpmnSerializer {
     }
   }
 
+  final _router = OrthogonalRouter();
+
   List<Offset> _computeWaypoints(EdgeModel edge, DiagramModel model) {
     final source = model.nodes[edge.sourceId];
     final target = model.nodes[edge.targetId];
     if (source == null || target == null) return [];
-    return [source.center, target.center];
+
+    final obstacles = model.nodes.values
+        .where((n) => n.id != edge.sourceId && n.id != edge.targetId)
+        .toList();
+
+    return _router.route(
+      source: source,
+      target: target,
+      sourceSide: edge.sourceSide,
+      targetSide: edge.targetSide,
+      obstacles: obstacles,
+    );
   }
 }
 
