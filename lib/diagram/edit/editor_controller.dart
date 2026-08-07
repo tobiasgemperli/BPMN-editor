@@ -710,6 +710,15 @@ class EditorController extends ChangeNotifier {
   }
 
   void _startConnection(Offset point, {ConnectorSide? side}) {
+    if (selectedNodeId == null) return;
+    final node = diagram.nodes[selectedNodeId!];
+    if (node == null) return;
+    // Block starting a connection if the node already has max outgoing edges.
+    final outgoing = diagram.outgoingEdges(selectedNodeId!);
+    if (node.type == NodeType.startEvent && outgoing.isNotEmpty) return;
+    if (node.type == NodeType.task && outgoing.isNotEmpty) return;
+    if (node.type == NodeType.endEvent) return;
+
     isConnecting = true;
     connectionSourceId = selectedNodeId;
     connectionSourceSide = side;
