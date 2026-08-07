@@ -409,6 +409,17 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                     ),
                   ),
 
+                  // ── Connections ──
+                  if (_outgoingEdges.isNotEmpty || _incomingEdges.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _SectionLabel(label: 'Connections'),
+                    const SizedBox(height: 8),
+                    for (final edge in _incomingEdges)
+                      _buildConnectionRow(edge, isOutgoing: false),
+                    for (final edge in _outgoingEdges)
+                      _buildConnectionRow(edge, isOutgoing: true),
+                  ],
+
                   // ── Gateway branch labels ──
                   if (_isGateway && _outgoingEdges.isNotEmpty) ...[
                     const SizedBox(height: 20),
@@ -419,17 +430,6 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                       if (i < _outgoingEdges.length - 1)
                         const SizedBox(height: 10),
                     ],
-                  ],
-
-                  // ── Connections ──
-                  if (_outgoingEdges.isNotEmpty || _incomingEdges.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    _SectionLabel(label: 'Connections'),
-                    const SizedBox(height: 8),
-                    for (final edge in _incomingEdges)
-                      _buildConnectionRow(edge, isOutgoing: false),
-                    for (final edge in _outgoingEdges)
-                      _buildConnectionRow(edge, isOutgoing: true),
                   ],
 
                   // ── Display type picker (task, start, end — not gateway) ──
