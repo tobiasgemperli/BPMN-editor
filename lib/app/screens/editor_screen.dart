@@ -202,23 +202,18 @@ class _EditorScreenState extends State<EditorScreen> {
             transformationController: _transformController,
             readOnly: !_isOwner,
           ),
-          // ── Right-side shape palette (owner only) ──
+          // ── Right-side shape palette + action buttons (owner only) ──
           if (_isOwner)
             Positioned(
               right: 12,
               top: 0,
               bottom: 0,
               child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    EditorToolbar(
-                      controller: _controller,
-                      transformationController: _transformController,
-                      canvasKey: _canvasKey,
-                      vertical: true,
-                    ),
-                  ],
+                child: EditorToolbar(
+                  controller: _controller,
+                  transformationController: _transformController,
+                  canvasKey: _canvasKey,
+                  vertical: true,
                 ),
               ),
             ),
@@ -232,7 +227,46 @@ class _EditorScreenState extends State<EditorScreen> {
                 child: ListenableBuilder(
                   listenable: _controller,
                   builder: (context, _) {
-                    return Container(
+                    final hasSelection =
+                        _controller.selectedNodeId != null ||
+                        _controller.selectedEdgeId != null;
+                    final orphans = _controller.diagram.orphanedNodeIds();
+                    final isOrphan = (_controller.selectedNodeId != null &&
+                            orphans.contains(_controller.selectedNodeId)) ||
+                        (_controller.selectedEdgeId != null &&
+                            _controller.diagram.edges[_controller.selectedEdgeId] != null &&
+                            (orphans.contains(_controller.diagram.edges[_controller.selectedEdgeId]!.sourceId) ||
+                             orphans.contains(_controller.diagram.edges[_controller.selectedEdgeId]!.targetId)));
+
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (hasSelection)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _ActionButton(
+                                  icon: Icons.delete_outline,
+                                  color: isOrphan ? Colors.red : const Color(0xFF1C1C1E),
+                                  onPressed: isOrphan
+                                      ? _controller.deleteOrphans
+                                      : _controller.deleteSelected,
+                                ),
+                                const SizedBox(width: 6),
+                                if (_controller.selectedNodeId != null)
+                                  _ActionButton(
+                                    icon: Icons.edit,
+                                    color: const Color(0xFF1C1C1E),
+                                    onPressed: () =>
+                                        showPropertiesSheet(context, _controller),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -265,20 +299,6 @@ class _EditorScreenState extends State<EditorScreen> {
                                 : null,
                             tooltip: 'Redo',
                           ),
-                          if (_controller.selectedNodeId != null ||
-                              _controller.selectedEdgeId != null)
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 22, color: Color(0xFF1C1C1E)),
-                              onPressed: _controller.deleteSelected,
-                              tooltip: 'Delete',
-                            ),
-                          if (_controller.selectedNodeId != null)
-                            IconButton(
-                              icon: const Icon(Icons.edit, size: 22, color: Color(0xFF1C1C1E)),
-                              onPressed: () =>
-                                  showPropertiesSheet(context, _controller),
-                              tooltip: 'Properties',
-                            ),
                           IconButton(
                             icon: const Icon(Icons.cleaning_services, size: 22, color: Color(0xFF1C1C1E)),
                             onPressed: () {
@@ -316,51 +336,12 @@ class _EditorScreenState extends State<EditorScreen> {
                           ),
                         ],
                       ),
+                    ),
+                      ],
                     );
                   },
                 ),
               ),
-            ),
-          // ── Floating delete button for selected orphan node ──
-          if (_isOwner)
-            ListenableBuilder(
-              listenable: Listenable.merge([_controller, _transformController]),
-              builder: (context, _) {
-                final selectedId = _controller.selectedNodeId;
-                if (selectedId == null) return const SizedBox.shrink();
-                final orphans = _controller.diagram.orphanedNodeIds();
-                if (!orphans.contains(selectedId)) return const SizedBox.shrink();
-                final node = _controller.diagram.nodes[selectedId];
-                if (node == null) return const SizedBox.shrink();
-
-                // Convert diagram coords to screen coords.
-                final matrix = _transformController.value;
-                final scale = matrix.getMaxScaleOnAxis();
-                final tx = matrix.entry(0, 3);
-                final ty = matrix.entry(1, 3);
-                final screenX = (node.rect.right + 2000) * scale + tx;
-                final screenY = (node.rect.top + 2000) * scale + ty;
-
-                return Positioned(
-                  left: screenX + 4,
-                  top: screenY - 16,
-                  child: Material(
-                    color: Colors.red,
-                    shape: const CircleBorder(),
-                    elevation: 4,
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () {
-                        _controller.deleteSelected();
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Icon(Icons.delete_outline, size: 20, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                );
-              },
             ),
           // ── Top bar ──
           // Back button (left) — goes back one screen.
@@ -661,5 +642,44 @@ class _SyncIndicator extends StatelessWidget {
               size: 20, color: Color(0xFFFF3B30)),
         );
     }
+  }
+}
+
+/// Small circular action button shown above the right-side toolbar.
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _ActionButton({
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Icon(icon, size: 22, color: color),
+        ),
+      ),
+    );
   }
 }
