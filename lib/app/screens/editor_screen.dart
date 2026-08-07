@@ -44,7 +44,8 @@ class EditorScreen extends StatefulWidget {
   State<EditorScreen> createState() => _EditorScreenState();
 }
 
-class _EditorScreenState extends State<EditorScreen> {
+class _EditorScreenState extends State<EditorScreen>
+    with WidgetsBindingObserver {
   late final EditorController _controller;
   final TransformationController _transformController =
       TransformationController(Matrix4.diagonal3Values(0.55, 0.55, 1));
@@ -52,6 +53,7 @@ class _EditorScreenState extends State<EditorScreen> {
   String? _savedId;
   late String _title;
   Timer? _autosaveTimer;
+  bool _dirty = false;
 
   bool get _isOwner => widget.role == DiagramRole.owner;
 
@@ -78,30 +80,40 @@ class _EditorScreenState extends State<EditorScreen> {
     // Autosave: debounced 5s after any edit.
     if (_isOwner) {
       _controller.addListener(_onDiagramChanged);
+      WidgetsBinding.instance.addObserver(this);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _saveIfDirty();
     }
   }
 
   void _onDiagramChanged() {
-    if (_savedId == null) return; // Only autosave already-saved diagrams.
+    _dirty = true;
     _autosaveTimer?.cancel();
     _autosaveTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) _saveDiagram(silent: true);
+      if (mounted) _saveIfDirty();
     });
   }
 
-  Future<void> _saveDiagram({bool silent = false}) async {
+  Future<void> _saveIfDirty() async {
+    if (!_dirty) return;
+    await _saveDiagram();
+  }
+
+  Future<void> _saveDiagram() async {
     final meta = await DiagramStorage.instance.save(
       _controller.diagram,
       title: _title,
       id: _savedId,
     );
     _savedId = meta.id;
+    _dirty = false;
     widget.onSaved?.call();
-    if (mounted && !silent) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Diagram saved')),
-      );
-    }
   }
 
   void _editTitle() {
@@ -179,6 +191,10 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   void dispose() {
     _autosaveTimer?.cancel();
+    if (_isOwner) {
+      _saveIfDirty();
+      WidgetsBinding.instance.removeObserver(this);
+    }
     _controller.removeListener(_onDiagramChanged);
     _transformController.dispose();
     _controller.dispose();
@@ -405,39 +421,17 @@ class _EditorScreenState extends State<EditorScreen> {
                 ),
               ),
             ),
-          if (_isOwner)
+          if (_isOwner && _savedId != null)
             Positioned(
-              top: topPad + 6,
+              top: topPad + 10,
               right: 16,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_savedId != null)
-                    ListenableBuilder(
-                      listenable: DiagramStorage.instance.syncStatusNotifier,
-                      builder: (context, _) {
-                        final status = DiagramStorage.instance
-                            .getSyncStatus(_savedId!);
-                        return _SyncIndicator(status: status);
-                      },
-                    ),
-                  const SizedBox(width: 6),
-                  TextButton(
-                    onPressed: _saveDiagram,
-                    style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFF007AFF),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      textStyle: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    child: const Text('Save'),
-                  ),
-                ],
+              child: ListenableBuilder(
+                listenable: DiagramStorage.instance.syncStatusNotifier,
+                builder: (context, _) {
+                  final status = DiagramStorage.instance
+                      .getSyncStatus(_savedId!);
+                  return _SyncIndicator(status: status);
+                },
               ),
             ),
           // ── Floating creator info (viewer only) ──
