@@ -1193,6 +1193,27 @@ class EditorController extends ChangeNotifier {
       return angleA.compareTo(angleB);
     });
 
+    // Gateway with exactly 2 outputs: prefer LEFT and RIGHT for a clean
+    // diamond split, but only when targets are on opposite horizontal sides.
+    if (node.type == NodeType.exclusiveGateway && edges.length == 2) {
+      final t0 = diagram.nodes[edges[0].targetId]?.center;
+      final t1 = diagram.nodes[edges[1].targetId]?.center;
+      if (t0 != null && t1 != null) {
+        final dx0 = t0.dx - node.center.dx;
+        final dx1 = t1.dx - node.center.dx;
+        // Only force LEFT/RIGHT when one target is clearly left and one right.
+        if (dx0 < 0 && dx1 > 0 || dx0 > 0 && dx1 < 0) {
+          final leftEdge = dx0 < dx1 ? edges[0] : edges[1];
+          final rightEdge = dx0 < dx1 ? edges[1] : edges[0];
+          final sl = sides[leftEdge.id]!;
+          final sr = sides[rightEdge.id]!;
+          sides[leftEdge.id] = (ConnectorSide.left, sl.$2);
+          sides[rightEdge.id] = (ConnectorSide.right, sr.$2);
+          return;
+        }
+      }
+    }
+
     // Assign each edge to the port closest to its target direction,
     // avoiding duplicates and incoming ports when possible.
     final usedPorts = <ConnectorSide>{};

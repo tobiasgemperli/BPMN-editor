@@ -164,6 +164,24 @@ void _distributeSourcePorts(
     return angleA.compareTo(angleB);
   });
 
+  // Gateway with exactly 2 outputs: prefer LEFT and RIGHT when targets
+  // are on opposite horizontal sides.
+  if (node.type == NodeType.exclusiveGateway && edges.length == 2) {
+    final t0 = diagram.nodes[edges[0].targetId]?.center;
+    final t1 = diagram.nodes[edges[1].targetId]?.center;
+    if (t0 != null && t1 != null) {
+      final dx0 = t0.dx - node.center.dx;
+      final dx1 = t1.dx - node.center.dx;
+      if (dx0 < 0 && dx1 > 0 || dx0 > 0 && dx1 < 0) {
+        final leftEdge = dx0 < dx1 ? edges[0] : edges[1];
+        final rightEdge = dx0 < dx1 ? edges[1] : edges[0];
+        sides[leftEdge.id] = (ConnectorSide.left, sides[leftEdge.id]!.$2);
+        sides[rightEdge.id] = (ConnectorSide.right, sides[rightEdge.id]!.$2);
+        return;
+      }
+    }
+  }
+
   final usedPorts = <ConnectorSide>{};
   for (final edge in edges) {
     final target = diagram.nodes[edge.targetId];
