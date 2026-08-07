@@ -272,35 +272,6 @@ class _EditorScreenState extends State<EditorScreen> {
                               onPressed: _controller.deleteSelected,
                               tooltip: 'Delete',
                             ),
-                          if (_controller.diagram.orphanedNodeIds().isNotEmpty)
-                            IconButton(
-                              icon: const Icon(Icons.delete_sweep, size: 22, color: Colors.red),
-                              onPressed: () {
-                                final count = _controller.diagram.orphanedNodeIds().length;
-                                showDialog(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Delete disconnected elements?'),
-                                    content: Text('$count element${count == 1 ? '' : 's'} not reachable from any start event will be removed.'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(ctx);
-                                          _controller.deleteOrphans();
-                                        },
-                                        style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                        child: const Text('Delete'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              tooltip: 'Delete disconnected elements',
-                            ),
                           if (_controller.selectedNodeId != null)
                             IconButton(
                               icon: const Icon(Icons.edit, size: 22, color: Color(0xFF1C1C1E)),
@@ -349,6 +320,47 @@ class _EditorScreenState extends State<EditorScreen> {
                   },
                 ),
               ),
+            ),
+          // ── Floating delete button for selected orphan node ──
+          if (_isOwner)
+            ListenableBuilder(
+              listenable: Listenable.merge([_controller, _transformController]),
+              builder: (context, _) {
+                final selectedId = _controller.selectedNodeId;
+                if (selectedId == null) return const SizedBox.shrink();
+                final orphans = _controller.diagram.orphanedNodeIds();
+                if (!orphans.contains(selectedId)) return const SizedBox.shrink();
+                final node = _controller.diagram.nodes[selectedId];
+                if (node == null) return const SizedBox.shrink();
+
+                // Convert diagram coords to screen coords.
+                final matrix = _transformController.value;
+                final scale = matrix.getMaxScaleOnAxis();
+                final tx = matrix.entry(0, 3);
+                final ty = matrix.entry(1, 3);
+                final screenX = (node.rect.right + 2000) * scale + tx;
+                final screenY = (node.rect.top + 2000) * scale + ty;
+
+                return Positioned(
+                  left: screenX + 4,
+                  top: screenY - 16,
+                  child: Material(
+                    color: Colors.red,
+                    shape: const CircleBorder(),
+                    elevation: 4,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () {
+                        _controller.deleteSelected();
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(Icons.delete_outline, size: 20, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           // ── Top bar ──
           // Back button (left) — goes back one screen.
