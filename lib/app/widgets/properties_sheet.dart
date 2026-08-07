@@ -187,7 +187,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     final otherName = otherNode?.name.isNotEmpty == true
         ? otherNode!.name
         : (otherNode?.id ?? '?');
-    final label = isOutgoing ? '→ $otherName' : '$otherName →';
+    final label = otherName;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -239,7 +239,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
       placeholder: 'Option ${index + 1}',
       prefixIcon: Icons.arrow_forward,
       suffix: Text(
-        '→ $targetName',
+        targetName,
         style: TextStyle(fontSize: 12, color: Colors.grey[400]),
       ),
     );
