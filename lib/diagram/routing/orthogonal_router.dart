@@ -81,7 +81,10 @@ class OrthogonalRouter {
     final dx = toward.dx - node.center.dx;
     final dy = toward.dy - node.center.dy;
 
-    if (dx.abs() >= dy.abs()) {
+    // Bias toward vertical (top/bottom) to match BPMN's top-to-bottom flow
+    // convention. Horizontal is only chosen when |dx| clearly dominates
+    // (1.5× or more), so a node diagonally below exits downward, not sideways.
+    if (dx.abs() >= dy.abs() * 1.5) {
       return dx >= 0 ? ConnectorSide.right : ConnectorSide.left;
     } else {
       return dy >= 0 ? ConnectorSide.bottom : ConnectorSide.top;
@@ -89,18 +92,33 @@ class OrthogonalRouter {
   }
 
   Offset _anchorPoint(NodeModel node, ConnectorSide side) {
+    final cx = node.rect.center.dx;
+    final cy = node.rect.center.dy;
+    final hw = node.rect.width / 2;
+    final hh = node.rect.height / 2;
     switch (side) {
       case ConnectorSide.top:
-        return Offset(node.rect.center.dx, node.rect.top);
+        return Offset(cx, node.rect.top);
       case ConnectorSide.right:
-        return Offset(node.rect.right, node.rect.center.dy);
+        return Offset(node.rect.right, cy);
       case ConnectorSide.bottom:
-        return Offset(node.rect.center.dx, node.rect.bottom);
+        return Offset(cx, node.rect.bottom);
       case ConnectorSide.left:
-        return Offset(node.rect.left, node.rect.center.dy);
+        return Offset(node.rect.left, cy);
+      case ConnectorSide.topRight:
+        return Offset(cx + hw / 2, cy - hh / 2);
+      case ConnectorSide.bottomRight:
+        return Offset(cx + hw / 2, cy + hh / 2);
+      case ConnectorSide.bottomLeft:
+        return Offset(cx - hw / 2, cy + hh / 2);
+      case ConnectorSide.topLeft:
+        return Offset(cx - hw / 2, cy - hh / 2);
     }
   }
 
+  /// Stub direction for each side. Diagonal sides alternate between
+  /// horizontal and vertical to maximize separation from adjacent ports:
+  /// top(↑) topRight(→) right(→) bottomRight(↓) bottom(↓) bottomLeft(←) left(←) topLeft(↑)
   Offset _stubPoint(Offset anchor, ConnectorSide side) {
     switch (side) {
       case ConnectorSide.top:
@@ -111,14 +129,24 @@ class OrthogonalRouter {
         return Offset(anchor.dx, anchor.dy + _stubLength);
       case ConnectorSide.left:
         return Offset(anchor.dx - _stubLength, anchor.dy);
+      case ConnectorSide.topRight:
+        return Offset(anchor.dx + _stubLength, anchor.dy); // exits right
+      case ConnectorSide.bottomRight:
+        return Offset(anchor.dx, anchor.dy + _stubLength); // exits down
+      case ConnectorSide.bottomLeft:
+        return Offset(anchor.dx - _stubLength, anchor.dy); // exits left
+      case ConnectorSide.topLeft:
+        return Offset(anchor.dx, anchor.dy - _stubLength); // exits up
     }
   }
 
   bool _isHorizontal(ConnectorSide side) =>
-      side == ConnectorSide.left || side == ConnectorSide.right;
+      side == ConnectorSide.left || side == ConnectorSide.right ||
+      side == ConnectorSide.topRight || side == ConnectorSide.bottomLeft;
 
   bool _isVertical(ConnectorSide side) =>
-      side == ConnectorSide.top || side == ConnectorSide.bottom;
+      side == ConnectorSide.top || side == ConnectorSide.bottom ||
+      side == ConnectorSide.bottomRight || side == ConnectorSide.topLeft;
 
   /// Try an L-shape: stub from source, one corner, stub into target.
   /// Works when source and target exit on perpendicular sides,

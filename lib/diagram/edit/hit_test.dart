@@ -2,21 +2,67 @@ import 'dart:ui';
 import '../model/diagram_model.dart';
 
 /// Which side of a node the connector handle is on.
-enum ConnectorSide { top, right, bottom, left }
+/// Cardinal sides (top, right, bottom, left) are used by all node types.
+/// Diagonal sides (topRight, bottomRight, bottomLeft, topLeft) are only used
+/// by gateway/diamond nodes when more than 4 connections are needed.
+enum ConnectorSide {
+  top, topRight, right, bottomRight, bottom, bottomLeft, left, topLeft;
+
+  /// The four cardinal sides, used by all node types.
+  static const cardinal = [top, right, bottom, left];
+
+  /// Whether this is a cardinal (non-diagonal) side.
+  bool get isCardinal => this == top || this == right || this == bottom || this == left;
+
+  /// Whether the orthogonal stub from this port exits vertically (up or down).
+  /// top(↑), bottom(↓), bottomRight(↓), topLeft(↑) exit vertically.
+  bool get exitsVertically =>
+      this == top || this == bottom || this == bottomRight || this == topLeft;
+
+  /// Whether the orthogonal stub from this port exits horizontally (left or right).
+  /// right(→), left(←), topRight(→), bottomLeft(←) exit horizontally.
+  bool get exitsHorizontally =>
+      this == right || this == left || this == topRight || this == bottomLeft;
+}
 
 /// Returns the center position of a connector handle for a given node and side.
 /// Handles touch the node border and extend outward.
 Offset connectorHandleCenter(NodeModel node, ConnectorSide side) {
   const r = 6.0; // dot radius — center is offset outward by this amount
+  final cx = node.rect.center.dx;
+  final cy = node.rect.center.dy;
+  final hw = node.rect.width / 2;
+  final hh = node.rect.height / 2;
+
   switch (side) {
     case ConnectorSide.top:
-      return Offset(node.rect.center.dx, node.rect.top - r);
+      return Offset(cx, node.rect.top - r);
     case ConnectorSide.right:
-      return Offset(node.rect.right + r, node.rect.center.dy);
+      return Offset(node.rect.right + r, cy);
     case ConnectorSide.bottom:
-      return Offset(node.rect.center.dx, node.rect.bottom + r);
+      return Offset(cx, node.rect.bottom + r);
     case ConnectorSide.left:
-      return Offset(node.rect.left - r, node.rect.center.dy);
+      return Offset(node.rect.left - r, cy);
+    case ConnectorSide.topRight:
+      if (node.type == NodeType.exclusiveGateway) {
+        return Offset(cx + hw / 2 + r * 0.707, cy - hh / 2 - r * 0.707);
+      }
+      return Offset(node.rect.right + r, node.rect.top - r);
+    case ConnectorSide.bottomRight:
+      if (node.type == NodeType.exclusiveGateway) {
+        return Offset(cx + hw / 2 + r * 0.707, cy + hh / 2 + r * 0.707);
+      }
+      return Offset(node.rect.right + r, node.rect.bottom + r);
+    case ConnectorSide.bottomLeft:
+      if (node.type == NodeType.exclusiveGateway) {
+        return Offset(cx - hw / 2 - r * 0.707, cy + hh / 2 + r * 0.707);
+      }
+      return Offset(node.rect.left - r, node.rect.bottom + r);
+    case ConnectorSide.topLeft:
+      if (node.type == NodeType.exclusiveGateway) {
+        return Offset(cx - hw / 2 - r * 0.707, cy - hh / 2 - r * 0.707);
+      }
+      return Offset(node.rect.left - r, node.rect.top - r);
   }
 }
 
@@ -62,7 +108,7 @@ class HitTester {
         final centerDist = (point - node.center).distance;
         double bestHandleDist = double.infinity;
         ConnectorSide? bestSide;
-        for (final side in ConnectorSide.values) {
+        for (final side in ConnectorSide.cardinal) {
           final center = connectorHandleCenter(node, side);
           final d = (point - center).distance;
           if (d <= handleRadius && d < bestHandleDist) {

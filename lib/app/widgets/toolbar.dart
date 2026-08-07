@@ -39,7 +39,8 @@ class EditorToolbar extends StatelessWidget {
     final dy = inverse.storage[1] * localCenter.dx +
         inverse.storage[5] * localCenter.dy +
         inverse.storage[13];
-    return Offset(dx, dy);
+    // Subtract canvas offset to convert from widget-local to diagram coords.
+    return Offset(dx - 2000, dy - 2000);
   }
 
   void _addNodeAndZoom(NodeType type) {
@@ -70,8 +71,11 @@ class EditorToolbar extends StatelessWidget {
 
     // Build the target matrix: scale around canvas center, then translate
     // so that canvasCenter maps to screenCenter.
-    final tx = screenCenter.dx - canvasCenter.dx * targetScale;
-    final ty = screenCenter.dy - canvasCenter.dy * targetScale;
+    // Add canvas offset to convert diagram coords to widget-local coords.
+    final widgetX = canvasCenter.dx + 2000;
+    final widgetY = canvasCenter.dy + 2000;
+    final tx = screenCenter.dx - widgetX * targetScale;
+    final ty = screenCenter.dy - widgetY * targetScale;
     final target = Matrix4.identity()
       ..setEntry(0, 3, tx)
       ..setEntry(1, 3, ty)

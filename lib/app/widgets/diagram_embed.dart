@@ -71,10 +71,12 @@ class _DiagramEmbedState extends State<DiagramEmbed> {
           final scale = scaleX < scaleY ? scaleX : scaleY;
 
           // Center the diagram.
+          // DiagramPainter adds a (2000,2000) canvas offset internally,
+          // so account for it here.
           final scaledW = bbox.width * scale;
           final scaledH = bbox.height * scale;
-          final tx = (viewW - scaledW) / 2 - bbox.left * scale;
-          final ty = (viewH - scaledH) / 2 - bbox.top * scale;
+          final tx = (viewW - scaledW) / 2 - (bbox.left + 2000) * scale;
+          final ty = (viewH - scaledH) / 2 - (bbox.top + 2000) * scale;
 
           return CustomPaint(
             size: Size(viewW, viewH),

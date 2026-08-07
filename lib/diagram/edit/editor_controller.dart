@@ -45,15 +45,27 @@ class EditorController extends ChangeNotifier {
   }
 
   static Offset _nodeBorderPoint(NodeModel node, ConnectorSide side) {
+    final cx = node.rect.center.dx;
+    final cy = node.rect.center.dy;
+    final hw = node.rect.width / 2;
+    final hh = node.rect.height / 2;
     switch (side) {
       case ConnectorSide.top:
-        return Offset(node.rect.center.dx, node.rect.top);
+        return Offset(cx, node.rect.top);
       case ConnectorSide.right:
-        return Offset(node.rect.right, node.rect.center.dy);
+        return Offset(node.rect.right, cy);
       case ConnectorSide.bottom:
-        return Offset(node.rect.center.dx, node.rect.bottom);
+        return Offset(cx, node.rect.bottom);
       case ConnectorSide.left:
-        return Offset(node.rect.left, node.rect.center.dy);
+        return Offset(node.rect.left, cy);
+      case ConnectorSide.topRight:
+        return Offset(cx + hw / 2, cy - hh / 2);
+      case ConnectorSide.bottomRight:
+        return Offset(cx + hw / 2, cy + hh / 2);
+      case ConnectorSide.bottomLeft:
+        return Offset(cx - hw / 2, cy + hh / 2);
+      case ConnectorSide.topLeft:
+        return Offset(cx - hw / 2, cy - hh / 2);
     }
   }
 
@@ -199,7 +211,7 @@ class EditorController extends ChangeNotifier {
     if (selectedNodeId != null) {
       final selNode = diagram.nodes[selectedNodeId];
       if (selNode != null) {
-        for (final side in ConnectorSide.values) {
+        for (final side in ConnectorSide.cardinal) {
           final center = connectorHandleCenter(selNode, side);
           final d = (point - center).distance;
           if (d < bestDist) {
@@ -747,15 +759,17 @@ class EditorController extends ChangeNotifier {
     if (diagram.nodes.isEmpty) return;
 
     const colW = 180.0; // horizontal spacing between node centers
-    const rowH = 130.0; // vertical spacing between layers
+    const rowH = 160.0; // vertical spacing between layers
     const startY = 100.0;
 
-    // ── Build adjacency ──
+    // ── Build adjacency (deduplicated) ──
     final childMap = <String, List<String>>{};
     final parentMap = <String, List<String>>{};
     for (final edge in diagram.edges.values) {
-      childMap.putIfAbsent(edge.sourceId, () => []).add(edge.targetId);
-      parentMap.putIfAbsent(edge.targetId, () => []).add(edge.sourceId);
+      final children = childMap.putIfAbsent(edge.sourceId, () => []);
+      if (!children.contains(edge.targetId)) children.add(edge.targetId);
+      final parents = parentMap.putIfAbsent(edge.targetId, () => []);
+      if (!parents.contains(edge.sourceId)) parents.add(edge.sourceId);
     }
 
     // ── Find roots (prefer startEvent) ──
@@ -970,11 +984,6 @@ class EditorController extends ChangeNotifier {
       node.rect = NodeModel.defaultRect(node.type, Offset(rx, ry));
     }
 
-    // Clear all waypoints so they get freshly routed.
-    for (final edge in diagram.edges.values) {
-      edge.waypoints = [];
-    }
-
     _assignPortsAndRoute();
     notifyListeners();
   }
@@ -982,6 +991,11 @@ class EditorController extends ChangeNotifier {
   /// Assign ports to all edges, distributing outputs from the same node
   /// across different sides, then route each edge.
   void _assignPortsAndRoute() {
+    // Clear all waypoints so they get freshly routed from current positions.
+    for (final edge in diagram.edges.values) {
+      edge.waypoints = [];
+    }
+
     // Phase 1: Compute initial sides for each edge.
     final sides = <String, (ConnectorSide src, ConnectorSide tgt)>{};
     for (final edge in diagram.edges.values) {
@@ -1082,22 +1096,41 @@ class EditorController extends ChangeNotifier {
 
       final s = sides[edge.id]!;
 
-      if (edge.waypoints.isEmpty) {
-        final obstacles = diagram.nodes.values
-            .where((n) => n.id != source.id && n.id != target.id)
-            .toList();
+      final obstacles = diagram.nodes.values
+          .where((n) => n.id != source.id && n.id != target.id)
+          .toList();
 
-        edge.waypoints = _router.route(
-          source: source,
-          target: target,
-          sourceSide: s.$1,
-          targetSide: s.$2,
-          obstacles: obstacles,
-          channelBias: channelBias[edge.id] ?? 0.0,
-        );
+      edge.waypoints = _router.route(
+        source: source,
+        target: target,
+        sourceSide: s.$1,
+        targetSide: s.$2,
+        obstacles: obstacles,
+        channelBias: channelBias[edge.id] ?? 0.0,
+      );
+
+      // If the route is a U-turn (6+ waypoints = went backwards around
+      // obstacles), try a cross-axis target side for a cleaner L-shape.
+      if (edge.waypoints.length >= 6) {
+        final altTarget = s.$1.exitsVertically
+            ? (source.center.dx <= target.center.dx
+                ? ConnectorSide.left : ConnectorSide.right)
+            : (source.center.dy <= target.center.dy
+                ? ConnectorSide.top : ConnectorSide.bottom);
+        if (altTarget != s.$2) {
+          final altRoute = _router.route(
+            source: source, target: target,
+            sourceSide: s.$1, targetSide: altTarget,
+            obstacles: obstacles,
+          );
+          if (altRoute.length < edge.waypoints.length) {
+            edge.waypoints = altRoute;
+            sides[edge.id] = (s.$1, altTarget);
+          }
+        }
       }
-      edge.sourceSide = s.$1;
-      edge.targetSide = s.$2;
+      edge.sourceSide = sides[edge.id]!.$1;
+      edge.targetSide = sides[edge.id]!.$2;
     }
   }
 
@@ -1160,29 +1193,51 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Pick the best alternative port for a node→target that avoids [used] ports.
+  /// Ranks all available ports by angular proximity to the target direction.
+  /// For gateways with 5+ connections, includes diagonal ports; otherwise cardinal only.
   ConnectorSide _alternatePort(
       NodeModel node, Offset target, Set<ConnectorSide> used) {
     final dx = target.dx - node.center.dx;
     final dy = target.dy - node.center.dy;
 
-    // Rank all 4 sides by how well they face the target.
-    final ranked = <ConnectorSide>[
-      if (dy < 0) ConnectorSide.top,
-      if (dy > 0) ConnectorSide.bottom,
-      if (dx > 0) ConnectorSide.right,
-      if (dx < 0) ConnectorSide.left,
-      // Fill in remaining sides.
-      if (dy >= 0) ConnectorSide.top,
-      if (dy <= 0) ConnectorSide.bottom,
-      if (dx <= 0) ConnectorSide.right,
-      if (dx >= 0) ConnectorSide.left,
-    ];
+    // Only use diagonal ports on gateways when there are more than 4 connections.
+    final totalConnections = diagram.edges.values
+        .where((e) => e.sourceId == node.id || e.targetId == node.id)
+        .length;
+    final ports = node.type == NodeType.exclusiveGateway && totalConnections > 4
+        ? ConnectorSide.values.toList()
+        : ConnectorSide.cardinal.toList();
 
-    for (final side in ranked) {
+    // Sort ports by how well they face the target (best first).
+    ports.sort((a, b) {
+      final sa = _facingScore(a, dx, dy);
+      final sb = _facingScore(b, dx, dy);
+      return sb.compareTo(sa);
+    });
+
+    for (final side in ports) {
       if (!used.contains(side)) return side;
     }
-    // All used — return primary direction.
-    return ranked.first;
+    return ports.first;
+  }
+
+  /// Dot-product alignment of a port's outward direction with (dx, dy).
+  /// Higher = port faces the target better.
+  double _facingScore(ConnectorSide side, double dx, double dy) {
+    final len = dx.abs() + dy.abs();
+    if (len == 0) return 0;
+    final nx = dx / len;
+    final ny = dy / len;
+    switch (side) {
+      case ConnectorSide.top:         return -ny;
+      case ConnectorSide.topRight:    return (nx - ny) * 0.707;
+      case ConnectorSide.right:       return nx;
+      case ConnectorSide.bottomRight: return (nx + ny) * 0.707;
+      case ConnectorSide.bottom:      return ny;
+      case ConnectorSide.bottomLeft:  return (-nx + ny) * 0.707;
+      case ConnectorSide.left:        return -nx;
+      case ConnectorSide.topLeft:     return (-nx - ny) * 0.707;
+    }
   }
 
   double _angle(Offset from, Offset to) {
@@ -1204,6 +1259,10 @@ class EditorController extends ChangeNotifier {
       case ConnectorSide.bottom: return ConnectorSide.top;
       case ConnectorSide.left: return ConnectorSide.right;
       case ConnectorSide.right: return ConnectorSide.left;
+      case ConnectorSide.topRight: return ConnectorSide.bottomLeft;
+      case ConnectorSide.bottomRight: return ConnectorSide.topLeft;
+      case ConnectorSide.bottomLeft: return ConnectorSide.topRight;
+      case ConnectorSide.topLeft: return ConnectorSide.bottomRight;
     }
   }
 

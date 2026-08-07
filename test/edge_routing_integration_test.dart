@@ -191,20 +191,38 @@ ConnectorSide _alternatePort(
     NodeModel node, Offset target, Set<ConnectorSide> used) {
   final dx = target.dx - node.center.dx;
   final dy = target.dy - node.center.dy;
-  final ranked = <ConnectorSide>[
-    if (dy < 0) ConnectorSide.top,
-    if (dy > 0) ConnectorSide.bottom,
-    if (dx > 0) ConnectorSide.right,
-    if (dx < 0) ConnectorSide.left,
-    if (dy >= 0) ConnectorSide.top,
-    if (dy <= 0) ConnectorSide.bottom,
-    if (dx <= 0) ConnectorSide.right,
-    if (dx >= 0) ConnectorSide.left,
-  ];
-  for (final side in ranked) {
+
+  final ports = node.type == NodeType.exclusiveGateway
+      ? ConnectorSide.values.toList()
+      : ConnectorSide.cardinal.toList();
+
+  ports.sort((a, b) {
+    final sa = _facingScore(a, dx, dy);
+    final sb = _facingScore(b, dx, dy);
+    return sb.compareTo(sa);
+  });
+
+  for (final side in ports) {
     if (!used.contains(side)) return side;
   }
-  return ranked.first;
+  return ports.first;
+}
+
+double _facingScore(ConnectorSide side, double dx, double dy) {
+  final len = dx.abs() + dy.abs();
+  if (len == 0) return 0;
+  final nx = dx / len;
+  final ny = dy / len;
+  switch (side) {
+    case ConnectorSide.top:         return -ny;
+    case ConnectorSide.topRight:    return (nx - ny) * 0.707;
+    case ConnectorSide.right:       return nx;
+    case ConnectorSide.bottomRight: return (nx + ny) * 0.707;
+    case ConnectorSide.bottom:      return ny;
+    case ConnectorSide.bottomLeft:  return (-nx + ny) * 0.707;
+    case ConnectorSide.left:        return -nx;
+    case ConnectorSide.topLeft:     return (-nx - ny) * 0.707;
+  }
 }
 
 double _angle(Offset from, Offset to) {
@@ -223,6 +241,10 @@ ConnectorSide _oppositeSide(ConnectorSide side) {
     case ConnectorSide.bottom: return ConnectorSide.top;
     case ConnectorSide.left: return ConnectorSide.right;
     case ConnectorSide.right: return ConnectorSide.left;
+    case ConnectorSide.topRight: return ConnectorSide.bottomLeft;
+    case ConnectorSide.bottomRight: return ConnectorSide.topLeft;
+    case ConnectorSide.bottomLeft: return ConnectorSide.topRight;
+    case ConnectorSide.topLeft: return ConnectorSide.bottomRight;
   }
 }
 
@@ -248,24 +270,28 @@ void expectFirstSegmentMatchesPort(List<Offset> wps, ConnectorSide side, {String
   final b = wps[1];
   switch (side) {
     case ConnectorSide.right:
+    case ConnectorSide.topRight: // exits right
       expect(b.dx, greaterThan(a.dx - 0.1),
           reason: '$label right-port first segment should go rightward');
       expect((a.dy - b.dy).abs(), lessThan(0.5),
           reason: '$label right-port first segment should be horizontal');
       break;
     case ConnectorSide.left:
+    case ConnectorSide.bottomLeft: // exits left
       expect(b.dx, lessThan(a.dx + 0.1),
           reason: '$label left-port first segment should go leftward');
       expect((a.dy - b.dy).abs(), lessThan(0.5),
           reason: '$label left-port first segment should be horizontal');
       break;
     case ConnectorSide.bottom:
+    case ConnectorSide.bottomRight: // exits down
       expect(b.dy, greaterThan(a.dy - 0.1),
           reason: '$label bottom-port first segment should go downward');
       expect((a.dx - b.dx).abs(), lessThan(0.5),
           reason: '$label bottom-port first segment should be vertical');
       break;
     case ConnectorSide.top:
+    case ConnectorSide.topLeft: // exits up
       expect(b.dy, lessThan(a.dy + 0.1),
           reason: '$label top-port first segment should go upward');
       expect((a.dx - b.dx).abs(), lessThan(0.5),

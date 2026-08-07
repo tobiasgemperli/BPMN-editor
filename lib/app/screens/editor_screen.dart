@@ -163,8 +163,9 @@ class _EditorScreenState extends State<EditorScreen> {
 
     final cx = (minX + maxX) / 2;
     final cy = (minY + maxY) / 2;
-    final tx = viewSize.width / 2 - cx * scale;
-    final ty = viewSize.height / 2 - cy * scale;
+    // Add canvas offset to convert diagram coords to widget-local coords.
+    final tx = viewSize.width / 2 - (cx + 2000) * scale;
+    final ty = viewSize.height / 2 - (cy + 2000) * scale;
 
     final m = Matrix4.identity();
     m.setEntry(0, 3, tx);

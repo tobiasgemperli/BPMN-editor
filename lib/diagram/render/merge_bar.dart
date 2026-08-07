@@ -60,22 +60,43 @@ Map<String, MergeBarInfo> computeMergeBars(DiagramModel diagram) {
       }
     }
 
-    // Skip merge bar when no side has a clear majority — edges approach
-    // from too many different directions for a single bar to look right.
-    if (maxCount < 2) {
+    // Skip merge bar when 3+ incoming edges but no side has at least 2 —
+    // edges approach from too many different directions for a single bar.
+    // For exactly 2 incoming edges, always show a merge bar.
+    if (maxCount < 2 && incoming.length > 2) {
       continue;
     }
 
-    final isHorizontal = barSide == ConnectorSide.top || barSide == ConnectorSide.bottom;
+    // When no side has a clear majority (e.g. 2 edges from different sides),
+    // pick the side facing the average source direction for best visuals.
+    if (maxCount < 2) {
+      double avgDx = 0, avgDy = 0;
+      for (final edge in incoming) {
+        final source = diagram.nodes[edge.sourceId];
+        if (source != null) {
+          avgDx += source.center.dx - node.center.dx;
+          avgDy += source.center.dy - node.center.dy;
+        }
+      }
+      barSide = inferSide(node, Offset(node.center.dx + avgDx, node.center.dy + avgDy));
+    }
+
+    final isHorizontal = barSide == ConnectorSide.top || barSide == ConnectorSide.bottom ||
+        barSide == ConnectorSide.topRight || barSide == ConnectorSide.topLeft ||
+        barSide == ConnectorSide.bottomRight || barSide == ConnectorSide.bottomLeft;
     final nodeCenter = node.center;
 
-    // Bar position along the incoming axis.
+    // Bar position along the incoming axis (only cardinal sides produce bars).
     double barPos;
     switch (barSide) {
       case ConnectorSide.top:
+      case ConnectorSide.topRight:
+      case ConnectorSide.topLeft:
         barPos = node.rect.top - mergeBarOffset;
         break;
       case ConnectorSide.bottom:
+      case ConnectorSide.bottomRight:
+      case ConnectorSide.bottomLeft:
         barPos = node.rect.bottom + mergeBarOffset;
         break;
       case ConnectorSide.left:
@@ -160,8 +181,12 @@ ConnectorSide inferSide(NodeModel node, Offset approach) {
 bool isPastBar(Offset wp, MergeBarInfo bar) {
   switch (bar.side) {
     case ConnectorSide.top:
+    case ConnectorSide.topRight:
+    case ConnectorSide.topLeft:
       return wp.dy > bar.barPos;    // bar is above node; past = below bar
     case ConnectorSide.bottom:
+    case ConnectorSide.bottomRight:
+    case ConnectorSide.bottomLeft:
       return wp.dy < bar.barPos;    // bar is below node; past = above bar
     case ConnectorSide.left:
       return wp.dx > bar.barPos;    // bar is left of node; past = right of bar

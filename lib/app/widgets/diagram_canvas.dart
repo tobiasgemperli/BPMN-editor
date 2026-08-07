@@ -24,6 +24,10 @@ class DiagramCanvas extends StatefulWidget {
 
 class _DiagramCanvasState extends State<DiagramCanvas>
     with TickerProviderStateMixin {
+  /// Offset added so that diagram coordinates (which can be negative)
+  /// map to positive widget-local coordinates within the SizedBox.
+  static const _canvasOffset = Offset(2000, 2000);
+
   bool _isDiagramDrag = false;
   int? _activePointer;
 
@@ -168,12 +172,12 @@ class _DiagramCanvasState extends State<DiagramCanvas>
   }
 
   Widget _buildCanvas() {
-    const canvasSize = Size(4000, 4000);
+    const canvasSize = Size(8000, 8000);
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
         if (widget.readOnly) return;
-        final canvasPoint = event.localPosition;
+        final canvasPoint = event.localPosition - _canvasOffset;
         _activePointer = event.pointer;
         _cancelLongPress();
 
@@ -204,14 +208,15 @@ class _DiagramCanvasState extends State<DiagramCanvas>
       },
       onPointerMove: (event) {
         if (_isDiagramDrag && event.pointer == _activePointer) {
+          final canvasPoint = event.localPosition - _canvasOffset;
           // Cancel long-press if finger moved too far.
           if (_longPressStart != null) {
-            final d = (event.localPosition - _longPressStart!).distance;
+            final d = (canvasPoint - _longPressStart!).distance;
             if (d > _longPressMoveThreshold) {
               _cancelLongPress();
             }
           }
-          widget.controller.onDragUpdate(event.localPosition);
+          widget.controller.onDragUpdate(canvasPoint);
         }
       },
       onPointerUp: (event) {
@@ -234,7 +239,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
             // No drag or connection started — clean up pending state
             // and treat as a tap to select.
             ctrl.cancelPendingDrag();
-            ctrl.onTapDown(event.localPosition);
+            ctrl.onTapDown(event.localPosition - _canvasOffset);
           }
         }
         _isDiagramDrag = false;

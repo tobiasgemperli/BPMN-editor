@@ -70,9 +70,16 @@ class DiagramPainter extends CustomPainter {
 
   DiagramPainter(this.controller) : super(repaint: controller);
 
+  /// Offset that shifts diagram coordinates into the widget's local space.
+  /// Must match [_DiagramCanvasState._canvasOffset].
+  static const _canvasOffset = Offset(2000, 2000);
+
   @override
   void paint(Canvas canvas, Size size) {
     _drawGrid(canvas, size);
+    // Translate so diagram coordinates (which can be negative) are visible.
+    canvas.save();
+    canvas.translate(_canvasOffset.dx, _canvasOffset.dy);
     final mergeBars = computeMergeBars(controller.diagram);
     _drawEdges(canvas, mergeBars);
     _drawMergeBars(canvas, mergeBars);
@@ -80,6 +87,7 @@ class DiagramPainter extends CustomPainter {
     _drawSnapGuides(canvas, size);
     _drawConnectionPreview(canvas);
     _drawConnectorHandle(canvas);
+    canvas.restore();
   }
 
   void _drawGrid(Canvas canvas, Size size) {
@@ -109,9 +117,14 @@ class DiagramPainter extends CustomPainter {
       if (wps.length < 2) continue;
 
       // Clip start/end to node boundary, accounting for lift scale.
+      // For routed edges, wps[0] is the source anchor on the border — clip
+      // toward it to keep the first segment orthogonal.
+      // For fallback center-to-center edges, wps[0] is at the center — use wps[1].
       final scaledSource = _applyLiftScale(source);
       final scaledTarget = _applyLiftScale(target);
-      final clippedStart = clipToNodeBorder(scaledSource, wps[1]);
+      final clipDir =
+          (wps[0] - scaledSource.center).distance > 1.0 ? wps[0] : wps[1];
+      final clippedStart = clipToNodeBorder(scaledSource, clipDir);
 
       // Check if target has a merge bar.
       final mergeBar = mergeBars[edge.targetId];
@@ -125,7 +138,11 @@ class DiagramPainter extends CustomPainter {
             sourceId: edge.sourceId, targetId: edge.targetId);
         skipArrow = true;
       } else {
-        final clippedEnd = clipToNodeBorder(scaledTarget, wps[wps.length - 2]);
+        final endClipDir =
+            (wps.last - scaledTarget.center).distance > 1.0
+                ? wps.last
+                : wps[wps.length - 2];
+        final clippedEnd = clipToNodeBorder(scaledTarget, endClipDir);
         adjustedWps = [clippedStart, ...wps.sublist(1, wps.length - 1), clippedEnd];
         skipArrow = false;
       }
@@ -378,21 +395,25 @@ class DiagramPainter extends CustomPainter {
         Offset stub;
         switch (side) {
           case ConnectorSide.top:
+          case ConnectorSide.topLeft:
             stub = Offset(start.dx, start.dy - stubLen);
             path.lineTo(stub.dx, stub.dy);
             path.lineTo(end.dx, stub.dy);
             break;
           case ConnectorSide.right:
+          case ConnectorSide.topRight:
             stub = Offset(start.dx + stubLen, start.dy);
             path.lineTo(stub.dx, stub.dy);
             path.lineTo(stub.dx, end.dy);
             break;
           case ConnectorSide.bottom:
+          case ConnectorSide.bottomRight:
             stub = Offset(start.dx, start.dy + stubLen);
             path.lineTo(stub.dx, stub.dy);
             path.lineTo(end.dx, stub.dy);
             break;
           case ConnectorSide.left:
+          case ConnectorSide.bottomLeft:
             stub = Offset(start.dx - stubLen, start.dy);
             path.lineTo(stub.dx, stub.dy);
             path.lineTo(stub.dx, end.dy);
@@ -422,7 +443,7 @@ class DiagramPainter extends CustomPainter {
     final node = controller.diagram.nodes[controller.selectedNodeId];
     if (node == null) return;
 
-    for (final side in ConnectorSide.values) {
+    for (final side in ConnectorSide.cardinal) {
       final center = connectorHandleCenter(node, side);
       canvas.drawCircle(center, 6, _handlePaint);
     }
