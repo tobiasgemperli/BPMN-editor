@@ -44,21 +44,18 @@ class EditorToolbar extends StatelessWidget {
   }
 
   void _addNodeAndZoom(NodeType type) {
-    const targetZoom = 1.0;
     final currentZoom = transformationController.value.getMaxScaleOnAxis();
 
     // Add node at current visible center before zooming.
     final center = _visibleCenter();
     controller.addNodeNear(type, center);
 
-    // If zoomed out too far, animate to target zoom centered on the new node.
-    if (currentZoom < targetZoom) {
-      final nodeCenter = controller.diagram.nodes[controller.selectedNodeId]?.center;
-      if (nodeCenter != null) {
-        _animateZoomTo(targetZoom, nodeCenter);
-      }
+    final nodeCenter = controller.diagram.nodes[controller.selectedNodeId]?.center;
+    if (nodeCenter != null) {
+      // Zoom in if too far out, otherwise keep current zoom and pan to node.
+      final targetZoom = currentZoom < 1.0 ? 1.0 : currentZoom;
+      _animateZoomTo(targetZoom, nodeCenter);
     }
-
   }
 
   void _animateZoomTo(double targetScale, Offset canvasCenter) {

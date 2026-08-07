@@ -139,13 +139,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                           EditorScreen(showCloseButton: true, onSaved: _loadSaved)),
                     ),
                     child: Container(
-                      width: 38,
-                      height: 38,
+                      width: 44,
+                      height: 44,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: Color(0xFF007AFF),
                       ),
-                      child: const Icon(Icons.add, size: 22, color: Colors.white),
+                      child: const Icon(Icons.add, size: 26, color: Colors.white),
                     ),
                   ),
                 ],

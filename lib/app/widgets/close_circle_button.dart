@@ -19,8 +19,8 @@ class CloseCircleButton extends StatelessWidget {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        width: 36,
-        height: 36,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white.withValues(alpha: 0.9),
@@ -38,7 +38,7 @@ class CloseCircleButton extends StatelessWidget {
               : isBack
                   ? Icons.chevron_left
                   : Icons.close,
-          size: 20,
+          size: 24,
           color: Colors.black54,
         ),
       ),

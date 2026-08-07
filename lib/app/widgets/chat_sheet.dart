@@ -370,14 +370,14 @@ class _ChatSheetState extends State<_ChatSheet> {
                     GestureDetector(
                       onTap: _send,
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: 44,
+                        height: 44,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Color(0xFF007AFF),
                         ),
                         child: const Icon(Icons.arrow_upward,
-                            color: Colors.white, size: 20),
+                            color: Colors.white, size: 22),
                       ),
                     ),
                   ],

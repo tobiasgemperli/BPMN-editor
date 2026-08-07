@@ -382,8 +382,8 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
             opacity: _opacity.value,
             child: Center(
               child: Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: 0.9),
@@ -486,13 +486,13 @@ class _InfoCircleButton extends StatelessWidget {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        width: 36,
-        height: 36,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.black.withValues(alpha: 0.5),
         ),
-        child: const Icon(Icons.info_outline, size: 18, color: Colors.white),
+        child: const Icon(Icons.info_outline, size: 22, color: Colors.white),
       ),
     );
   }

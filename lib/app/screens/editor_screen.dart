@@ -76,6 +76,12 @@ class _EditorScreenState extends State<EditorScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _centerDiagram();
       });
+    } else if (_isOwner) {
+      // New diagram — add a start event and center the view on it.
+      _controller.addNodeAtPosition(NodeType.startEvent, const Offset(200, 100));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _centerDiagram();
+      });
     }
     // Autosave: debounced 5s after any edit.
     if (_isOwner) {
@@ -398,11 +404,37 @@ class _EditorScreenState extends State<EditorScreen>
               child: Center(
                 child: GestureDetector(
                   onTap: _editTitle,
-                  child: Text(
-                    _title,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _title,
+                          style: const TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      ListenableBuilder(
+                        listenable: Listenable.merge([
+                          _controller,
+                          DiagramStorage.instance.syncStatusNotifier,
+                        ]),
+                        builder: (context, _) {
+                          if (_dirty) {
+                            return const Icon(Icons.cloud_outlined,
+                                size: 18, color: Color(0xFFAEAEB2));
+                          }
+                          if (_savedId == null) {
+                            return const SizedBox.shrink();
+                          }
+                          final status = DiagramStorage.instance
+                              .getSyncStatus(_savedId!);
+                          return _SyncIndicator(status: status);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -419,19 +451,6 @@ class _EditorScreenState extends State<EditorScreen>
                       fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ),
-          if (_isOwner && _savedId != null)
-            Positioned(
-              top: topPad + 10,
-              right: 16,
-              child: ListenableBuilder(
-                listenable: DiagramStorage.instance.syncStatusNotifier,
-                builder: (context, _) {
-                  final status = DiagramStorage.instance
-                      .getSyncStatus(_savedId!);
-                  return _SyncIndicator(status: status);
-                },
               ),
             ),
           // ── Floating creator info (viewer only) ──
