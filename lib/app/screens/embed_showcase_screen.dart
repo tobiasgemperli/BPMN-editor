@@ -527,13 +527,12 @@ class _EmbedStepContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = node.content;
-    final displayTitle = content?.title ?? node.name;
+    final displayTitle = node.name;
     final text = content?.text;
     final imagePath = content?.imagePath;
     final videoPath = content?.videoPath;
     final hasImage = imagePath != null;
     final hasVideo = videoPath != null;
-    final imageContain = content?.imageContain ?? false;
     final isGateway = node.type == NodeType.exclusiveGateway;
 
     List<String> options = [];
@@ -587,74 +586,42 @@ class _EmbedStepContent extends StatelessWidget {
             ),
           ],
 
-          // Image — fullscreen with gradient title when no text.
+          // Image — fullscreen with title when no text.
           if (hasImage && text == null) ...[
             const SizedBox(height: 12),
             Expanded(
               flex: 5,
-              child: imageContain
-                ? Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                          child: Text(
-                            displayTitle,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1C1C1E),
-                            ),
-                            textAlign: TextAlign.center,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  children: [
+                    if (displayTitle.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          displayTitle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1C1C1E),
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Image.asset(imagePath, fit: BoxFit.contain),
-                          ),
-                        ),
-                      ],
+                      ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Image.asset(imagePath, fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const SizedBox.shrink()),
+                      ),
                     ),
-                  )
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.asset(imagePath, fit: BoxFit.cover),
-                        Positioned(
-                          left: 0, right: 0, bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.7),
-                                  Colors.transparent,
-                                ],
-                              ),
-                            ),
-                            child: Text(
-                              displayTitle,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
+                ),
+              ),
             ),
           ],
 

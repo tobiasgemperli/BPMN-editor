@@ -195,7 +195,6 @@ class SampleDiagrams {
       'n1':  NodeModel(id: 'n1',  type: NodeType.startEvent,       name: 'Start',           rect: _event(_cx, _row(0))),
       'n2':  NodeModel(id: 'n2',  type: NodeType.task,             name: 'Sprint 1',        rect: _task(_cx, _row(1)),
         content: TaskContent(
-          title: 'Discovery & Planning',
           text: 'Define the product vision and identify key user stories. '
               'Set up the development environment and establish coding standards. '
               'Create the initial backlog with prioritized features.',
@@ -204,19 +203,16 @@ class SampleDiagrams {
       'n4':  NodeModel(id: 'n4',  type: NodeType.endEvent,         name: 'End',             rect: _event(right, _row(2))),
       'n5':  NodeModel(id: 'n5',  type: NodeType.task,             name: 'Sprint 2',        rect: _task(_cx, _row(3)),
         content: TaskContent(
-          title: 'Core Feature Development',
           text: 'Implement the primary user-facing features identified in Sprint 1. '
               'Focus on building a working MVP that can be demonstrated to stakeholders.',
         )),
       'n6':  NodeModel(id: 'n6',  type: NodeType.task,             name: 'Sprint 3',        rect: _task(_cx, _row(4)),
         content: TaskContent(
-          title: 'Integration & Polish',
           text: 'Connect all components and ensure end-to-end flows work correctly. '
               'Address UI/UX feedback and fix critical bugs found during development.',
         )),
       'n7':  NodeModel(id: 'n7',  type: NodeType.task,             name: 'Sprint 4',        rect: _task(_cx, _row(5)),
         content: TaskContent(
-          title: 'Testing & Stabilization',
           text: 'Run comprehensive test suites including integration and performance tests. '
               'Prepare release documentation and deployment scripts.',
         )),
@@ -224,7 +220,6 @@ class SampleDiagrams {
       'n9':  NodeModel(id: 'n9',  type: NodeType.endEvent,         name: 'Product Launch',  rect: _event(left, _row(7))),
       'n10': NodeModel(id: 'n10', type: NodeType.task,             name: 'Sprint 5',        rect: _task(right, _row(7)),
         content: TaskContent(
-          title: 'Improvement Sprint',
           text: 'Address issues found during user testing. '
               'Implement high-priority improvements and re-validate with users.',
         )),
@@ -256,7 +251,6 @@ class SampleDiagrams {
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Bug Report', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Reproduce', rect: _task(_cx, _row(1)),
         content: TaskContent(
-          title: 'Reproduce the Issue',
           text: 'Open the API endpoint in question using the exact parameters from the bug report. '
               'Confirm the 500 error is reproducible. Note the exact request payload, headers, '
               'and timestamp. Check if the issue is environment-specific (staging vs production). '
@@ -264,7 +258,6 @@ class SampleDiagrams {
         )),
       'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Check Logs', rect: _task(_cx, _row(2)),
         content: TaskContent(
-          title: 'Analyze Server Logs',
           text: 'SSH into the production server or open the logging dashboard. '
               'Filter logs by the timestamp and request ID from the reproduction step. '
               'Look for stack traces, error messages, and any preceding warnings. '
@@ -275,7 +268,6 @@ class SampleDiagrams {
       // DB path
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Check DB', rect: _task(left, _row(4)),
         content: TaskContent(
-          title: 'Inspect Database State',
           text: 'Connect to the database and run the failing query manually. '
               'Check for missing indices, locked rows, or corrupted data. '
               'Verify that recent migrations have been applied correctly. '
@@ -283,7 +275,6 @@ class SampleDiagrams {
         )),
       'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Fix Query', rect: _task(left, _row(5)),
         content: TaskContent(
-          title: 'Apply Database Fix',
           text: 'Fix the query, add the missing index, or repair the data. '
               'If a migration is needed, write it and test on staging first. '
               'Document the root cause in the ticket.',
@@ -291,7 +282,6 @@ class SampleDiagrams {
       // Auth path
       'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Check Tokens', rect: _task(_cx, _row(4)),
         content: TaskContent(
-          title: 'Validate Authentication',
           text: 'Decode the JWT token and check expiry, issuer, and audience claims. '
               'Verify the signing key matches between auth server and API. '
               'Check if the user\'s session exists in the session store (Redis/DB). '
@@ -299,7 +289,6 @@ class SampleDiagrams {
         )),
       'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Fix Auth', rect: _task(_cx, _row(5)),
         content: TaskContent(
-          title: 'Refresh Auth Configuration',
           text: 'Rotate the signing keys if compromised. Update the token expiry settings. '
               'Clear stale sessions from the session store. '
               'Deploy the auth fix and monitor for recurring failures.',
@@ -307,7 +296,6 @@ class SampleDiagrams {
       // Timeout path
       'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Check Load', rect: _task(right, _row(4)),
         content: TaskContent(
-          title: 'Analyze System Resources',
           text: 'Check CPU, memory, and disk usage on the affected server. '
               'Review the connection pool utilization and open file descriptors. '
               'Check if any background jobs or cron tasks are consuming excessive resources. '
@@ -315,7 +303,6 @@ class SampleDiagrams {
         )),
       'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Optimize', rect: _task(right, _row(5)),
         content: TaskContent(
-          title: 'Scale or Optimize',
           text: 'Add caching for expensive queries. Increase connection pool size. '
               'Scale horizontally by adding more instances behind the load balancer. '
               'Set appropriate timeouts on upstream service calls.',
@@ -323,7 +310,6 @@ class SampleDiagrams {
       // Merge
       'n11': NodeModel(id: 'n11', type: NodeType.task, name: 'Verify Fix', rect: _task(_cx, _row(6)),
         content: TaskContent(
-          title: 'Verify the Fix',
           text: 'Re-run the exact reproduction steps from step 1. '
               'Confirm the 500 error no longer occurs. Run the full API test suite. '
               'Monitor production logs for 30 minutes after deployment. '
@@ -361,7 +347,6 @@ class SampleDiagrams {
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Fire Alarm', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Alert Others', rect: _task(_cx, _row(1)),
         content: TaskContent(
-          title: 'Alert Nearby Personnel',
           text: 'Immediately shout "FIRE" to alert people in the vicinity. '
               'Activate the nearest manual fire alarm pull station. '
               'Do NOT use elevators. Do NOT attempt to collect personal belongings. '
@@ -371,7 +356,6 @@ class SampleDiagrams {
       // Small fire path
       'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Extinguisher', rect: _task(left, _row(3)),
         content: TaskContent(
-          title: 'Use Fire Extinguisher',
           text: 'Only attempt this if the fire is small (wastebasket size or smaller) '
               'and you have a clear escape route behind you.\n\n'
               'Remember PASS:\n'
@@ -385,7 +369,6 @@ class SampleDiagrams {
       'n5': NodeModel(id: 'n5', type: NodeType.exclusiveGateway, name: 'Fire Out?', rect: _gw(left, _row(4))),
       'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Report', rect: _task(left - _branchX * 0.6, _row(5)),
         content: TaskContent(
-          title: 'File Incident Report',
           text: 'Call the fire department to report the extinguished fire — they must still inspect. '
               'Notify building management and your supervisor. '
               'Document the location, time, cause (if known), and actions taken. '
@@ -395,7 +378,6 @@ class SampleDiagrams {
       // Large fire / extinguisher failed path
       'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Evacuate', rect: _task(right, _row(3)),
         content: TaskContent(
-          title: 'Evacuate the Building',
           text: 'Follow the marked evacuation routes — green EXIT signs. '
               'Use stairwells, never elevators. Stay low if there is smoke. '
               'If a door is hot to the touch, do NOT open it — find an alternate route. '
@@ -404,7 +386,6 @@ class SampleDiagrams {
         )),
       'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Assembly Point', rect: _task(right, _row(4)),
         content: TaskContent(
-          title: 'Go to Assembly Point',
           text: 'Proceed to the designated assembly point (parking lot B, north side). '
               'Stay at least 150 meters from the building. '
               'Do not re-enter the building for any reason. '
@@ -412,7 +393,6 @@ class SampleDiagrams {
         )),
       'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Headcount', rect: _task(right, _row(5)),
         content: TaskContent(
-          title: 'Conduct Headcount',
           text: 'Floor wardens: use the emergency roster to verify all personnel are accounted for. '
               'Check with each department lead. '
               'Identify anyone who was known to be in the building. '
@@ -421,14 +401,12 @@ class SampleDiagrams {
       'n11': NodeModel(id: 'n11', type: NodeType.exclusiveGateway, name: 'All Accounted?', rect: _gw(right, _row(6))),
       'n12': NodeModel(id: 'n12', type: NodeType.task, name: 'Wait for FD', rect: _task(right - _branchX * 0.6, _row(7)),
         content: TaskContent(
-          title: 'Await Fire Department',
           text: 'Remain at the assembly point until the fire department gives the all-clear. '
               'Provide the incident commander with building access information. '
               'Do not re-enter until officially authorized.',
         )),
       'n13': NodeModel(id: 'n13', type: NodeType.task, name: 'Inform FD', rect: _task(right + _branchX * 0.6, _row(7)),
         content: TaskContent(
-          title: 'Report Missing Persons',
           text: 'Immediately inform the fire department incident commander of unaccounted personnel. '
               'Provide names, last known locations, and any mobility impairments. '
               'Do NOT attempt to re-enter the building to search for them.',
@@ -469,7 +447,6 @@ class SampleDiagrams {
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Unpack', rect: _task(_cx, _row(1)),
         content: TaskContent(
-          title: 'Unpack All Parts',
           text: 'Open the box and carefully remove all components. '
               'Lay them out on a clean, flat surface — ideally on the cardboard packaging to protect your floor. '
               'Do not use a knife to cut deep into the box as you may scratch the panels. '
@@ -477,7 +454,6 @@ class SampleDiagrams {
         )),
       'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Check Parts', rect: _task(_cx, _row(2)),
         content: TaskContent(
-          title: 'Verify Parts List',
           text: 'Locate the assembly instructions sheet and find the parts list (usually page 2). '
               'Lay out all hardware (screws, dowels, cam locks) and count them against the list.\n\n'
               'You should have:\n'
@@ -497,7 +473,6 @@ class SampleDiagrams {
       // Missing parts — branch right
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Contact IKEA', rect: _task(_cx + _branchX, _row(4)),
         content: TaskContent(
-          title: 'Order Missing Parts',
           text: 'Go to IKEA.com/replace or call customer service. '
               'You will need the product article number (on the label inside the box) '
               'and the part numbers from the instruction sheet. '
@@ -507,7 +482,6 @@ class SampleDiagrams {
       // Assembly path — continues down center
       'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Frame', rect: _task(_cx, _row(4)),
         content: TaskContent(
-          title: 'Assemble the Outer Frame',
           text: 'Insert wooden dowels into the pre-drilled holes of the bottom panel. '
               'Do NOT use glue — the fit should be snug enough without it.\n\n'
               'Screw the cam lock bolts into the side panels (turn clockwise until tight). '
@@ -518,7 +492,6 @@ class SampleDiagrams {
         )),
       'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Dividers', rect: _task(_cx, _row(5)),
         content: TaskContent(
-          title: 'Insert Shelf Dividers',
           text: 'Slide the horizontal divider into position first — insert dowels, then lock with cams. '
               'Next, insert the vertical divider. It should slot into the notch on the horizontal divider, '
               'creating four equal compartments.\n\n'
@@ -527,7 +500,6 @@ class SampleDiagrams {
         )),
       'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Back Panel', rect: _task(_cx, _row(6)),
         content: TaskContent(
-          title: 'Attach the Back Panel',
           text: 'Lay the unit face-down on the floor. '
               'Place the thin fibreboard back panel on top, aligning it with the edges. '
               'The smooth side faces outward (toward the wall).\n\n'
@@ -537,7 +509,6 @@ class SampleDiagrams {
         )),
       'n10': NodeModel(id: 'n10', type: NodeType.task, name: 'Wall Mount', rect: _task(_cx, _row(7)),
         content: TaskContent(
-          title: 'Secure to the Wall',
           text: 'IMPORTANT: KALLAX units MUST be anchored to the wall to prevent tipping.\n\n'
               'Stand the unit upright in its final position. '
               'Use the included L-bracket: attach one side to the top-back of the unit with the provided screw, '
@@ -595,13 +566,12 @@ class SampleDiagrams {
       // Row 1: Title only
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Title Only', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Welcome to the Training')),
+          ),
 
       // Row 2: Title + short text
       'n3': NodeModel(id: 'n3', type: NodeType.task,
           name: 'Title + Text', rect: _task(_cx, _row(2)),
           content: TaskContent(
-            title: 'Safety Briefing',
             text: 'Review the safety guidelines before proceeding. '
                 'Ensure all protective equipment is available.',
           )),
@@ -614,39 +584,33 @@ class SampleDiagrams {
       'n5': NodeModel(id: 'n5', type: NodeType.task,
           name: 'Read Instructions', rect: _task(left, _row(4)),
           content: TaskContent(
-            title: 'Detailed Written Guide',
             text: longText,
           )),
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'View Photo', rect: _task(_cx, _row(4)),
           content: TaskContent(
-            title: 'Visual Reference',
             text: 'Check the image below for correct positioning.',
             imagePath: img,
           )),
       'n7': NodeModel(id: 'n7', type: NodeType.task,
           name: 'Watch Video', rect: _task(right, _row(4)),
           content: TaskContent(
-            title: 'Video Demonstration',
             text: 'Watch the full procedure before attempting it yourself.',
             videoPath: video,
           )),
       'n7a': NodeModel(id: 'n7a', type: NodeType.task,
           name: 'Safety Overview', rect: _task(right, _row(5)),
           content: TaskContent(
-            title: 'Safety Overview',
             videoPath: 'assets/sample_video_1.mp4',
           )),
       'n7b': NodeModel(id: 'n7b', type: NodeType.task,
           name: 'Assembly Steps', rect: _task(right, _row(6)),
           content: TaskContent(
-            title: 'Step-by-Step Assembly',
             videoPath: 'assets/sample_video_2.mp4',
           )),
       'n7c': NodeModel(id: 'n7c', type: NodeType.task,
           name: 'Final Inspection', rect: _task(right, _row(7)),
           content: TaskContent(
-            title: 'Final Inspection',
             text: 'Verify all connections are secure.',
             videoPath: 'assets/sample_video_3.mp4',
           )),
@@ -655,19 +619,16 @@ class SampleDiagrams {
       'n13': NodeModel(id: 'n13', type: NodeType.task,
           name: 'Machine Overview', rect: _task(farLeft, _row(4)),
           content: TaskContent(
-            title: 'Machine Overview',
             imagePath: 'assets/machine_1.jpg',
           )),
       'n13a': NodeModel(id: 'n13a', type: NodeType.task,
           name: 'Compressor Detail', rect: _task(farLeft, _row(5)),
           content: TaskContent(
-            title: 'Compressor Detail',
             imagePath: 'assets/machine_2.png',
           )),
       'n13b': NodeModel(id: 'n13b', type: NodeType.task,
           name: 'Parts Diagram', rect: _task(farLeft, _row(6)),
           content: TaskContent(
-            title: 'Parts Diagram',
             imagePath: 'assets/machine_3.png',
           )),
 
@@ -675,7 +636,6 @@ class SampleDiagrams {
       'n14': NodeModel(id: 'n14', type: NodeType.task,
           name: 'Documentation', rect: _task(farRight, _row(4)),
           content: TaskContent(
-            title: 'Technical Documentation',
             text: 'Download the relevant manuals and specification sheets '
                 'for your equipment model.',
             links: const [
@@ -690,7 +650,6 @@ class SampleDiagrams {
       'n14a': NodeModel(id: 'n14a', type: NodeType.task,
           name: 'Safety Sheets', rect: _task(farRight, _row(5)),
           content: TaskContent(
-            title: 'Safety Data Sheets',
             text: 'Review the safety data sheets for all chemicals and '
                 'materials used in the manufacturing process.',
             links: const [
@@ -707,7 +666,6 @@ class SampleDiagrams {
       'n14b': NodeModel(id: 'n14b', type: NodeType.task,
           name: 'Compliance Docs', rect: _task(farRight, _row(6)),
           content: TaskContent(
-            title: 'Compliance Documents',
             text: 'Ensure all regulatory compliance documents are signed '
                 'and filed before proceeding with the installation.',
             links: const [
@@ -724,7 +682,6 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'Confirm Understanding', rect: _task(_cx, _row(9)),
           content: TaskContent(
-            title: 'Knowledge Check',
             imagePath: img,
           )),
 
@@ -736,7 +693,6 @@ class SampleDiagrams {
       'n10': NodeModel(id: 'n10', type: NodeType.task,
           name: 'Open Manual', rect: _task(left, _row(11)),
           content: TaskContent(
-            title: 'Reference Manual',
             text: 'Full documentation with diagrams and specifications.',
             imagePath: img,
             linkUrl: 'https://example.com/manual',
@@ -745,7 +701,6 @@ class SampleDiagrams {
       'n11': NodeModel(id: 'n11', type: NodeType.task,
           name: 'Proceed', rect: _task(right, _row(11)),
           content: TaskContent(
-            title: 'All Clear',
             text: 'You have completed the training module successfully.',
           )),
 
@@ -812,16 +767,16 @@ class SampleDiagrams {
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Start', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Boil Water', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Boil Water', text: 'Heat filtered water to 96°C (205°F). Avoid boiling.',
+          content: TaskContent(text: 'Heat filtered water to 96°C (205°F). Avoid boiling.',
               videoPath: 'assets/sample_video_1.mp4')),
       'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Grind Beans', rect: _task(_cx, _row(2)),
-          content: TaskContent(title: 'Grind Beans', text: 'Use medium-coarse grind. 15g per 250ml water.',
+          content: TaskContent(text: 'Use medium-coarse grind. 15g per 250ml water.',
               imagePath: 'assets/sample_image.jpg')),
       'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Brew', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Brew Coffee', text: 'Pour water over grounds in circular motion. Wait 4 minutes.',
+          content: TaskContent(text: 'Pour water over grounds in circular motion. Wait 4 minutes.',
               videoPath: 'assets/sample_video_2.mp4')),
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Serve', rect: _task(_cx, _row(4)),
-          content: TaskContent(title: 'Serve', text: 'Pour into pre-warmed mug. Add milk or sugar to taste.')),
+          content: TaskContent(text: 'Pour into pre-warmed mug. Add milk or sugar to taste.')),
       'n6': NodeModel(id: 'n6', type: NodeType.endEvent, name: 'Enjoy', rect: _event(_cx, _row(5))),
     };
     final edges = <String, EdgeModel>{
@@ -841,14 +796,14 @@ class SampleDiagrams {
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Flat Tire', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Pull Over Safely', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Pull Over', text: 'Move to a safe spot away from traffic. Turn on hazard lights.')),
+          content: TaskContent(text: 'Move to a safe spot away from traffic. Turn on hazard lights.')),
       'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Have spare?', rect: _gw(_cx, _row(2))),
       'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Change Tire', rect: _task(left, _row(3)),
-          content: TaskContent(title: 'Change Tire', text: 'Loosen lugs, jack up car, swap tire, lower and tighten.')),
+          content: TaskContent(text: 'Loosen lugs, jack up car, swap tire, lower and tighten.')),
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Call Roadside', rect: _task(right, _row(3)),
-          content: TaskContent(title: 'Call Roadside Assistance', text: 'Share your location and wait in a safe spot.')),
+          content: TaskContent(text: 'Share your location and wait in a safe spot.')),
       'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Drive to Shop', rect: _task(_cx, _row(4)),
-          content: TaskContent(title: 'Visit Tire Shop', text: 'Drive slowly on the spare (max 80 km/h) to get a replacement.')),
+          content: TaskContent(text: 'Drive slowly on the spare (max 80 km/h) to get a replacement.')),
       'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(5))),
     };
     final edges = <String, EdgeModel>{
@@ -874,14 +829,14 @@ class SampleDiagrams {
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Check Plant', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Check Soil', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Check Soil Moisture', text: 'Push your finger 2cm into the soil. If dry, water is needed.')),
+          content: TaskContent(text: 'Push your finger 2cm into the soil. If dry, water is needed.')),
       'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway, name: 'Soil dry?', rect: _gw(_cx, _row(2))),
       'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Water Plant', rect: _task(left, _row(3)),
-          content: TaskContent(title: 'Water Thoroughly', text: 'Water until it drains from the bottom. Empty saucer after 30 min.')),
+          content: TaskContent(text: 'Water until it drains from the bottom. Empty saucer after 30 min.')),
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Skip Watering', rect: _task(right, _row(3)),
-          content: TaskContent(title: 'No Water Needed', text: 'Soil is still moist. Check again in 2-3 days.')),
+          content: TaskContent(text: 'Soil is still moist. Check again in 2-3 days.')),
       'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Check Light', rect: _task(_cx, _row(4)),
-          content: TaskContent(title: 'Adjust Light', text: 'Rotate plant quarter-turn for even growth. Move if leaves yellow.')),
+          content: TaskContent(text: 'Rotate plant quarter-turn for even growth. Move if leaves yellow.')),
       'n7': NodeModel(id: 'n7', type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(5))),
     };
     final edges = <String, EdgeModel>{
@@ -909,16 +864,16 @@ class SampleDiagrams {
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Conflict', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Identify Files', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Identify Conflicting Files', text: 'Run git status to see files with merge conflicts.')),
+          content: TaskContent(text: 'Run git status to see files with merge conflicts.')),
       'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Open Diff', rect: _task(_cx, _row(2)),
-          content: TaskContent(title: 'Review the Diff', text: 'Look for <<<<<<< HEAD markers. Understand both sides of the change.')),
+          content: TaskContent(text: 'Look for <<<<<<< HEAD markers. Understand both sides of the change.')),
       'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Simple fix?', rect: _gw(_cx, _row(3))),
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Edit Manually', rect: _task(left, _row(4)),
-          content: TaskContent(title: 'Manual Resolution', text: 'Keep the correct code, remove conflict markers, test.')),
+          content: TaskContent(text: 'Keep the correct code, remove conflict markers, test.')),
       'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Use Merge Tool', rect: _task(right, _row(4)),
-          content: TaskContent(title: 'Visual Merge Tool', text: 'Use VS Code or IntelliJ merge tool for complex conflicts.')),
+          content: TaskContent(text: 'Use VS Code or IntelliJ merge tool for complex conflicts.')),
       'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Test & Commit', rect: _task(_cx, _row(5)),
-          content: TaskContent(title: 'Test & Commit', text: 'Run tests, then git add and git commit to finalize the merge.')),
+          content: TaskContent(text: 'Run tests, then git add and git commit to finalize the merge.')),
       'n8': NodeModel(id: 'n8', type: NodeType.endEvent, name: 'Resolved', rect: _event(_cx, _row(6))),
     };
     final edges = <String, EdgeModel>{
@@ -945,16 +900,16 @@ class SampleDiagrams {
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Push', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Build', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Build Artifacts', text: 'Compile code, build Docker image, run linters.')),
+          content: TaskContent(text: 'Compile code, build Docker image, run linters.')),
       'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Run Tests', rect: _task(_cx, _row(2)),
-          content: TaskContent(title: 'Automated Tests', text: 'Unit tests, integration tests, E2E tests in parallel.')),
+          content: TaskContent(text: 'Unit tests, integration tests, E2E tests in parallel.')),
       'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Tests pass?', rect: _gw(_cx, _row(3))),
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Deploy Staging', rect: _task(left, _row(4)),
-          content: TaskContent(title: 'Deploy to Staging', text: 'Push to staging environment. Run smoke tests.')),
+          content: TaskContent(text: 'Push to staging environment. Run smoke tests.')),
       'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Fix & Retry', rect: _task(right, _row(4)),
-          content: TaskContent(title: 'Fix Failures', text: 'Review test logs, fix issues, push again to trigger pipeline.')),
+          content: TaskContent(text: 'Review test logs, fix issues, push again to trigger pipeline.')),
       'n7': NodeModel(id: 'n7', type: NodeType.task, name: 'Deploy Prod', rect: _task(_cx, _row(5)),
-          content: TaskContent(title: 'Deploy to Production', text: 'Blue-green deploy with canary rollout. Monitor error rates.')),
+          content: TaskContent(text: 'Blue-green deploy with canary rollout. Monitor error rates.')),
       'n8': NodeModel(id: 'n8', type: NodeType.endEvent, name: 'Live', rect: _event(_cx, _row(6))),
     };
     final edges = <String, EdgeModel>{
@@ -977,13 +932,13 @@ class SampleDiagrams {
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'Plan', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Backup DB', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Create Backup', text: 'Full database dump. Verify backup integrity with restore test.')),
+          content: TaskContent(text: 'Full database dump. Verify backup integrity with restore test.')),
       'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'Run Migration', rect: _task(_cx, _row(2)),
-          content: TaskContent(title: 'Execute Migration', text: 'Apply schema changes. Monitor for lock contention on large tables.')),
+          content: TaskContent(text: 'Apply schema changes. Monitor for lock contention on large tables.')),
       'n4': NodeModel(id: 'n4', type: NodeType.task, name: 'Validate Data', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Validate Data', text: 'Run integrity checks. Compare row counts and checksums.')),
+          content: TaskContent(text: 'Run integrity checks. Compare row counts and checksums.')),
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Update App', rect: _task(_cx, _row(4)),
-          content: TaskContent(title: 'Deploy App Changes', text: 'Deploy app version that uses the new schema. Monitor errors.')),
+          content: TaskContent(text: 'Deploy app version that uses the new schema. Monitor errors.')),
       'n6': NodeModel(id: 'n6', type: NodeType.endEvent, name: 'Complete', rect: _event(_cx, _row(5))),
     };
     final edges = <String, EdgeModel>{
@@ -1007,7 +962,6 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Purchase & Title', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Purchase the Vehicle',
             text: 'Buy the car and ensure you receive a clean title (Certificate of Title). '
                 'Get a Bill of Sale with VIN, price, and seller details. '
                 'Verify the title is free of liens — German customs will reject cars with open loans. '
@@ -1017,7 +971,6 @@ class SampleDiagrams {
       'n3': NodeModel(id: 'n3', type: NodeType.task,
           name: 'Export from USA', rect: _task(_cx, _row(2)),
           content: TaskContent(
-            title: 'US Export & Shipping',
             text: 'File an Electronic Export Information (EEI) via AES if the car is worth over \$2,500. '
                 'Choose a shipping method:\n\n'
                 '• RoRo (Roll-on/Roll-off) — cheapest, ~\$800–1,500\n'
@@ -1030,7 +983,6 @@ class SampleDiagrams {
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Customs Clearance', rect: _task(_cx, _row(3)),
           content: TaskContent(
-            title: 'German Customs (Zoll)',
             text: 'When the car arrives in port, file an import declaration with German customs. '
                 'You will need:\n\n'
                 '• Original title and bill of sale\n'
@@ -1049,7 +1001,6 @@ class SampleDiagrams {
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'COC Document', rect: _task(left, _row(5)),
           content: TaskContent(
-            title: 'Obtain EU Certificate of Conformity',
             text: 'If the car model was also sold in the EU, the manufacturer may issue a '
                 'Certificate of Conformity (COC). Contact the German importer of the brand. '
                 'This skips the full Einzelabnahme and saves thousands of euros. '
@@ -1060,7 +1011,6 @@ class SampleDiagrams {
       'n7': NodeModel(id: 'n7', type: NodeType.task,
           name: 'Convert to EU Spec', rect: _task(right, _row(5)),
           content: TaskContent(
-            title: 'Technical Conversion',
             text: 'US-spec cars need modifications for German road approval:\n\n'
                 '• Headlights — replace sealed beams with E-marked units or re-aim for right-hand traffic\n'
                 '• Rear fog light — mandatory in EU, usually missing on US models\n'
@@ -1074,7 +1024,6 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'TÜV Inspection', rect: _task(_cx, _row(6)),
           content: TaskContent(
-            title: 'Einzelabnahme (TÜV)',
             text: 'Book a Vollabnahme (§21 StVZO) at a TÜV or DEKRA station. '
                 'The inspector checks every modification and measures emissions, '
                 'noise levels, brakes, and lighting. '
@@ -1090,7 +1039,6 @@ class SampleDiagrams {
       'n10': NodeModel(id: 'n10', type: NodeType.task,
           name: 'Fix Issues', rect: _task(right, _row(7)),
           content: TaskContent(
-            title: 'Address TÜV Deficiencies',
             text: 'The TÜV report lists every deficiency with a severity rating. '
                 'Common failures: headlight aim, missing reflectors, emission levels, '
                 'rust on structural members, brake performance. '
@@ -1101,7 +1049,6 @@ class SampleDiagrams {
       'n11': NodeModel(id: 'n11', type: NodeType.task,
           name: 'Register', rect: _task(_cx, _row(8)),
           content: TaskContent(
-            title: 'Register at Zulassungsstelle',
             text: 'Go to your local Kfz-Zulassungsstelle with:\n\n'
                 '• TÜV report (Prüfbericht)\n'
                 '• Customs clearance certificate (Verzollungsnachweis)\n'
@@ -1115,7 +1062,6 @@ class SampleDiagrams {
       'n12': NodeModel(id: 'n12', type: NodeType.task,
           name: 'Insurance & Tax', rect: _task(_cx, _row(9)),
           content: TaskContent(
-            title: 'Insurance & Vehicle Tax',
             text: 'US imports often have higher insurance premiums because parts are harder to source. '
                 'Get quotes from multiple insurers — mention the Typschlüsselnummer from TÜV.\n\n'
                 'Kfz-Steuer (annual vehicle tax) is based on engine displacement and CO₂ emissions. '
@@ -1162,7 +1108,6 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Device Classification', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Determine Device Classification',
             text: 'Search the FDA Product Classification Database for your device type. '
                 'Most devices fall into Class I (low risk), Class II (moderate risk), '
                 'or Class III (high risk).\n\n'
@@ -1174,7 +1119,6 @@ class SampleDiagrams {
       'n3': NodeModel(id: 'n3', type: NodeType.task,
           name: 'Predicate Device', rect: _task(_cx, _row(2)),
           content: TaskContent(
-            title: 'Identify Predicate Device',
             text: 'Find a legally marketed device that is substantially equivalent to yours. '
                 'Search the FDA 510(k) database and PMA database.\n\n'
                 'The predicate must have:\n'
@@ -1188,7 +1132,6 @@ class SampleDiagrams {
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Testing', rect: _task(_cx, _row(3)),
           content: TaskContent(
-            title: 'Performance & Safety Testing',
             text: 'Conduct all testing required for substantial equivalence:\n\n'
                 '• Biocompatibility (ISO 10993) — cytotoxicity, sensitization, irritation\n'
                 '• Electrical safety (IEC 60601-1) for powered devices\n'
@@ -1203,7 +1146,6 @@ class SampleDiagrams {
       'n5': NodeModel(id: 'n5', type: NodeType.task,
           name: 'Prepare Submission', rect: _task(_cx, _row(4)),
           content: TaskContent(
-            title: 'Compile 510(k) Submission',
             text: 'Assemble the submission package per FDA guidance:\n\n'
                 '1. Cover letter and CDRH Premarket Review Submission Cover Sheet\n'
                 '2. Indications for Use Statement\n'
@@ -1221,7 +1163,6 @@ class SampleDiagrams {
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'FDA Review', rect: _task(_cx, _row(5)),
           content: TaskContent(
-            title: 'FDA Substantive Review',
             text: 'The FDA has 90 days for a standard 510(k) review (often takes longer). '
                 'The review goes through stages:\n\n'
                 '• Acceptance Review (15 days) — checks completeness\n'
@@ -1238,7 +1179,6 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'SE Determination', rect: _task(left, _row(7)),
           content: TaskContent(
-            title: 'Substantially Equivalent (SE)',
             text: 'The FDA issues a Substantially Equivalent (SE) letter — your device is cleared! '
                 'You receive a 510(k) number (e.g., K231234).\n\n'
                 'You can now legally market the device in the US. '
@@ -1250,7 +1190,6 @@ class SampleDiagrams {
       'n9': NodeModel(id: 'n9', type: NodeType.task,
           name: 'NSE Letter', rect: _task(right, _row(7)),
           content: TaskContent(
-            title: 'Not Substantially Equivalent (NSE)',
             text: 'If the FDA determines your device is NSE, you have several options:\n\n'
                 '• Request a meeting with the review division to discuss deficiencies\n'
                 '• Submit a new 510(k) addressing the issues with stronger data\n'
@@ -1263,7 +1202,6 @@ class SampleDiagrams {
       'n10': NodeModel(id: 'n10', type: NodeType.task,
           name: 'Post-Market', rect: _task(left, _row(8)),
           content: TaskContent(
-            title: 'Post-Market Surveillance',
             text: 'After clearance, ongoing obligations include:\n\n'
                 '• Medical Device Reporting (MDR) — report adverse events within 30 days\n'
                 '• Annual registration and device listing\n'
@@ -1308,7 +1246,6 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Classification', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Device Classification (MDR Annex VIII)',
             text: 'Classify your device using the 22 rules in MDR Annex VIII:\n\n'
                 '• Class I — low risk (e.g., bandages, tongue depressors)\n'
                 '• Class IIa — low-medium risk (e.g., hearing aids, ultrasound)\n'
@@ -1325,7 +1262,6 @@ class SampleDiagrams {
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Self-Declaration', rect: _task(left, _row(3)),
           content: TaskContent(
-            title: 'Self-Declaration (Class I)',
             text: 'Class I devices (non-sterile, non-measuring) can self-certify. '
                 'You must still:\n\n'
                 '• Establish a Quality Management System (ISO 13485)\n'
@@ -1340,7 +1276,6 @@ class SampleDiagrams {
       'n5': NodeModel(id: 'n5', type: NodeType.task,
           name: 'Select Notified Body', rect: _task(right, _row(3)),
           content: TaskContent(
-            title: 'Select a Notified Body',
             text: 'For Class IIa, IIb, and III devices, a Notified Body must audit you.\n\n'
                 'Check NANDO database for MDR-designated Notified Bodies. '
                 'Major ones: TÜV SÜD, BSI, DEKRA, SGS. '
@@ -1353,7 +1288,6 @@ class SampleDiagrams {
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'QMS (ISO 13485)', rect: _task(_cx, _row(4)),
           content: TaskContent(
-            title: 'Quality Management System',
             text: 'Implement ISO 13485 — the foundation of MDR compliance:\n\n'
                 '• Design and development controls\n'
                 '• Risk management process (ISO 14971)\n'
@@ -1368,7 +1302,6 @@ class SampleDiagrams {
       'n7': NodeModel(id: 'n7', type: NodeType.task,
           name: 'Technical Documentation', rect: _task(_cx, _row(5)),
           content: TaskContent(
-            title: 'Technical Documentation (Annex II & III)',
             text: 'Create the Technical File covering:\n\n'
                 '1. Device description and specification\n'
                 '2. Design and manufacturing information\n'
@@ -1384,7 +1317,6 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'Clinical Evaluation', rect: _task(_cx, _row(6)),
           content: TaskContent(
-            title: 'Clinical Evaluation',
             text: 'Demonstrate clinical safety and performance per MDR Article 61:\n\n'
                 '• Literature review — systematic search of published clinical data\n'
                 '• Equivalence route — demonstrate equivalence to a device with clinical data '
@@ -1401,7 +1333,6 @@ class SampleDiagrams {
       'n10': NodeModel(id: 'n10', type: NodeType.task,
           name: 'Address Findings', rect: _task(right, _row(7)),
           content: TaskContent(
-            title: 'Address Non-Conformities',
             text: 'The Notified Body may issue:\n\n'
                 '• Major non-conformities — must be resolved before certificate is issued\n'
                 '• Minor non-conformities — must be resolved within an agreed timeframe\n'
@@ -1414,7 +1345,6 @@ class SampleDiagrams {
       'n11': NodeModel(id: 'n11', type: NodeType.task,
           name: 'CE Marking', rect: _task(_cx, _row(8)),
           content: TaskContent(
-            title: 'Affix CE Mark & Register',
             text: 'Once the Notified Body issues the EU Certificate of Conformity:\n\n'
                 '1. Sign the EU Declaration of Conformity (DoC)\n'
                 '2. Affix the CE mark to the device and packaging (with NB number for Class IIa+)\n'
@@ -1427,7 +1357,6 @@ class SampleDiagrams {
       'n12': NodeModel(id: 'n12', type: NodeType.task,
           name: 'Post-Market', rect: _task(_cx, _row(9)),
           content: TaskContent(
-            title: 'Post-Market Surveillance',
             text: 'Ongoing obligations under MDR:\n\n'
                 '• Post-Market Surveillance (PMS) plan and reports\n'
                 '• Periodic Safety Update Reports (PSUR) — annually for Class IIa+\n'
@@ -1476,7 +1405,6 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Gap Analysis', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Gap Analysis',
             text: 'Assess your current quality system against ISO 13485:2016 requirements. '
                 'Identify gaps in:\n\n'
                 '• Management responsibility and resource allocation\n'
@@ -1491,7 +1419,6 @@ class SampleDiagrams {
       'n3': NodeModel(id: 'n3', type: NodeType.task,
           name: 'Build QMS', rect: _task(_cx, _row(2)),
           content: TaskContent(
-            title: 'Implement Quality Management System',
             text: 'Create and implement all required QMS processes:\n\n'
                 '• Quality Manual and Quality Policy\n'
                 '• Standard Operating Procedures (SOPs)\n'
@@ -1506,7 +1433,6 @@ class SampleDiagrams {
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Internal Audit', rect: _task(_cx, _row(3)),
           content: TaskContent(
-            title: 'Internal Audit & Management Review',
             text: 'Conduct at least one full internal audit cycle before the certification audit:\n\n'
                 '• Train internal auditors (or hire external auditors)\n'
                 '• Audit each process against ISO 13485 clause requirements\n'
@@ -1519,7 +1445,6 @@ class SampleDiagrams {
       'n5': NodeModel(id: 'n5', type: NodeType.task,
           name: 'Stage 1 Audit', rect: _task(_cx, _row(4)),
           content: TaskContent(
-            title: 'Stage 1 Audit (Documentation Review)',
             text: 'The certification body (e.g., TÜV, BSI, SGS) conducts a Stage 1 audit:\n\n'
                 '• Review QMS documentation for adequacy\n'
                 '• Verify scope of certification\n'
@@ -1533,7 +1458,6 @@ class SampleDiagrams {
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'Stage 2 Audit', rect: _task(_cx, _row(5)),
           content: TaskContent(
-            title: 'Stage 2 Audit (On-Site)',
             text: 'The full on-site certification audit:\n\n'
                 '• Auditor interviews staff at all levels\n'
                 '• Examines records: design files, production logs, complaints, CAPAs\n'
@@ -1551,7 +1475,6 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'Close NCs', rect: _task(right, _row(6)),
           content: TaskContent(
-            title: 'Close Non-Conformities',
             text: 'Major non-conformities must be closed within 90 days (typically). '
                 'For each NC:\n\n'
                 '1. Root cause analysis (5 Whys, Fishbone, etc.)\n'
@@ -1566,7 +1489,6 @@ class SampleDiagrams {
       'n9': NodeModel(id: 'n9', type: NodeType.task,
           name: 'Certificate Issued', rect: _task(_cx, _row(7)),
           content: TaskContent(
-            title: 'ISO 13485 Certificate Issued',
             text: 'The certification body issues your ISO 13485:2016 certificate, '
                 'valid for 3 years.\n\n'
                 'The certificate scope specifies: design, manufacturing, distribution, '
@@ -1578,7 +1500,6 @@ class SampleDiagrams {
       'n10': NodeModel(id: 'n10', type: NodeType.task,
           name: 'Surveillance Audits', rect: _task(_cx, _row(8)),
           content: TaskContent(
-            title: 'Annual Surveillance Audits',
             text: 'The certification body conducts annual surveillance audits (Year 1 and Year 2). '
                 'These are shorter than the initial audit but cover:\n\n'
                 '• Follow-up on previous findings\n'
@@ -1674,14 +1595,12 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Don PPE', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Don Protective Equipment',
           )),
 
       // Row 2: Title + short text — brief instruction
       'n3': NodeModel(id: 'n3', type: NodeType.task,
           name: 'Size-Up', rect: _task(_cx, _row(2)),
           content: TaskContent(
-            title: 'Scene Size-Up',
             text: 'Assess building type, smoke conditions, wind direction, '
                 'and number of floors. Report findings to Incident Commander.',
           )),
@@ -1690,7 +1609,6 @@ class SampleDiagrams {
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Establish Command', rect: _task(_cx, _row(3)),
           content: TaskContent(
-            title: 'Establish Incident Command',
             text: '1. Identify yourself as IC on radio\n'
                 '2. Set up command post upwind\n'
                 '3. Request additional resources if needed\n'
@@ -1706,7 +1624,6 @@ class SampleDiagrams {
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'Structural Fire Attack', rect: _task(left, _row(5)),
           content: TaskContent(
-            title: 'Interior Structural Fire Attack',
             text: 'Deploy 1¾" attack line to the seat of the fire. '
                 'Maintain crew integrity — always operate in teams of two '
                 'or more. Stay low, follow the hose line as your lifeline.\n\n'
@@ -1725,7 +1642,6 @@ class SampleDiagrams {
       'n7': NodeModel(id: 'n7', type: NodeType.task,
           name: 'Vehicle / Electrical Fire', rect: _task(right, _row(5)),
           content: TaskContent(
-            title: 'Vehicle or Electrical Fire',
             text: 'Approach from upwind at 45° angle. Use dry chemical or '
                 'CO₂ extinguisher for electrical fires — never use water on '
                 'energized equipment.\n\n'
@@ -1740,7 +1656,6 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'Overhaul', rect: _task(_cx, _row(7)),
           content: TaskContent(
-            title: 'Overhaul & Salvage',
             text: 'Systematically check for hidden fire extension behind '
                 'walls, above ceilings, and below floors using thermal '
                 'imaging camera (TIC).\n\n'
@@ -1753,7 +1668,6 @@ class SampleDiagrams {
       'n9': NodeModel(id: 'n9', type: NodeType.task,
           name: 'Debrief', rect: _task(_cx, _row(8)),
           content: TaskContent(
-            title: 'Post-Incident Debrief',
             text: 'Conduct a hot debrief within one hour of scene clearance. '
                 'Cover what went well, what could improve, and any near-miss '
                 'events.\n\n'
@@ -1799,7 +1713,6 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Choose Model', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Select Your Model',
             text: 'Browse our lineup and pick the model that fits your lifestyle. '
                 'Each model comes with a unique set of standard features.',
           )),
@@ -1810,49 +1723,48 @@ class SampleDiagrams {
       // 10 color options — all merge into the same next step
       'c1': NodeModel(id: 'c1', type: NodeType.task,
           name: 'Alpine White', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Alpine White',
+          content: TaskContent(
               text: 'A timeless, clean white that highlights the car\'s sculpted lines. Popular for its elegant simplicity and easy maintenance.')),
       'c2': NodeModel(id: 'c2', type: NodeType.task,
           name: 'Jet Black', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Jet Black',
+          content: TaskContent(
               text: 'Deep, mirror-like black finish. Striking presence on the road. Shows fingerprints and swirl marks more easily — requires careful washing.')),
       'c3': NodeModel(id: 'c3', type: NodeType.task,
           name: 'Melbourne Red', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Melbourne Red Metallic',
+          content: TaskContent(
               text: 'A rich, deep red with subtle metallic flake. Sporty and bold — turns heads at every corner.')),
       'c4': NodeModel(id: 'c4', type: NodeType.task,
           name: 'Mineral Grey', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Mineral Grey Metallic',
+          content: TaskContent(
               text: 'Sophisticated dark grey with a warm undertone. Hides dirt well and looks sharp in any lighting condition.')),
       'c5': NodeModel(id: 'c5', type: NodeType.task,
           name: 'Portimao Blue', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Portimao Blue Metallic',
+          content: TaskContent(
               text: 'A deep, saturated blue exclusive to M Sport models. Named after the Portuguese racing circuit — for drivers who mean business.')),
       'c6': NodeModel(id: 'c6', type: NodeType.task,
           name: 'San Remo Green', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'San Remo Green Metallic',
+          content: TaskContent(
               text: 'A distinctive heritage green with golden undertones. Inspired by classic motorsport liveries — subtle yet unmistakable.')),
       'c7': NodeModel(id: 'c7', type: NodeType.task,
           name: 'Tanzanite Blue', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Tanzanite Blue Metallic',
+          content: TaskContent(
               text: 'A luxurious deep blue-violet that shifts between blue and purple depending on the light. A rare gemstone on wheels.')),
       'c8': NodeModel(id: 'c8', type: NodeType.task,
           name: 'Frozen Orange', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Frozen Orange Metallic',
+          content: TaskContent(
               text: 'Matte orange finish with a satin texture. An Individual color that demands attention — not for the faint of heart. Special matte care required.')),
       'c9': NodeModel(id: 'c9', type: NodeType.task,
           name: 'Oxide Grey', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Oxide Grey Metallic',
+          content: TaskContent(
               text: 'A warm, earthy grey with bronze undertones. Understated luxury — pairs beautifully with both light and dark interiors.')),
       'c10': NodeModel(id: 'c10', type: NodeType.task,
           name: 'Dravit Grey', rect: _task(_cx, _row(3)),
-          content: TaskContent(title: 'Dravit Grey Metallic',
+          content: TaskContent(
               text: 'A unique brownish-grey that changes character with the light — cool in shade, warm in sun. Named after a rare mineral.')),
 
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Interior & Extras', rect: _task(_cx, _row(4)),
           content: TaskContent(
-            title: 'Choose Interior & Extras',
             text: 'Select your interior trim, upholstery, and optional packages:\n\n'
                 '- Leather: Vernasca or Merino\n'
                 '- Trim: Aluminium, Open-Pore Wood, or Carbon Fibre\n'
@@ -1864,7 +1776,6 @@ class SampleDiagrams {
       'n5': NodeModel(id: 'n5', type: NodeType.task,
           name: 'Review Build', rect: _task(_cx, _row(5)),
           content: TaskContent(
-            title: 'Review Your Configuration',
             text: 'Take a final look at your selected options before placing your order. '
                 'You can always go back and change any selection.',
           )),
@@ -1915,7 +1826,6 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Ingredients', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Gather Ingredients',
             text: '- 400g "00" flour (or all-purpose)\n'
                 '- 4 large eggs\n'
                 '- 1 tbsp olive oil\n'
@@ -1932,14 +1842,12 @@ class SampleDiagrams {
       'n3': NodeModel(id: 'n3', type: NodeType.task,
           name: 'Make Dough', rect: _task(_cx, _row(2)),
           content: TaskContent(
-            title: 'Make the Dough',
             videoPath: 'assets/recipe_video_1.mp4',
           )),
 
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Knead', rect: _task(_cx, _row(3)),
           content: TaskContent(
-            title: 'Knead Until Smooth',
             text: 'Knead the dough for 8-10 minutes until it becomes silky '
                 'and springs back when poked. Wrap in plastic and rest for '
                 '30 minutes at room temperature.',
@@ -1949,7 +1857,6 @@ class SampleDiagrams {
       'n5': NodeModel(id: 'n5', type: NodeType.task,
           name: 'Roll & Cut', rect: _task(_cx, _row(4)),
           content: TaskContent(
-            title: 'Roll and Cut the Pasta',
             text: 'Divide dough into 4 pieces. Roll each through the pasta '
                 'machine starting at the widest setting, narrowing each pass. '
                 'Cut into your desired shape — tagliatelle, fettuccine, or pappardelle.',
@@ -1959,14 +1866,12 @@ class SampleDiagrams {
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'Make Sauce', rect: _task(_cx, _row(5)),
           content: TaskContent(
-            title: 'Prepare the Sauce',
             videoPath: 'assets/recipe_video_4.mp4',
           )),
 
       'n7': NodeModel(id: 'n7', type: NodeType.task,
           name: 'Cook Pasta', rect: _task(_cx, _row(6)),
           content: TaskContent(
-            title: 'Cook the Fresh Pasta',
             text: 'Bring a large pot of salted water to a rolling boil. '
                 'Fresh pasta cooks in just 2-3 minutes — taste for al dente. '
                 'Reserve a cup of pasta water before draining.',
@@ -1975,7 +1880,6 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'Combine & Serve', rect: _task(_cx, _row(7)),
           content: TaskContent(
-            title: 'Toss and Serve',
             text: 'Add the drained pasta directly to the sauce. Toss over '
                 'medium heat, adding pasta water a splash at a time until '
                 'the sauce clings to every strand. Finish with fresh basil, '
@@ -2010,81 +1914,61 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Mount Runners', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Step 1: Mount Drawer Runners',
             imagePath: 'assets/komplement_1.png',
-            imageContain: true,
           )),
 
       'n3': NodeModel(id: 'n3', type: NodeType.task,
           name: 'Attach Back Panel', rect: _task(_cx, _row(2)),
           content: TaskContent(
-            title: 'Step 2: Attach Back Panel',
             imagePath: 'assets/komplement_2.png',
-            imageContain: true,
           )),
 
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Insert Dowels', rect: _task(_cx, _row(3)),
           content: TaskContent(
-            title: 'Step 3: Insert Dowels & Side Panels',
             imagePath: 'assets/komplement_3.png',
-            imageContain: true,
           )),
 
       'n5': NodeModel(id: 'n5', type: NodeType.task,
           name: 'Cam Locks', rect: _task(_cx, _row(4)),
           content: TaskContent(
-            title: 'Step 4: Secure with Cam Locks',
             imagePath: 'assets/komplement_4.png',
-            imageContain: true,
           )),
 
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'Top Panel', rect: _task(_cx, _row(5)),
           content: TaskContent(
-            title: 'Step 5: Attach Top Panel',
             imagePath: 'assets/komplement_5.png',
-            imageContain: true,
           )),
 
       'n7': NodeModel(id: 'n7', type: NodeType.task,
           name: 'Back Nails', rect: _task(_cx, _row(6)),
           content: TaskContent(
-            title: 'Step 6: Nail Back Panel',
             imagePath: 'assets/komplement_6.png',
-            imageContain: true,
           )),
 
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'Slide Position', rect: _task(_cx, _row(7)),
           content: TaskContent(
-            title: 'Info: Drawer Slide Positions',
             imagePath: 'assets/komplement_info.png',
-            imageContain: true,
           )),
 
       'n9': NodeModel(id: 'n9', type: NodeType.task,
           name: 'Install Slides', rect: _task(_cx, _row(8)),
           content: TaskContent(
-            title: 'Step 7: Install Drawer Slides',
             imagePath: 'assets/komplement_7.png',
-            imageContain: true,
           )),
 
       'n10': NodeModel(id: 'n10', type: NodeType.task,
           name: 'Insert Drawer', rect: _task(_cx, _row(9)),
           content: TaskContent(
-            title: 'Step 8: Slide In the Drawer',
             imagePath: 'assets/komplement_8.png',
-            imageContain: true,
           )),
 
       'n11': NodeModel(id: 'n11', type: NodeType.task,
           name: 'Final Check', rect: _task(_cx, _row(10)),
           content: TaskContent(
-            title: 'Step 9: Final Clip & Check',
             imagePath: 'assets/komplement_9.png',
-            imageContain: true,
           )),
 
       'n12': NodeModel(id: 'n12', type: NodeType.endEvent,
@@ -2120,11 +2004,9 @@ class SampleDiagrams {
       'n2': NodeModel(id: 'n2', type: NodeType.task,
           name: 'Check Battery', rect: _task(_cx, _row(1)),
           content: TaskContent(
-            title: 'Check Battery Voltage',
             text: 'Using a multimeter, measure the battery voltage. '
                 'It should read 12V or more for the step system to operate.',
             imagePath: 'assets/kwikee_p1.png',
-            imageContain: true,
           )),
 
       'n3': NodeModel(id: 'n3', type: NodeType.exclusiveGateway,
@@ -2133,7 +2015,6 @@ class SampleDiagrams {
       'f1': NodeModel(id: 'f1', type: NodeType.task,
           name: 'Recharge Battery', rect: _task(right, _row(2)),
           content: TaskContent(
-            title: 'Recharge or Repair',
             text: 'Recharge battery or repair charging system. '
                 'Verify voltage is 12V or more before continuing.',
           )),
@@ -2141,7 +2022,6 @@ class SampleDiagrams {
       'n4': NodeModel(id: 'n4', type: NodeType.task,
           name: 'Check Ground Wires', rect: _task(_cx, _row(3)),
           content: TaskContent(
-            title: 'Check All Ground Wires',
             text: 'Inspect all ground wire connections. '
                 'They must be clean and tight for proper operation.',
           )),
@@ -2152,14 +2032,12 @@ class SampleDiagrams {
       'f2': NodeModel(id: 'f2', type: NodeType.task,
           name: 'Clean & Repair', rect: _task(right, _row(4)),
           content: TaskContent(
-            title: 'Clean & Repair Connections',
             text: 'Clean corroded connections and tighten any loose ground wires.',
           )),
 
       'n6': NodeModel(id: 'n6', type: NodeType.task,
           name: 'Disconnect & Check RED', rect: _task(_cx, _row(5)),
           content: TaskContent(
-            title: 'Disconnect Plug & Check RED Wire',
             text: 'Disconnect the 4-wire plug connection at the step.\n\n'
                 'Check voltage on the RED wire (coach side) using a multimeter.',
           )),
@@ -2170,7 +2048,6 @@ class SampleDiagrams {
       'f3': NodeModel(id: 'f3', type: NodeType.task,
           name: 'Fix RED Wire', rect: _task(right, _row(6)),
           content: TaskContent(
-            title: 'Check RED Wire',
             text: 'Check RED wire for:\n'
                 '- Poor connection\n'
                 '- Break in wire\n'
@@ -2181,11 +2058,9 @@ class SampleDiagrams {
       'n8': NodeModel(id: 'n8', type: NodeType.task,
           name: 'Check YELLOW Wire', rect: _task(_cx, _row(7)),
           content: TaskContent(
-            title: 'Check YELLOW Wire (Ignition RUN)',
             text: 'With the ignition in the RUN position, '
                 'check the YELLOW wire for battery voltage.',
             imagePath: 'assets/kwikee_p2.png',
-            imageContain: true,
           )),
 
       'n9': NodeModel(id: 'n9', type: NodeType.exclusiveGateway,
@@ -2194,7 +2069,6 @@ class SampleDiagrams {
       'f4': NodeModel(id: 'f4', type: NodeType.task,
           name: 'Fix YELLOW Wire', rect: _task(right, _row(8)),
           content: TaskContent(
-            title: 'Check YELLOW Wire Issues',
             text: 'Check YELLOW wire for:\n'
                 '- Poor connection\n'
                 '- Bad 6 amp fuse\n'
@@ -2204,7 +2078,6 @@ class SampleDiagrams {
       'n10': NodeModel(id: 'n10', type: NodeType.task,
           name: 'Ignition OFF', rect: _task(_cx, _row(9)),
           content: TaskContent(
-            title: 'Turn Ignition OFF',
             text: 'Turn the ignition to the OFF position. '
                 'The YELLOW wire should now read 0 volts.',
           )),
@@ -2215,7 +2088,6 @@ class SampleDiagrams {
       'f5': NodeModel(id: 'f5', type: NodeType.task,
           name: 'Fix YELLOW Conn', rect: _task(right, _row(10)),
           content: TaskContent(
-            title: 'Check YELLOW Connection',
             text: 'Check for improper connection of YELLOW wire. '
                 'It should not have voltage when ignition is OFF.',
           )),
@@ -2223,7 +2095,6 @@ class SampleDiagrams {
       'n12': NodeModel(id: 'n12', type: NodeType.task,
           name: 'Check WHITE Wire', rect: _task(_cx, _row(11)),
           content: TaskContent(
-            title: 'Check WHITE Wire (Override ON)',
             text: 'Turn the Override Switch ON.\n\n'
                 'Check the WHITE wire for battery voltage.',
           )),
@@ -2234,7 +2105,6 @@ class SampleDiagrams {
       'f6': NodeModel(id: 'f6', type: NodeType.task,
           name: 'Fix WHITE Wire', rect: _task(right, _row(12)),
           content: TaskContent(
-            title: 'Check WHITE Wire Issues',
             text: 'Check WHITE wire connections.\n'
                 'Check 5 amp fuse.\n'
                 'Check Override Switch.',
@@ -2243,7 +2113,6 @@ class SampleDiagrams {
       'n14': NodeModel(id: 'n14', type: NodeType.task,
           name: 'Override OFF', rect: _task(_cx, _row(13)),
           content: TaskContent(
-            title: 'Turn Override Switch OFF',
             text: 'Turn the Override Switch OFF. '
                 'The WHITE wire should now read 0 volts.',
           )),
@@ -2254,7 +2123,6 @@ class SampleDiagrams {
       'f7': NodeModel(id: 'f7', type: NodeType.task,
           name: 'Fix WHITE Conn', rect: _task(right, _row(14)),
           content: TaskContent(
-            title: 'Check WHITE Connection',
             text: 'Check for improper connection to another circuit. '
                 'WHITE wire should read 0V when Override is OFF.',
           )),
@@ -2263,11 +2131,9 @@ class SampleDiagrams {
       'n16': NodeModel(id: 'n16', type: NodeType.task,
           name: 'Check BROWN & RED', rect: _task(_cx, _row(15)),
           content: TaskContent(
-            title: 'Check BROWN & RED Wire',
             text: 'With the door closed, check voltage between '
                 'the BROWN and RED wires.',
             imagePath: 'assets/kwikee_p3.png',
-            imageContain: true,
           )),
 
       'n17': NodeModel(id: 'n17', type: NodeType.exclusiveGateway,
@@ -2276,7 +2142,6 @@ class SampleDiagrams {
       'f8': NodeModel(id: 'f8', type: NodeType.task,
           name: 'Fix BROWN Wire', rect: _task(right, _row(16)),
           content: TaskContent(
-            title: 'Check BROWN Wire & Door Switch',
             text: 'Check BROWN wire for good connections.\n\n'
                 'If OK, check door switch with Ohmmeter.',
           )),
@@ -2284,7 +2149,6 @@ class SampleDiagrams {
       'n18': NodeModel(id: 'n18', type: NodeType.task,
           name: 'Open Door', rect: _task(_cx, _row(17)),
           content: TaskContent(
-            title: 'Open Door & Recheck',
             text: 'Open the door and recheck the voltage between '
                 'BROWN and RED wires. Should now read 0 volts.',
           )),
@@ -2295,7 +2159,6 @@ class SampleDiagrams {
       'f9': NodeModel(id: 'f9', type: NodeType.task,
           name: 'Check Switch', rect: _task(right, _row(18)),
           content: TaskContent(
-            title: 'Confirm Defective Switch',
             text: 'Check switch with Ohmmeter to confirm it is defective.',
           )),
 
@@ -2305,7 +2168,6 @@ class SampleDiagrams {
       'n20': NodeModel(id: 'n20', type: NodeType.task,
           name: 'Prepare Motor Test', rect: _task(_cx, _row(19)),
           content: TaskContent(
-            title: 'Prepare Motor Test',
             text: '1. Connect the 4-wire connectors.\n'
                 '2. Disconnect the 2-wire connector to motor.\n'
                 '3. Connect (+) lead of meter to RED wire '
@@ -2316,11 +2178,9 @@ class SampleDiagrams {
       'n21': NodeModel(id: 'n21', type: NodeType.task,
           name: 'Open Coach Door', rect: _task(_cx, _row(20)),
           content: TaskContent(
-            title: 'OPEN Coach Door',
             text: 'Open the coach door and check for battery voltage '
                 'on the RED wire at the motor connector.',
             imagePath: 'assets/kwikee_p4.png',
-            imageContain: true,
           )),
 
       'n22': NodeModel(id: 'n22', type: NodeType.exclusiveGateway,
@@ -2332,7 +2192,6 @@ class SampleDiagrams {
       'n23': NodeModel(id: 'n23', type: NodeType.task,
           name: 'Test Retract', rect: _task(_cx, _row(22)),
           content: TaskContent(
-            title: 'Test Retract Signal',
             text: 'Change (+) probe to the YELLOW wire.\n\n'
                 'Close the coach door and check for battery voltage.',
           )),
@@ -2340,7 +2199,6 @@ class SampleDiagrams {
       'n24': NodeModel(id: 'n24', type: NodeType.task,
           name: 'Inspect Motor', rect: _task(_cx, _row(23)),
           content: TaskContent(
-            title: 'Inspect Motor & Gearbox',
             text: 'Remove motor from main gearbox.\n\n'
                 'Check for internal damage, broken or worn gears.',
           )),
@@ -2444,26 +2302,26 @@ class SampleDiagrams {
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent, name: 'New Hire Starts', rect: _event(_cx, _row(0))),
       'n2': NodeModel(id: 'n2', type: NodeType.task, name: 'Send Welcome Pack', rect: _task(_cx, _row(1)),
-          content: TaskContent(title: 'Welcome Package', text: 'Send offer letter, benefits guide, company handbook, and IT equipment request form. Include login credentials for all required systems.')),
+          content: TaskContent(text: 'Send offer letter, benefits guide, company handbook, and IT equipment request form. Include login credentials for all required systems.')),
       'n3': NodeModel(id: 'n3', type: NodeType.task, name: 'IT Setup', rect: _task(_cx, _row(2)),
-          content: TaskContent(title: 'Workstation & Access', text: 'Provision laptop, monitors, and peripherals. Create accounts for email, Slack, Jira, GitHub, and VPN. Set up 2FA and security training enrollment.')),
+          content: TaskContent(text: 'Provision laptop, monitors, and peripherals. Create accounts for email, Slack, Jira, GitHub, and VPN. Set up 2FA and security training enrollment.')),
       'n4': NodeModel(id: 'n4', type: NodeType.exclusiveGateway, name: 'Remote or On-site?', rect: _gw(_cx, _row(3))),
       'n5': NodeModel(id: 'n5', type: NodeType.task, name: 'Ship Equipment', rect: _task(_cx - _branchX, _row(4)),
-          content: TaskContent(title: 'Remote Setup', text: 'Ship laptop and peripherals via express courier. Schedule a virtual office tour and remote IT support session. Provide home office stipend info.')),
+          content: TaskContent(text: 'Ship laptop and peripherals via express courier. Schedule a virtual office tour and remote IT support session. Provide home office stipend info.')),
       'n6': NodeModel(id: 'n6', type: NodeType.task, name: 'Office Tour', rect: _task(_cx + _branchX, _row(4)),
-          content: TaskContent(title: 'In-Person Welcome', text: 'Guided tour of the office including emergency exits, kitchen, meeting rooms, and quiet zones. Issue badge and parking pass.')),
+          content: TaskContent(text: 'Guided tour of the office including emergency exits, kitchen, meeting rooms, and quiet zones. Issue badge and parking pass.')),
       'n7': NodeModel(id: 'n7', type: NodeType.exclusiveGateway, name: 'Merge', rect: _gw(_cx, _row(5))),
       'n8': NodeModel(id: 'n8', type: NodeType.task, name: 'Team Introduction', rect: _task(_cx, _row(6)),
-          content: TaskContent(title: 'Meet the Team', text: 'Schedule 1:1 meetings with direct manager, team lead, and key stakeholders. Add to team channels and recurring meetings. Assign an onboarding buddy.')),
+          content: TaskContent(text: 'Schedule 1:1 meetings with direct manager, team lead, and key stakeholders. Add to team channels and recurring meetings. Assign an onboarding buddy.')),
       'n9': NodeModel(id: 'n9', type: NodeType.task, name: 'Compliance Training', rect: _task(_cx, _row(7)),
-          content: TaskContent(title: 'Required Training', text: 'Complete mandatory modules: data privacy (GDPR/CCPA), workplace safety, anti-harassment, code of conduct, and information security. All must be completed within first 5 business days.')),
+          content: TaskContent(text: 'Complete mandatory modules: data privacy (GDPR/CCPA), workplace safety, anti-harassment, code of conduct, and information security. All must be completed within first 5 business days.')),
       'n10': NodeModel(id: 'n10', type: NodeType.exclusiveGateway, name: 'Training Complete?', rect: _gw(_cx, _row(8))),
       'n11': NodeModel(id: 'n11', type: NodeType.task, name: 'Follow Up', rect: _task(_cx - _branchX, _row(9)),
-          content: TaskContent(title: 'Training Reminder', text: 'Send reminder email with links to incomplete modules. Escalate to manager if not completed by day 7. Offer additional support if needed.')),
+          content: TaskContent(text: 'Send reminder email with links to incomplete modules. Escalate to manager if not completed by day 7. Offer additional support if needed.')),
       'n12': NodeModel(id: 'n12', type: NodeType.task, name: 'First Sprint', rect: _task(_cx, _row(10)),
-          content: TaskContent(title: 'First Assignment', text: 'Assign a starter ticket (well-scoped, low-risk). Pair with buddy for first PR. Schedule end-of-week check-in with manager to discuss experience and blockers.')),
+          content: TaskContent(text: 'Assign a starter ticket (well-scoped, low-risk). Pair with buddy for first PR. Schedule end-of-week check-in with manager to discuss experience and blockers.')),
       'n13': NodeModel(id: 'n13', type: NodeType.task, name: '30-Day Review', rect: _task(_cx, _row(11)),
-          content: TaskContent(title: 'One-Month Check-In', text: 'Manager conducts 30-day review covering role clarity, team integration, tooling comfort, and initial performance. Collect feedback on onboarding experience. Adjust goals for next 60 days.')),
+          content: TaskContent(text: 'Manager conducts 30-day review covering role clarity, team integration, tooling comfort, and initial performance. Collect feedback on onboarding experience. Adjust goals for next 60 days.')),
       'n14': NodeModel(id: 'n14', type: NodeType.endEvent, name: 'Onboarded', rect: _event(_cx, _row(12))),
     };
 

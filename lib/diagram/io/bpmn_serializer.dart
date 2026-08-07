@@ -114,9 +114,9 @@ class BpmnSerializer {
   }
 
   void _serializeExtensionElements(XmlBuilder builder, TaskContent content) {
-    final hasExtensions = content.title != null ||
-        content.imagePath != null ||
-        content.videoPath != null ||
+    final hasExtensions = content.imagePaths.isNotEmpty ||
+        content.videoPaths.isNotEmpty ||
+        content.pdfPaths.isNotEmpty ||
         content.linkUrl != null;
     if (!hasExtensions) return;
 
@@ -124,16 +124,14 @@ class BpmnSerializer {
       builder.element('ed:content', attributes: {
         'xmlns:ed': _nsEd,
       }, nest: () {
-        if (content.title != null) {
-          builder.element('ed:title', nest: content.title);
+        for (final path in content.imagePaths) {
+          builder.element('ed:image', attributes: {'src': path});
         }
-        if (content.imagePath != null) {
-          builder.element('ed:image',
-              attributes: {'src': content.imagePath!});
+        for (final path in content.videoPaths) {
+          builder.element('ed:video', attributes: {'src': path});
         }
-        if (content.videoPath != null) {
-          builder.element('ed:video',
-              attributes: {'src': content.videoPath!});
+        for (final path in content.pdfPaths) {
+          builder.element('ed:pdf', attributes: {'src': path});
         }
         if (content.linkUrl != null) {
           final attrs = <String, String>{'href': content.linkUrl!};

@@ -282,13 +282,11 @@ class DiagramPainter extends CustomPainter {
     canvas.drawRRect(rr, selected ? _selectedStroke : _nodeStroke);
 
     // Draw name centered.
-    final content = node.content;
-    final label = (content?.title ?? node.name).isNotEmpty
-        ? (content?.title ?? node.name)
-        : 'Task';
+    final label = node.name.isNotEmpty ? node.name : 'Task';
     _drawText(canvas, label, node.center, fontSize: 13, maxWidth: node.rect.width - 12);
 
     // Draw content type indicators in bottom-right corner.
+    final content = node.content;
     if (content != null && !content.isEmpty) {
       double iconX = node.rect.right - 10;
       final iconY = node.rect.bottom - 10;

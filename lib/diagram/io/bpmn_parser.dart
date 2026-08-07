@@ -57,7 +57,7 @@ class BpmnParser {
 
       final id = child.getAttribute('id') ?? '';
       final name = child.getAttribute('name') ?? '';
-      final content = type == NodeType.task ? _parseTaskContent(child) : null;
+      final content = _parseTaskContent(child);
       model.nodes[id] = NodeModel(
         id: id,
         type: type,
@@ -153,9 +153,9 @@ class BpmnParser {
 
   TaskContent? _parseTaskContent(XmlElement taskEl) {
     String? text;
-    String? title;
-    String? imagePath;
-    String? videoPath;
+    final imagePaths = <String>[];
+    final videoPaths = <String>[];
+    final pdfPaths = <String>[];
     String? linkUrl;
     String? linkLabel;
 
@@ -168,13 +168,19 @@ class BpmnParser {
             for (final item in ext.children.whereType<XmlElement>()) {
               switch (item.name.local) {
                 case 'title':
-                  title = item.innerText.isNotEmpty ? item.innerText : null;
+                  // Legacy: ignore title element (name is used instead).
                   break;
                 case 'image':
-                  imagePath = item.getAttribute('src');
+                  final src = item.getAttribute('src');
+                  if (src != null) imagePaths.add(src);
                   break;
                 case 'video':
-                  videoPath = item.getAttribute('src');
+                  final src = item.getAttribute('src');
+                  if (src != null) videoPaths.add(src);
+                  break;
+                case 'pdf':
+                  final src = item.getAttribute('src');
+                  if (src != null) pdfPaths.add(src);
                   break;
                 case 'url':
                   linkUrl = item.getAttribute('href');
@@ -187,15 +193,15 @@ class BpmnParser {
       }
     }
 
-    if (text == null && title == null && imagePath == null &&
-        videoPath == null && linkUrl == null) {
+    if (text == null && imagePaths.isEmpty && videoPaths.isEmpty &&
+        pdfPaths.isEmpty && linkUrl == null) {
       return null;
     }
     return TaskContent(
-      title: title,
       text: text,
-      imagePath: imagePath,
-      videoPath: videoPath,
+      imagePaths: imagePaths,
+      videoPaths: videoPaths,
+      pdfPaths: pdfPaths,
       linkUrl: linkUrl,
       linkLabel: linkLabel,
     );

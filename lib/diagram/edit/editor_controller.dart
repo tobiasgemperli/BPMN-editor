@@ -122,6 +122,12 @@ class EditorController extends ChangeNotifier {
     liftScale = 1.0;
   }
 
+  /// Maximum number of nodes allowed in a diagram.
+  static const int maxNodes = 50;
+
+  /// Callback to show a warning when the node limit is reached.
+  void Function(String message)? onLimitReached;
+
   EditorController({DiagramModel? diagram})
       : diagram = diagram ?? DiagramModel() {
     _idGen.seedFrom(this.diagram.nodes.keys.followedBy(this.diagram.edges.keys));
@@ -448,7 +454,21 @@ class EditorController extends ChangeNotifier {
     snapGuideY = bestY;
   }
 
+  bool _checkNodeLimit() {
+    if (diagram.nodes.length >= maxNodes) {
+      onLimitReached?.call(
+        'Maximum of $maxNodes steps reached. Remove some steps before adding new ones.',
+      );
+      activeTool = EditorTool.select;
+      notifyListeners();
+      return false;
+    }
+    return true;
+  }
+
   void _placeNode(Offset position) {
+    if (!_checkNodeLimit()) return;
+
     NodeType type;
     String prefix;
     switch (activeTool) {
@@ -484,6 +504,7 @@ class EditorController extends ChangeNotifier {
   }
 
   void addNodeAtPosition(NodeType type, Offset position) {
+    if (!_checkNodeLimit()) return;
     final prefix = switch (type) {
       NodeType.startEvent => 'start',
       NodeType.endEvent => 'end',
@@ -505,6 +526,7 @@ class EditorController extends ChangeNotifier {
   /// Add a node at the visible [screenCenter]. If a node is selected and can
   /// connect, place the new node below it and auto-connect.
   void addNodeNear(NodeType type, Offset screenCenter) {
+    if (!_checkNodeLimit()) return;
     // If a node is selected and can have outgoing edges, place below & connect.
     if (selectedNodeId != null) {
       final source = diagram.nodes[selectedNodeId!];

@@ -1,11 +1,12 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
 
 /// The display type determines how a task card renders in presentation mode.
-enum DisplayType { text, image, document, video }
+enum DisplayType { text, image, video }
 
 /// Opens the node editor for the currently selected node.
 void showPropertiesSheet(BuildContext context, EditorController controller) {
@@ -44,32 +45,36 @@ class _NodeEditorScreen extends StatefulWidget {
 
 class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _titleCtrl;
   late final TextEditingController _textCtrl;
-  late final TextEditingController _imageCtrl;
-  late final TextEditingController _videoCtrl;
   late final TextEditingController _urlCtrl;
   late final TextEditingController _urlLabelCtrl;
 
   late DisplayType _displayType;
   final _picker = ImagePicker();
 
+  late List<String> _imagePaths;
+  late List<String> _videoPaths;
+  late List<String> _pdfPaths;
+
   // Gateway outgoing edge label controllers.
   final Map<String, TextEditingController> _edgeLabelCtrls = {};
   late final List<EdgeModel> _outgoingEdges;
 
-  bool get _isTask => widget.node.type == NodeType.task;
   bool get _isGateway => widget.node.type == NodeType.exclusiveGateway;
+  bool get _hasContent =>
+      widget.node.type == NodeType.task ||
+      widget.node.type == NodeType.startEvent ||
+      widget.node.type == NodeType.endEvent;
 
   @override
   void initState() {
     super.initState();
     final c = widget.node.content;
     _nameCtrl = TextEditingController(text: widget.node.name);
-    _titleCtrl = TextEditingController(text: c?.title ?? '');
     _textCtrl = TextEditingController(text: c?.text ?? '');
-    _imageCtrl = TextEditingController(text: c?.imagePath ?? '');
-    _videoCtrl = TextEditingController(text: c?.videoPath ?? '');
+    _imagePaths = List<String>.from(c?.imagePaths ?? []);
+    _videoPaths = List<String>.from(c?.videoPaths ?? []);
+    _pdfPaths = List<String>.from(c?.pdfPaths ?? []);
     _urlCtrl = TextEditingController(text: c?.linkUrl ?? '');
     _urlLabelCtrl = TextEditingController(text: c?.linkLabel ?? '');
     _displayType = _inferDisplayType(c);
@@ -83,22 +88,20 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
 
   DisplayType _inferDisplayType(TaskContent? c) {
     if (c == null) return DisplayType.text;
-    if (c.videoPath != null) return DisplayType.video;
-    if (c.imagePath != null && (c.text != null || c.linkUrl != null)) {
-      return DisplayType.document;
+    if (c.videoPaths.isNotEmpty && c.text == null && c.imagePaths.isEmpty && c.pdfPaths.isEmpty) {
+      return DisplayType.video;
     }
-    if (c.imagePath != null) return DisplayType.image;
-    if (c.linkUrl != null || c.links.isNotEmpty) return DisplayType.document;
+    if (c.imagePaths.isNotEmpty && c.text == null && c.linkUrl == null &&
+        c.links.isEmpty && c.videoPaths.isEmpty && c.pdfPaths.isEmpty) {
+      return DisplayType.image;
+    }
     return DisplayType.text;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _titleCtrl.dispose();
     _textCtrl.dispose();
-    _imageCtrl.dispose();
-    _videoCtrl.dispose();
     _urlCtrl.dispose();
     _urlLabelCtrl.dispose();
     for (final ctrl in _edgeLabelCtrls.values) {
@@ -121,17 +124,46 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     );
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage({int? replaceIndex}) async {
     final file = await _picker.pickImage(source: ImageSource.gallery);
     if (file != null) {
-      setState(() => _imageCtrl.text = file.path);
+      setState(() {
+        if (replaceIndex != null && replaceIndex < _imagePaths.length) {
+          _imagePaths[replaceIndex] = file.path;
+        } else if (_imagePaths.length < 3) {
+          _imagePaths.add(file.path);
+        }
+      });
     }
   }
 
-  Future<void> _pickVideo() async {
+  Future<void> _pickVideo({int? replaceIndex}) async {
     final file = await _picker.pickVideo(source: ImageSource.gallery);
     if (file != null) {
-      setState(() => _videoCtrl.text = file.path);
+      setState(() {
+        if (replaceIndex != null && replaceIndex < _videoPaths.length) {
+          _videoPaths[replaceIndex] = file.path;
+        } else if (_videoPaths.length < 3) {
+          _videoPaths.add(file.path);
+        }
+      });
+    }
+  }
+
+  Future<void> _pickPdf({int? replaceIndex}) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        final path = result.files.single.path!;
+        if (replaceIndex != null && replaceIndex < _pdfPaths.length) {
+          _pdfPaths[replaceIndex] = path;
+        } else if (_pdfPaths.length < 3) {
+          _pdfPaths.add(path);
+        }
+      });
     }
   }
 
@@ -146,36 +178,36 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
       }
     }
 
-    if (_isTask) {
-      final title = _titleCtrl.text.isNotEmpty ? _titleCtrl.text : null;
+    if (_hasContent) {
       final text = _textCtrl.text.isNotEmpty ? _textCtrl.text : null;
 
-      String? image;
-      String? video;
+      List<String> images = [];
+      List<String> videos = [];
+      List<String> pdfs = [];
       String? url;
       String? urlLabel;
 
       switch (_displayType) {
         case DisplayType.image:
-          image = _imageCtrl.text.isNotEmpty ? _imageCtrl.text : null;
-          break;
-        case DisplayType.document:
-          image = _imageCtrl.text.isNotEmpty ? _imageCtrl.text : null;
-          url = _urlCtrl.text.isNotEmpty ? _urlCtrl.text : null;
-          urlLabel = _urlLabelCtrl.text.isNotEmpty ? _urlLabelCtrl.text : null;
+          images = _imagePaths.where((p) => p.isNotEmpty).toList();
           break;
         case DisplayType.video:
-          video = _videoCtrl.text.isNotEmpty ? _videoCtrl.text : null;
+          videos = _videoPaths.where((p) => p.isNotEmpty).toList();
           break;
         case DisplayType.text:
+          images = _imagePaths.where((p) => p.isNotEmpty).toList();
+          videos = _videoPaths.where((p) => p.isNotEmpty).toList();
+          pdfs = _pdfPaths.where((p) => p.isNotEmpty).toList();
+          url = _urlCtrl.text.isNotEmpty ? _urlCtrl.text : null;
+          urlLabel = _urlLabelCtrl.text.isNotEmpty ? _urlLabelCtrl.text : null;
           break;
       }
 
       final content = TaskContent(
-        title: title,
         text: text,
-        imagePath: image,
-        videoPath: video,
+        imagePaths: images,
+        videoPaths: videos,
+        pdfPaths: pdfs,
         linkUrl: url,
         linkLabel: urlLabel,
       );
@@ -278,8 +310,8 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                     ],
                   ],
 
-                  // ── Display type picker (task only) ──
-                  if (_isTask) ...[
+                  // ── Display type picker (task, start, end — not gateway) ──
+                  if (_hasContent) ...[
                     const SizedBox(height: 20),
                     _SectionLabel(label: 'Display'),
                     const SizedBox(height: 8),
@@ -290,18 +322,11 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
 
                     // ── Content fields ──
                     const SizedBox(height: 20),
-                    _SectionLabel(label: 'Content'),
-                    const SizedBox(height: 8),
 
-                    // Title — all types.
-                    _StyledField(
-                      controller: _titleCtrl,
-                      placeholder: 'Title (optional)',
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Body text — text, document, video.
-                    if (_displayType != DisplayType.image) ...[
+                    // Body text — Mixed mode only.
+                    if (_displayType == DisplayType.text) ...[
+                      _SectionLabel(label: 'Content'),
+                      const SizedBox(height: 8),
                       _StyledField(
                         controller: _textCtrl,
                         placeholder: 'Body text...',
@@ -311,33 +336,71 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                       const SizedBox(height: 10),
                     ],
 
-                    // Image — image, document.
+                    // Images — image mode (1 image), Mixed mode (up to 3).
                     if (_displayType == DisplayType.image ||
-                        _displayType == DisplayType.document) ...[
-                      _MediaPickerField(
-                        path: _imageCtrl.text.isEmpty ? null : _imageCtrl.text,
+                        _displayType == DisplayType.text) ...[
+                      _SectionLabel(
+                        label: _displayType == DisplayType.text
+                            ? 'Images (up to 3)'
+                            : 'Image',
+                      ),
+                      const SizedBox(height: 8),
+                      _MultiMediaPicker(
+                        paths: _imagePaths,
+                        maxItems: _displayType == DisplayType.text ? 3 : 1,
                         label: 'Photo',
                         icon: Icons.image_outlined,
-                        onPick: () => _pickImage(),
-                        onClear: () => setState(() => _imageCtrl.text = ''),
+                        onPick: (index) => _pickImage(replaceIndex: index),
+                        onAdd: () => _pickImage(),
+                        onRemove: (index) =>
+                            setState(() => _imagePaths.removeAt(index)),
                       ),
                       const SizedBox(height: 10),
                     ],
 
-                    // Video — video.
-                    if (_displayType == DisplayType.video) ...[
-                      _MediaPickerField(
-                        path: _videoCtrl.text.isEmpty ? null : _videoCtrl.text,
+                    // Videos — video mode (1 video), Mixed mode (up to 3).
+                    if (_displayType == DisplayType.video ||
+                        _displayType == DisplayType.text) ...[
+                      _SectionLabel(
+                        label: _displayType == DisplayType.text
+                            ? 'Videos (up to 3)'
+                            : 'Video',
+                      ),
+                      const SizedBox(height: 8),
+                      _MultiMediaPicker(
+                        paths: _videoPaths,
+                        maxItems: _displayType == DisplayType.text ? 3 : 1,
                         label: 'Video',
                         icon: Icons.videocam_outlined,
-                        onPick: () => _pickVideo(),
-                        onClear: () => setState(() => _videoCtrl.text = ''),
+                        onPick: (index) => _pickVideo(replaceIndex: index),
+                        onAdd: () => _pickVideo(),
+                        onRemove: (index) =>
+                            setState(() => _videoPaths.removeAt(index)),
                       ),
                       const SizedBox(height: 10),
                     ],
 
-                    // Link — document.
-                    if (_displayType == DisplayType.document) ...[
+                    // PDFs — Mixed mode only (up to 3).
+                    if (_displayType == DisplayType.text) ...[
+                      _SectionLabel(label: 'PDFs (up to 3)'),
+                      const SizedBox(height: 8),
+                      _MultiMediaPicker(
+                        paths: _pdfPaths,
+                        maxItems: 3,
+                        label: 'PDF',
+                        icon: Icons.picture_as_pdf_outlined,
+                        onPick: (index) => _pickPdf(replaceIndex: index),
+                        onAdd: () => _pickPdf(),
+                        onRemove: (index) =>
+                            setState(() => _pdfPaths.removeAt(index)),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    // Link — Mixed mode only.
+                    if (_displayType == DisplayType.text) ...[
+                      _SectionLabel(label: 'Link'),
+                      const SizedBox(height: 8),
                       _StyledField(
                         controller: _urlCtrl,
                         placeholder: 'Link URL',
@@ -544,6 +607,55 @@ class _MediaPickerField extends StatelessWidget {
   }
 }
 
+// ── Multi-media picker (images, videos, PDFs) ────────────────
+
+class _MultiMediaPicker extends StatelessWidget {
+  final List<String> paths;
+  final int maxItems;
+  final String label;
+  final IconData icon;
+  final ValueChanged<int> onPick;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onRemove;
+
+  const _MultiMediaPicker({
+    required this.paths,
+    required this.maxItems,
+    required this.label,
+    required this.icon,
+    required this.onPick,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (int i = 0; i < paths.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _MediaPickerField(
+              path: paths[i],
+              label: '$label ${i + 1}',
+              icon: icon,
+              onPick: () => onPick(i),
+              onClear: () => onRemove(i),
+            ),
+          ),
+        if (paths.length < maxItems)
+          _MediaPickerField(
+            path: null,
+            label: paths.isEmpty ? label : '$label ${paths.length + 1}',
+            icon: icon,
+            onPick: onAdd,
+            onClear: () {},
+          ),
+      ],
+    );
+  }
+}
+
 // ── Display type picker ──────────────────────────────────────
 
 class _DisplayTypePicker extends StatelessWidget {
@@ -610,11 +722,9 @@ class _DisplayTypePicker extends StatelessWidget {
   IconData _iconFor(DisplayType type) {
     switch (type) {
       case DisplayType.text:
-        return Icons.text_fields;
+        return Icons.dashboard_outlined;
       case DisplayType.image:
         return Icons.image_outlined;
-      case DisplayType.document:
-        return Icons.article_outlined;
       case DisplayType.video:
         return Icons.videocam_outlined;
     }
@@ -623,11 +733,9 @@ class _DisplayTypePicker extends StatelessWidget {
   String _labelFor(DisplayType type) {
     switch (type) {
       case DisplayType.text:
-        return 'Text';
+        return 'Mixed';
       case DisplayType.image:
         return 'Image';
-      case DisplayType.document:
-        return 'Document';
       case DisplayType.video:
         return 'Video';
     }

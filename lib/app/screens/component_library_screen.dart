@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../widgets/close_circle_button.dart';
 import '../widgets/process_card.dart';
 
-/// Full-screen swipeable reference of all card variations.
+/// Showcases all ProcessCard variations in a scrollable PageView.
+/// Dev-only screen — not visible to end users.
 class ComponentLibraryScreen extends StatefulWidget {
   const ComponentLibraryScreen({super.key});
 
@@ -12,65 +11,73 @@ class ComponentLibraryScreen extends StatefulWidget {
 }
 
 class _ComponentLibraryScreenState extends State<ComponentLibraryScreen> {
-  final _pageController = PageController();
-  int _currentPage = 0;
+  final PageController _controller = PageController();
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
-          children: [
-            PageView.builder(
-              controller: _pageController,
-              scrollDirection: Axis.vertical,
-              itemCount: _cards.length,
-              onPageChanged: (i) => setState(() => _currentPage = i),
-              itemBuilder: (context, index) => _cards[index].card,
-            ),
-            // Minimal top bar: back + label.
-            Positioned(
-              top: topPad + 8,
-              left: 16,
-              child: CloseCircleButton(
-                onPressed: () => Navigator.pop(context),
+    return Scaffold(
+      body: PageView.builder(
+        controller: _controller,
+        scrollDirection: Axis.vertical,
+        itemCount: _cards.length,
+        itemBuilder: (context, index) {
+          final entry = _cards[index];
+          return Stack(
+            children: [
+              entry.darkBg
+                  ? Container(color: Colors.black, child: entry.card)
+                  : entry.card,
+              // Label at top.
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${index + 1}/${_cards.length} — ${entry.label}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-// ── Sample content ────────────────────────────────────────────
+// ── Sample data ──────────────────────────────────────────────
 
 const _shortText =
-    'Review the sprint backlog and confirm priorities with the team. '
-    'Ensure all acceptance criteria are clearly defined.';
+    'Walk around the machine and verify all safety guards are in place. '
+    'Check fluid levels, tire pressure, and confirm no warning lights are active.';
 
 const _longText =
-    'Begin by reviewing the current sprint backlog with the entire team. '
-    'Each team member should provide a brief status update on their assigned '
-    'tasks, highlighting any blockers or dependencies that need resolution.\n\n'
-    'Next, examine the burndown chart to assess whether the team is on track '
-    'to meet the sprint goal. If the team is behind, discuss which items can '
-    'be deprioritized or moved to the next sprint.\n\n'
-    'Document all decisions made during the meeting and update the project '
-    'management tool accordingly. Assign action items for any follow-up tasks '
-    'and set clear deadlines.\n\n'
-    'Finally, confirm the date and agenda for the next sprint review with '
-    'stakeholders. Make sure demo environments are prepared and test data '
-    'is loaded for any live demonstrations.';
+    'Before beginning any maintenance work, ensure the machine is completely powered '
+    'down and all energy sources are locked out according to LOTO procedures. Document '
+    'the current readings from all pressure gauges and temperature sensors. Inspect all '
+    'hydraulic lines for leaks, cracks, or bulging. Check electrical connections for '
+    'signs of corrosion or overheating. Verify that all safety interlocks are functioning '
+    'correctly by testing each one individually. Replace any worn seals or gaskets '
+    'according to the manufacturer\'s specifications. Record all findings in the '
+    'maintenance log with date, time, and technician ID.';
 
 const _sampleImage = 'assets/sample_image.jpg';
 const _sampleVideo = '/tmp/bpmn_sample_video.mp4';
@@ -82,14 +89,14 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title',
     darkBg: false,
     card: const ProcessCard(
-      title: 'Define Sprint Goal',
+      nodeName: 'Define Sprint Goal',
     ),
   ),
   (
     label: 'Title + Text',
     darkBg: false,
     card: const ProcessCard(
-      title: 'Review Backlog',
+      nodeName: 'Review Backlog',
       text: _shortText,
     ),
   ),
@@ -97,7 +104,7 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title + Long Text',
     darkBg: false,
     card: const ProcessCard(
-      title: 'Conduct Sprint Retrospective',
+      nodeName: 'Conduct Sprint Retrospective',
       text: _longText,
     ),
   ),
@@ -105,8 +112,8 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title + Image',
     darkBg: false,
     card: const ProcessCard(
-      title: 'Inspect Hydraulic System',
-      imagePath: _sampleImage,
+      nodeName: 'Inspect Hydraulic System',
+      imagePaths: [_sampleImage],
       imageIsAsset: true,
     ),
   ),
@@ -114,10 +121,10 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title + Text + Image',
     darkBg: false,
     card: const ProcessCard(
-      title: 'Pre-Operation Safety Check',
+      nodeName: 'Pre-Operation Safety Check',
       text: 'Walk around the machine and verify all safety guards are in place. '
           'Check fluid levels, tire pressure, and confirm no warning lights are active.',
-      imagePath: _sampleImage,
+      imagePaths: [_sampleImage],
       imageIsAsset: true,
     ),
   ),
@@ -125,9 +132,9 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title + Long Text + Image',
     darkBg: false,
     card: const ProcessCard(
-      title: 'Complete Maintenance Report',
+      nodeName: 'Complete Maintenance Report',
       text: _longText,
-      imagePath: _sampleImage,
+      imagePaths: [_sampleImage],
       imageIsAsset: true,
     ),
   ),
@@ -142,7 +149,7 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title + Video',
     darkBg: true,
     card: const ProcessCard(
-      title: 'Crane Operation Demo',
+      nodeName: 'Crane Operation Demo',
       videoPath: _sampleVideo,
     ),
   ),
@@ -150,7 +157,7 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title + Text + Video',
     darkBg: true,
     card: const ProcessCard(
-      title: 'Load Securing Procedure',
+      nodeName: 'Load Securing Procedure',
       text: 'Attach the sling at the designated lifting points. '
           'Verify the load weight does not exceed crane capacity.',
       videoPath: _sampleVideo,
@@ -160,9 +167,9 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Title + Text + Image + URL',
     darkBg: false,
     card: const ProcessCard(
-      title: 'Equipment Registration',
+      nodeName: 'Equipment Registration',
       text: _shortText,
-      imagePath: _sampleImage,
+      imagePaths: [_sampleImage],
       imageIsAsset: true,
       linkUrl: 'https://example.com/equipment-manual',
       linkLabel: 'Equipment Manual',
@@ -172,50 +179,32 @@ final _cards = <({String label, Widget card, bool darkBg})>[
     label: 'Event (Start)',
     darkBg: false,
     card: const ProcessCard(
-      isEvent: true,
       nodeName: 'Begin Inspection',
-    ),
-  ),
-  (
-    label: 'Event (End)',
-    darkBg: false,
-    card: const ProcessCard(
       isEvent: true,
-      nodeName: 'Inspection Complete',
     ),
   ),
   (
-    label: 'Gateway — 2 options',
+    label: 'Gateway (2 options)',
     darkBg: false,
     card: const ProcessCard(
+      nodeName: 'Hydraulic pressure OK?',
       isGateway: true,
-      nodeName: 'Safety Check Passed?',
-      gatewayOptions: ['Yes', 'No'],
+      gatewayOptions: ['Yes — proceed', 'No — escalate'],
     ),
   ),
   (
-    label: 'Gateway — 3 options',
+    label: 'Gateway (5 options → modal)',
     darkBg: false,
     card: const ProcessCard(
+      nodeName: 'Select repair category',
       isGateway: true,
-      nodeName: 'Damage Severity?',
-      gatewayOptions: ['Minor', 'Moderate', 'Critical'],
-    ),
-  ),
-  (
-    label: 'Gateway — 5 options (modal)',
-    darkBg: false,
-    card: const ProcessCard(
-      isGateway: true,
-      nodeName: 'Assign Repair Team',
       gatewayOptions: [
-        'Hydraulics',
         'Electrical',
-        'Structural',
-        'Engine',
-        'Safety Systems',
+        'Hydraulic',
+        'Mechanical',
+        'Software',
+        'Other',
       ],
     ),
   ),
 ];
-

@@ -251,26 +251,23 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Close button top-right — dismisses the entire modal.
+            // Close button top-left — dismisses the entire modal.
             Positioned(
               top: topPad + 8,
-              right: 16,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (widget.entry?.entryId != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _InfoCircleButton(
-                        onPressed: () => _showEntryInfo(context, widget.entry!),
-                      ),
-                    ),
-                  CloseCircleButton(
-                    onPressed: () => _dismissModal(context),
-                  ),
-                ],
+              left: 16,
+              child: CloseCircleButton(
+                onPressed: () => _dismissModal(context),
               ),
             ),
+            // Info button top-right.
+            if (widget.entry?.entryId != null)
+              Positioned(
+                top: topPad + 8,
+                right: 16,
+                child: _InfoCircleButton(
+                  onPressed: () => _showEntryInfo(context, widget.entry!),
+                ),
+              ),
             // Mini process map bottom-right — tap to open full view.
             Positioned(
               bottom: bottomPad + 16,
@@ -307,31 +304,31 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 right: 0,
                 child: const _ChooseOptionHint(),
               ),
-            // Close button on last step.
-            if (_isLastStep(safePage))
-              Positioned(
-                bottom: bottomPad + 32,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: SizedBox(
-                    width: 140,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () => _dismissModal(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                      child: const Text('Close',
-                          style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                ),
-              ),
+            // // Close button on last step.
+            // if (_isLastStep(safePage))
+            //   Positioned(
+            //     bottom: bottomPad + 32,
+            //     left: 0,
+            //     right: 0,
+            //     child: Center(
+            //       child: SizedBox(
+            //         width: 140,
+            //         height: 48,
+            //         child: ElevatedButton(
+            //           onPressed: () => _dismissModal(context),
+            //           style: ElevatedButton.styleFrom(
+            //             backgroundColor: Colors.black,
+            //             foregroundColor: Colors.white,
+            //             shape: RoundedRectangleBorder(
+            //               borderRadius: BorderRadius.circular(24),
+            //             ),
+            //           ),
+            //           child: const Text('Close',
+            //               style: TextStyle(fontSize: 16)),
+            //         ),
+            //       ),
+            //     ),
+            //   ),
           ],
         ),
       ),

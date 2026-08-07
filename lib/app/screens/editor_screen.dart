@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../diagram/edit/editor_controller.dart';
@@ -50,6 +51,7 @@ class _EditorScreenState extends State<EditorScreen> {
   final GlobalKey _canvasKey = GlobalKey();
   String? _savedId;
   late String _title;
+  Timer? _autosaveTimer;
 
   bool get _isOwner => widget.role == DiagramRole.owner;
 
@@ -59,6 +61,13 @@ class _EditorScreenState extends State<EditorScreen> {
     _savedId = widget.savedId;
     _title = widget.title ?? 'New Diagram';
     _controller = EditorController();
+    _controller.onLimitReached = (msg) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+    };
     if (widget.initialDiagram != null) {
       _controller.loadDiagram(widget.initialDiagram!);
       // Center the diagram in the viewport after the first frame.
@@ -66,9 +75,21 @@ class _EditorScreenState extends State<EditorScreen> {
         _centerDiagram();
       });
     }
+    // Autosave: debounced 5s after any edit.
+    if (_isOwner) {
+      _controller.addListener(_onDiagramChanged);
+    }
   }
 
-  Future<void> _saveDiagram() async {
+  void _onDiagramChanged() {
+    if (_savedId == null) return; // Only autosave already-saved diagrams.
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) _saveDiagram(silent: true);
+    });
+  }
+
+  Future<void> _saveDiagram({bool silent = false}) async {
     final meta = await DiagramStorage.instance.save(
       _controller.diagram,
       title: _title,
@@ -76,7 +97,7 @@ class _EditorScreenState extends State<EditorScreen> {
     );
     _savedId = meta.id;
     widget.onSaved?.call();
-    if (mounted) {
+    if (mounted && !silent) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Diagram saved')),
       );
@@ -156,6 +177,8 @@ class _EditorScreenState extends State<EditorScreen> {
 
   @override
   void dispose() {
+    _autosaveTimer?.cancel();
+    _controller.removeListener(_onDiagramChanged);
     _transformController.dispose();
     _controller.dispose();
     super.dispose();
@@ -366,6 +389,16 @@ class _EditorScreenState extends State<EditorScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_savedId != null)
+                    ListenableBuilder(
+                      listenable: DiagramStorage.instance.syncStatusNotifier,
+                      builder: (context, _) {
+                        final status = DiagramStorage.instance
+                            .getSyncStatus(_savedId!);
+                        return _SyncIndicator(status: status);
+                      },
+                    ),
+                  const SizedBox(width: 6),
                   TextButton(
                     onPressed: _saveDiagram,
                     style: TextButton.styleFrom(
@@ -555,5 +588,36 @@ class _FloatingMessageButtonState extends State<_FloatingMessageButton> {
         ),
       ),
     );
+  }
+}
+
+/// Small sync status indicator shown next to the Save button.
+class _SyncIndicator extends StatelessWidget {
+  final SyncStatus status;
+
+  const _SyncIndicator({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    switch (status) {
+      case SyncStatus.syncing:
+        return const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Color(0xFF007AFF),
+          ),
+        );
+      case SyncStatus.synced:
+        return const Icon(Icons.cloud_done_outlined,
+            size: 20, color: Color(0xFF34C759));
+      case SyncStatus.failed:
+        return const Tooltip(
+          message: 'Sync failed — tap Save to retry',
+          child: Icon(Icons.cloud_off_outlined,
+              size: 20, color: Color(0xFFFF3B30)),
+        );
+    }
   }
 }

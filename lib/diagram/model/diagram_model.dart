@@ -14,41 +14,53 @@ class DocLink {
   const DocLink({required this.url, required this.label, this.subtitle});
 }
 
-/// Content attached to a Task node.
+/// Content attached to a node (task, start event, or end event).
 class TaskContent {
-  String? title;
-  String? text;        // plain text → <bpmn:documentation>
-  String? imagePath;   // local file path (later: URL)
-  String? videoPath;   // local file path (later: URL)
+  String? text;            // plain text → <bpmn:documentation>
+  List<String> imagePaths; // local file paths / URLs (up to 3)
+  List<String> videoPaths; // local file paths (up to 3)
+  List<String> pdfPaths;   // local file paths (up to 3)
   String? linkUrl;
   String? linkLabel;
   List<DocLink> links;
-  bool imageContain;   // true → BoxFit.contain (instruction images)
 
   TaskContent({
-    this.title,
     this.text,
-    this.imagePath,
-    this.videoPath,
+    String? imagePath,
+    List<String>? imagePaths,
+    String? videoPath,
+    List<String>? videoPaths,
+    String? pdfPath,
+    List<String>? pdfPaths,
     this.linkUrl,
     this.linkLabel,
     this.links = const [],
-    this.imageContain = false,
-  });
+  })  : imagePaths = imagePaths ?? (imagePath != null ? [imagePath] : []),
+        videoPaths = videoPaths ?? (videoPath != null ? [videoPath] : []),
+        pdfPaths = pdfPaths ?? (pdfPath != null ? [pdfPath] : []);
 
-  bool get hasMedia => imagePath != null || videoPath != null;
+  /// First image path (convenience getter).
+  String? get imagePath => imagePaths.isNotEmpty ? imagePaths.first : null;
+
+  /// First video path (convenience getter).
+  String? get videoPath => videoPaths.isNotEmpty ? videoPaths.first : null;
+
+  /// First PDF path (convenience getter).
+  String? get pdfPath => pdfPaths.isNotEmpty ? pdfPaths.first : null;
+
+  bool get hasMedia =>
+      imagePaths.isNotEmpty || videoPaths.isNotEmpty || pdfPaths.isNotEmpty;
   bool get isEmpty =>
-      title == null && text == null && !hasMedia && linkUrl == null && links.isEmpty;
+      text == null && !hasMedia && linkUrl == null && links.isEmpty;
 
   TaskContent copy() => TaskContent(
-        title: title,
         text: text,
-        imagePath: imagePath,
-        videoPath: videoPath,
+        imagePaths: List.of(imagePaths),
+        videoPaths: List.of(videoPaths),
+        pdfPaths: List.of(pdfPaths),
         linkUrl: linkUrl,
         linkLabel: linkLabel,
         links: links,
-        imageContain: imageContain,
       );
 }
 
@@ -58,7 +70,7 @@ class NodeModel {
   NodeType type;
   String name;
   Rect rect;
-  TaskContent? content; // only meaningful for NodeType.task
+  TaskContent? content; // meaningful for task, startEvent, endEvent
 
   NodeModel({
     required this.id,
