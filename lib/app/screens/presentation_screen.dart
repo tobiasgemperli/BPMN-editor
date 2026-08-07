@@ -380,9 +380,24 @@ class _SwipeHintArrowState extends State<_SwipeHintArrow>
         builder: (context, child) {
           return Opacity(
             opacity: _opacity.value,
-            child: const Center(
-              child: Icon(Icons.keyboard_arrow_down,
-                  size: 40, color: Colors.black),
+            child: Center(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.keyboard_arrow_down,
+                    size: 24, color: Colors.black54),
+              ),
             ),
           );
         },

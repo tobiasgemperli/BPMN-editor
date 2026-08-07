@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../diagram/io/api_client.dart';
+import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/mini_process_map.dart';
@@ -18,6 +20,48 @@ class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
   String _query = '';
 
+  List<ApiModelMeta> _remoteModels = [];
+  final Map<String, DiagramModel> _remoteDiagrams = {};
+  bool _remoteLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRemote();
+  }
+
+  Future<void> _refresh() async {
+    _remoteDiagrams.clear();
+    await _loadRemote();
+  }
+
+  Future<void> _loadRemote() async {
+    setState(() => _remoteLoading = true);
+    try {
+      final models = await DiagramStorage.instance.listRemote();
+      final results = await Future.wait(
+        models.map((m) async {
+          try {
+            final full = await DiagramStorage.instance.loadRemote(m.id);
+            if (full.diagram != null) {
+              _remoteDiagrams[m.id] = full.diagram!;
+              return m;
+            }
+            return null;
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      final valid = results.whereType<ApiModelMeta>().toList();
+      if (mounted) setState(() => _remoteModels = valid);
+    } catch (_) {
+      // Server unavailable — keep empty list.
+    } finally {
+      if (mounted) setState(() => _remoteLoading = false);
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -27,14 +71,30 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
-    final all = SampleDiagrams.all;
-    final filtered = _query.isEmpty
-        ? all
-        : all
+    final q = _query.toLowerCase();
+
+    // Filter sample diagrams.
+    final allSamples = SampleDiagrams.all;
+    final filteredSamples = q.isEmpty
+        ? allSamples
+        : allSamples
             .where((e) =>
-                e.name.toLowerCase().contains(_query.toLowerCase()) ||
-                e.creator.name.toLowerCase().contains(_query.toLowerCase()))
+                e.name.toLowerCase().contains(q) ||
+                e.creator.name.toLowerCase().contains(q))
             .toList();
+
+    // Filter remote models.
+    final filteredRemote = q.isEmpty
+        ? _remoteModels
+        : _remoteModels
+            .where((m) =>
+                m.name.toLowerCase().contains(q) ||
+                m.ownerName.toLowerCase().contains(q) ||
+                m.keywords.any((k) => k.toLowerCase().contains(q)))
+            .toList();
+
+    final totalResults = filteredRemote.length + filteredSamples.length;
+    final hasResults = totalResults > 0;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -84,20 +144,43 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 8),
             // Results.
             Expanded(
-              child: filtered.isEmpty
-                  ? Center(
-                      child: Text('No results',
-                          style: TextStyle(color: Colors.grey[600])),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 8),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
-                        final entry = filtered[i];
-                        return _SearchResultCard(entry: entry);
-                      },
+              child: _remoteLoading && _remoteModels.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: !hasResults
+                          ? ListView(
+                              children: [
+                                SizedBox(
+                                  height: MediaQuery.of(context).size.height * 0.5,
+                                  child: Center(
+                                    child: Text('No results',
+                                        style: TextStyle(color: Colors.grey[600])),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 8),
+                              itemCount: totalResults,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (context, i) {
+                                // Remote results first, then samples.
+                                if (i < filteredRemote.length) {
+                                  final model = filteredRemote[i];
+                                  final diagram = _remoteDiagrams[model.id];
+                                  return _RemoteResultCard(
+                                    model: model,
+                                    diagram: diagram,
+                                  );
+                                }
+                                final entry =
+                                    filteredSamples[i - filteredRemote.length];
+                                return _SearchResultCard(entry: entry);
+                              },
+                            ),
                     ),
             ),
           ],
@@ -282,6 +365,179 @@ String? _findTeaserImage(DiagramModel diagram) {
     if (img != null) return img;
   }
   return null;
+}
+
+class _RemoteResultCard extends StatefulWidget {
+  final ApiModelMeta model;
+  final DiagramModel? diagram;
+
+  const _RemoteResultCard({required this.model, this.diagram});
+
+  @override
+  State<_RemoteResultCard> createState() => _RemoteResultCardState();
+}
+
+class _RemoteResultCardState extends State<_RemoteResultCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final model = widget.model;
+    final diagram = widget.diagram;
+    final stepCount = diagram?.nodes.values
+            .where((n) => n.type == NodeType.task)
+            .length ??
+        0;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        if (diagram != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PresentationScreen(
+                diagram: diagram,
+                title: model.name,
+                role: DiagramRole.viewer,
+                creator: SampleCreator(
+                  id: model.ownerId,
+                  name: model.ownerName,
+                  initials: _initials(model.ownerName),
+                  colorValue: 0xFF6C63FF,
+                  bio: '',
+                  followers: 0,
+                ),
+              ),
+            ),
+          );
+        }
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedOpacity(
+        opacity: _pressed ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          height: 96,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Teaser preview.
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.horizontal(left: Radius.circular(12)),
+                child: Container(
+                  width: 90,
+                  height: 96,
+                  color: const Color(0xFFE8EAF6),
+                  child: diagram != null
+                      ? Center(
+                          child: MiniProcessMap(
+                            steps: diagram.nodes.values.toList(),
+                            diagram: diagram,
+                            currentNodeId: '',
+                            backgroundColor: const Color(0xFFE8EAF6),
+                            showShadow: false,
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(Icons.cloud_outlined,
+                              color: Color(0xFF9FA8DA), size: 28)),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        model.name,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1C1C1E)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (stepCount > 0) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          '$stepCount steps',
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF6C63FF),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _initials(model.ownerName),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              model.ownerName,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF636366)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Icon(Icons.chevron_right, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _initials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.length >= 2) {
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+  return name.isNotEmpty ? name[0].toUpperCase() : '?';
 }
 
 String _subtitle(String name) {

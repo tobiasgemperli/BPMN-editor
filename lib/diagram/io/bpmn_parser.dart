@@ -158,6 +158,7 @@ class BpmnParser {
     final pdfPaths = <String>[];
     String? linkUrl;
     String? linkLabel;
+    ContentDisplayMode displayMode = ContentDisplayMode.mixed;
 
     for (final child in taskEl.children.whereType<XmlElement>()) {
       if (child.name.local == 'documentation') {
@@ -165,6 +166,9 @@ class BpmnParser {
       } else if (child.name.local == 'extensionElements') {
         for (final ext in child.children.whereType<XmlElement>()) {
           if (ext.name.local == 'content') {
+            final modeAttr = ext.getAttribute('display');
+            if (modeAttr == 'image') displayMode = ContentDisplayMode.image;
+            if (modeAttr == 'video') displayMode = ContentDisplayMode.video;
             for (final item in ext.children.whereType<XmlElement>()) {
               switch (item.name.local) {
                 case 'title':
@@ -204,6 +208,7 @@ class BpmnParser {
       pdfPaths: pdfPaths,
       linkUrl: linkUrl,
       linkLabel: linkLabel,
+      displayMode: displayMode,
     );
   }
 

@@ -1,9 +1,22 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import '../../diagram/model/diagram_model.dart';
 import 'close_circle_button.dart';
+
+void _openUrl(String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri != null && await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+void _openFile(String path) async {
+  await OpenFilex.open(path);
+}
 
 /// A full-screen step in a process. No Card/shadow — clean flat design.
 ///
@@ -13,6 +26,7 @@ class ProcessCard extends StatelessWidget {
   final String? text;
   final List<String> imagePaths;
   final String? videoPath;
+  final List<String> pdfPaths;
   final String? linkUrl;
   final String? linkLabel;
   final bool isEvent;
@@ -20,6 +34,7 @@ class ProcessCard extends StatelessWidget {
   final List<String> gatewayOptions;
   final ValueChanged<int>? onOptionSelected;
   final String nodeName;
+  final ContentDisplayMode displayMode;
 
   /// If true, use a bundled asset path instead of a File path for the image.
   final bool imageIsAsset;
@@ -31,6 +46,7 @@ class ProcessCard extends StatelessWidget {
     this.text,
     this.imagePaths = const [],
     this.videoPath,
+    this.pdfPaths = const [],
     this.linkUrl,
     this.linkLabel,
     this.isEvent = false,
@@ -39,6 +55,7 @@ class ProcessCard extends StatelessWidget {
     this.gatewayTargetIds = const [],
     this.onOptionSelected,
     this.nodeName = '',
+    this.displayMode = ContentDisplayMode.mixed,
     this.imageIsAsset = false,
     List<DocLink> links = const [],
   }) : _links = links;
@@ -69,6 +86,7 @@ class ProcessCard extends StatelessWidget {
       text: content?.text,
       imagePaths: imgPaths,
       videoPath: content?.videoPath,
+      pdfPaths: content?.pdfPaths ?? const [],
       linkUrl: content?.linkUrl,
       linkLabel: content?.linkLabel,
       isEvent: node.type == NodeType.startEvent ||
@@ -78,6 +96,7 @@ class ProcessCard extends StatelessWidget {
       gatewayTargetIds: targetIds,
       onOptionSelected: onOptionSelected,
       nodeName: node.name,
+      displayMode: content?.displayMode ?? ContentDisplayMode.mixed,
       imageIsAsset: firstImg != null && firstImg.startsWith('assets/'),
       links: content?.links ?? const [],
     );
@@ -88,16 +107,19 @@ class ProcessCard extends StatelessWidget {
     // Events with content are rendered like tasks.
     if (isEvent && !_hasContent) return _buildEvent(context);
     if (isGateway) return _buildGateway(context);
-    // Video-only → TikTok full-screen.
-    if (videoPath != null && (text == null || text!.isEmpty)) {
+    // Mixed mode always uses content layout (title, text, thumbnails, links).
+    if (displayMode == ContentDisplayMode.mixed) {
+      return _buildContent(context);
+    }
+    // Video mode → fullscreen video.
+    if (displayMode == ContentDisplayMode.video && videoPath != null) {
+      if (text != null && text!.isNotEmpty) {
+        return _buildVideoWithTitle(context);
+      }
       return _buildVideoFull(context);
     }
-    // Video + text → TikTok with overlay.
-    if (videoPath != null) {
-      return _buildVideoWithTitle(context);
-    }
-    // Fullscreen image — no text, just image with gradient title.
-    if (imagePath != null && (text == null || text!.isEmpty) && _links.isEmpty && linkUrl == null) {
+    // Image mode → fullscreen image.
+    if (displayMode == ContentDisplayMode.image && imagePath != null) {
       return _buildImageFull(context);
     }
     return _buildContent(context);
@@ -106,44 +128,62 @@ class ProcessCard extends StatelessWidget {
   /// Whether this event has any content to display beyond the name.
   bool get _hasContent {
     return text != null || imagePaths.isNotEmpty || videoPath != null ||
-        linkUrl != null || _links.isNotEmpty;
+        pdfPaths.isNotEmpty || linkUrl != null || _links.isNotEmpty;
   }
+
+  /// Whether there are link/PDF attachments to overlay.
+  bool get _hasOverlayItems =>
+      linkUrl != null || pdfPaths.isNotEmpty || _links.isNotEmpty;
 
   // ── Fullscreen image with gradient title ────────────────────
 
   Widget _buildImageFull(BuildContext context) {
     final displayTitle = nodeName;
-    // Show full picture (contain), tap to open zoom view.
-    return GestureDetector(
-      onTap: () => _showImageDetail(context, imagePath!, imageIsAsset),
-      child: Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            if (displayTitle.isNotEmpty)
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                  child: Text(
-                    displayTitle,
-                    style: const TextStyle(
-                      color: Color(0xFF1C1C1E),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+    final topPad = MediaQuery.of(context).padding.top;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return _PinchToZoomView(
+      content: _buildImage(imagePath!, BoxFit.contain),
+      overlays: [
+        // Title at top with gradient.
+        if (displayTitle.isNotEmpty)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.5),
+                    Colors.transparent,
+                  ],
                 ),
               ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _buildImage(imagePath!, BoxFit.contain),
+              padding: EdgeInsets.fromLTRB(24, topPad + 12, 24, 24),
+              child: Text(
+                displayTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        // Link/PDF at bottom with gradient.
+        if (_hasOverlayItems)
+          _BottomOverlay(
+            bottomPad: bottomPad,
+            linkUrl: linkUrl,
+            linkLabel: linkLabel,
+            pdfPaths: pdfPaths,
+            links: _links,
+          ),
+      ],
     );
   }
 
@@ -269,75 +309,183 @@ class ProcessCard extends StatelessWidget {
     );
   }
 
-  // ── Video full (TikTok) ─────────────────────────────────────
+  // ── Video full ──────────────────────────────────────────────
 
   Widget _buildVideoFull(BuildContext context) {
-    return _AssetVideoPlayer(
-      videoPath: videoPath!,
-      child: const SizedBox.expand(),
-    );
-  }
-
-  // ── Video + title (TikTok with overlay) ─────────────────────
-
-  Widget _buildVideoWithTitle(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     final displayTitle = nodeName;
-    return _AssetVideoPlayer(
-      videoPath: videoPath!,
-      child: Positioned(
-        left: 24,
-        right: 24,
-        bottom: 48,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+    final hasBottom = _hasOverlayItems;
+
+    return _PinchToZoomView(
+      content: _AssetVideoPlayer(
+        videoPath: videoPath!,
+        child: Stack(
           children: [
-            if (displayTitle.isNotEmpty)
-              Text(
-                displayTitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            if (text != null) ...[
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => _showTextModal(context, displayTitle, text!),
-                child: Text(
-                  text!,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+            if (hasBottom)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.3),
                 ),
               ),
-            ],
           ],
         ),
       ),
+      overlays: [
+        // Title at top with gradient.
+        if (displayTitle.isNotEmpty)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.6),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              padding: EdgeInsets.fromLTRB(24, topPad + 12, 24, 24),
+              child: Text(
+                displayTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        // Link/PDF at bottom with gradient.
+        if (hasBottom)
+          _BottomOverlay(
+            bottomPad: bottomPad,
+            linkUrl: linkUrl,
+            linkLabel: linkLabel,
+            pdfPaths: pdfPaths,
+            links: _links,
+          ),
+      ],
+    );
+  }
+
+  // ── Video + text ───────────────────────────────────────────
+
+  Widget _buildVideoWithTitle(BuildContext context) {
+    final displayTitle = nodeName;
+    final topPad = MediaQuery.of(context).padding.top;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return _PinchToZoomView(
+      content: _AssetVideoPlayer(
+        videoPath: videoPath!,
+        child: Positioned.fill(
+          child: Container(
+            color: Colors.black.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
+      overlays: [
+        // Title at top with gradient.
+        if (displayTitle.isNotEmpty)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.6),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              padding: EdgeInsets.fromLTRB(24, topPad + 12, 24, 24),
+              child: Text(
+                displayTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        // Text + link/PDF at bottom with gradient.
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.8),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(24, 32, 24, bottomPad + 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (text != null)
+                  GestureDetector(
+                    onTap: () =>
+                        _showTextModal(context, displayTitle, text!),
+                    child: Text(
+                      text!,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                if (_hasOverlayItems) ...[
+                  if (text != null) const SizedBox(height: 12),
+                  _OverlayAttachmentList(
+                    linkUrl: linkUrl,
+                    linkLabel: linkLabel,
+                    pdfPaths: pdfPaths,
+                    links: _links,
+                    light: true,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   // ── Content card (title, text, image) ───────────────────────
 
-  /// Fixed top padding so the title always starts at the same position.
-  static const _titleTopPadding = 100.0;
-
   Widget _buildContent(BuildContext context) {
     final displayTitle = nodeName;
-    final hasImage = imagePath != null;
+    final hasImage = imagePaths.isNotEmpty;
+    final hasVideo = videoPath != null;
     final hasLongText = text != null && text!.length > 200;
     final hasLink = linkUrl != null;
+    final hasPdf = pdfPaths.isNotEmpty;
 
-    // Heavy content (image, link, long text, doc links) → top-aligned, fills screen.
-    if (hasImage || hasLink || _links.isNotEmpty) {
+    // Heavy content (media, link, PDF) → top-aligned, fills screen.
+    if (hasImage || hasVideo || hasLink || hasPdf || _links.isNotEmpty) {
       return _buildTopAligned(context, displayTitle, hasImage, hasLongText);
     }
 
@@ -392,27 +540,33 @@ class ProcessCard extends StatelessWidget {
     );
   }
 
-  /// Top-aligned layout for cards with image, link, or heavy content.
+  /// Top-aligned layout for mixed content: title, text, media thumbnails, links.
   Widget _buildTopAligned(BuildContext context, String displayTitle,
       bool hasImage, bool hasLongText) {
-    final hasMultipleImages = imagePaths.length > 1;
+    final hasVideo = videoPath != null;
+    final topPad = MediaQuery.of(context).padding.top;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: _titleTopPadding),
+          SizedBox(height: topPad + 12),
 
           if (displayTitle.isNotEmpty)
-            Text(
-              displayTitle,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1C1C1E),
-                  ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+            SizedBox(
+              width: double.infinity,
+              child: Text(
+                displayTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1C1C1E),
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
 
           if (text != null) ...[
@@ -439,7 +593,7 @@ class ProcessCard extends StatelessWidget {
                 child: Text(
                   'Tap to read more',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
+                    color: const Color(0xFF1C1C1E),
                     fontSize: 13,
                   ),
                 ),
@@ -447,139 +601,104 @@ class ProcessCard extends StatelessWidget {
             ],
           ],
 
+          // Push images, links, PDFs to bottom.
+          const Spacer(flex: 100),
+
+          // Image thumbnails.
           if (hasImage) ...[
-            const SizedBox(height: 16),
-            if (hasMultipleImages)
-              // Multiple images: row of thumbnails, tap to enlarge.
-              SizedBox(
-                height: 100,
-                child: Row(
-                  children: [
-                    for (int i = 0; i < imagePaths.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => _showImageDetail(
-                            context,
-                            imagePaths[i],
-                            imagePaths[i].startsWith('assets/'),
-                          ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.grey[300]!, width: 1),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(9),
-                              child: SizedBox(
-                                height: 100,
-                                child: _buildImageFromPath(
-                                    imagePaths[i], BoxFit.cover),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              )
-            else if (text != null)
-              // Single image with text: small framed thumbnail.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: GestureDetector(
-                onTap: () => _showMediaModal(context, isVideo: false),
-                child: Container(
-                  width: 140,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!, width: 1),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
-                    child: Stack(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          height: double.infinity,
-                          child: _buildImage(imagePath!, BoxFit.cover),
-                        ),
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Icon(Icons.fullscreen, size: 18, color: Colors.white),
-                          ),
-                        ),
-                      ],
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (int i = 0; i < imagePaths.length; i++)
+                  GestureDetector(
+                    onTap: () => _showImageDetail(
+                      context,
+                      imagePaths[i],
+                      imagePaths[i].startsWith('assets/'),
                     ),
-                  ),
-                ),
-              ),
-              )
-            else
-              // Full-size image when no text.
-              Expanded(
-                flex: 5,
-                child: GestureDetector(
-                  onTap: () => _showMediaModal(context, isVideo: false),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!, width: 1),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(11),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: double.infinity,
-                        child: _buildImage(imagePath!, BoxFit.contain),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 150),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: _buildImageFromPath(
+                            imagePaths[i], BoxFit.scaleDown),
                       ),
                     ),
                   ),
-                ),
-              ),
+              ],
+            ),
+            const SizedBox(height: 12),
           ],
 
+          // Video thumbnails row.
+          if (hasVideo) ...[
+            SizedBox(
+              height: 100,
+              child: Row(
+                children: [
+                  for (int i = 0; i < (videoPath != null ? 1 : 0); i++) ...[
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () =>
+                            _showMediaModal(context, isVideo: true),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[900],
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: Colors.grey[300]!, width: 1),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.play_circle_outline,
+                                size: 40, color: Colors.white70),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Link.
           if (linkUrl != null) ...[
-            const SizedBox(height: 16),
             _DocLinkRow(
               label: linkLabel ?? linkUrl!,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Opening ${linkUrl!}')),
-                );
-              },
+              onTap: () => _openUrl(linkUrl!),
             ),
+            const SizedBox(height: 8),
           ],
 
           // Multiple document links.
           if (_links.isNotEmpty) ...[
-            const SizedBox(height: 12),
             for (final link in _links)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _DocLinkRow(
                   label: link.label,
                   subtitle: link.subtitle,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Opening ${link.url}')),
-                    );
-                  },
+                  onTap: () => _openUrl(link.url),
                 ),
               ),
           ],
 
-          SizedBox(height: hasImage ? 24 : 80),
+          // PDF attachments.
+          if (pdfPaths.isNotEmpty) ...[
+            for (final path in pdfPaths)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _DocLinkRow(
+                  icon: Icons.picture_as_pdf,
+                  label: path.split('/').last,
+                  onTap: () => _openFile(path),
+                ),
+              ),
+          ],
+
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 24),
         ],
       ),
     );
@@ -775,7 +894,9 @@ class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
         if (_initialized)
           SizedBox.expand(
             child: FittedBox(
-              fit: BoxFit.cover,
+              fit: _vController.value.size.height > _vController.value.size.width
+                  ? BoxFit.cover
+                  : BoxFit.contain,
               child: SizedBox(
                 width: _vController.value.size.width,
                 height: _vController.value.size.height,
@@ -787,7 +908,7 @@ class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
           const Center(
             child: CircularProgressIndicator(color: Colors.white54),
           ),
-        widget.child,
+        Positioned.fill(child: widget.child),
       ],
     );
   }
@@ -885,13 +1006,281 @@ class _ImageDetailView extends StatelessWidget {
   }
 }
 
-/// Mobile-style link row — link icon, label, subtitle, chevron.
+/// Pinch-to-zoom image with snap-back. Hides overlays while zoomed.
+class _PinchToZoomView extends StatefulWidget {
+  final Widget content;
+  final List<Widget> overlays;
+
+  const _PinchToZoomView({
+    required this.content,
+    this.overlays = const [],
+  });
+
+  @override
+  State<_PinchToZoomView> createState() => _PinchToZoomViewState();
+}
+
+class _PinchToZoomViewState extends State<_PinchToZoomView>
+    with SingleTickerProviderStateMixin {
+  final _controller = TransformationController();
+  late final AnimationController _animController;
+  Animation<Matrix4>? _snapBackAnimation;
+  bool _isZoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _animController.addListener(() {
+      if (_snapBackAnimation != null) {
+        _controller.value = _snapBackAnimation!.value;
+      }
+    });
+    _animController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        setState(() => _isZoomed = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onInteractionStart(ScaleStartDetails details) {
+    if (_animController.isAnimating) {
+      _animController.stop();
+    }
+  }
+
+  void _onInteractionEnd(ScaleEndDetails details) {
+    // Snap back to identity.
+    _snapBackAnimation = Matrix4Tween(
+      begin: _controller.value,
+      end: Matrix4.identity(),
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    ));
+    _animController.forward(from: 0);
+  }
+
+  void _onInteractionUpdate(ScaleUpdateDetails details) {
+    final scale = _controller.value.getMaxScaleOnAxis();
+    final zoomed = scale > 1.05;
+    if (zoomed != _isZoomed) {
+      setState(() => _isZoomed = zoomed);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          color: Colors.black,
+          child: InteractiveViewer(
+            transformationController: _controller,
+            onInteractionStart: _onInteractionStart,
+            onInteractionUpdate: _onInteractionUpdate,
+            onInteractionEnd: _onInteractionEnd,
+            minScale: 1.0,
+            maxScale: 5.0,
+            child: SizedBox.expand(child: widget.content),
+          ),
+        ),
+        // Hide overlays while zoomed.
+        if (!_isZoomed) ...widget.overlays,
+      ],
+    );
+  }
+}
+
+/// Dark gradient overlay at the bottom with link/PDF attachments.
+/// Used on fullscreen image cards.
+class _BottomOverlay extends StatelessWidget {
+  final double bottomPad;
+  final String? linkUrl;
+  final String? linkLabel;
+  final List<String> pdfPaths;
+  final List<DocLink> links;
+
+  const _BottomOverlay({
+    required this.bottomPad,
+    this.linkUrl,
+    this.linkLabel,
+    this.pdfPaths = const [],
+    this.links = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [
+              Colors.black.withValues(alpha: 0.7),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        padding: EdgeInsets.fromLTRB(24, 32, 24, bottomPad + 16),
+        child: _OverlayAttachmentList(
+          linkUrl: linkUrl,
+          linkLabel: linkLabel,
+          pdfPaths: pdfPaths,
+          links: links,
+          light: true,
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact list of link/PDF attachment rows for overlays.
+/// When [light] is true, uses white text on dark backgrounds.
+class _OverlayAttachmentList extends StatelessWidget {
+  final String? linkUrl;
+  final String? linkLabel;
+  final List<String> pdfPaths;
+  final List<DocLink> links;
+  final bool light;
+
+  const _OverlayAttachmentList({
+    this.linkUrl,
+    this.linkLabel,
+    this.pdfPaths = const [],
+    this.links = const [],
+    this.light = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (linkUrl != null)
+          _OverlayAttachmentRow(
+            icon: Icons.link,
+            label: linkLabel ?? linkUrl!,
+            light: light,
+            onTap: () => _openUrl(linkUrl!),
+          ),
+        for (final link in links)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _OverlayAttachmentRow(
+              icon: Icons.link,
+              label: link.label,
+              light: light,
+              onTap: () => _openUrl(link.url),
+            ),
+          ),
+        for (final path in pdfPaths)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _OverlayAttachmentRow(
+              icon: Icons.picture_as_pdf,
+              label: path.split('/').last,
+              light: light,
+              onTap: () => _openFile(path),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Plain text attachment row with icon before text — no box.
+class _OverlayAttachmentRow extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool light;
+  final VoidCallback onTap;
+
+  const _OverlayAttachmentRow({
+    required this.icon,
+    required this.label,
+    required this.light,
+    required this.onTap,
+  });
+
+  @override
+  State<_OverlayAttachmentRow> createState() => _OverlayAttachmentRowState();
+}
+
+class _OverlayAttachmentRowState extends State<_OverlayAttachmentRow> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = widget.light ? Colors.white : const Color(0xFF1C1C1E);
+    final iconColor = widget.light ? Colors.white : const Color(0xFF1C1C1E);
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedOpacity(
+        opacity: _pressed ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, size: 18, color: iconColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: textColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Plain text link row — icon before label, no box.
 class _DocLinkRow extends StatefulWidget {
+  final IconData icon;
   final String label;
   final String? subtitle;
   final VoidCallback onTap;
 
-  const _DocLinkRow({required this.label, this.subtitle, required this.onTap});
+  const _DocLinkRow({
+    this.icon = Icons.link,
+    required this.label,
+    this.subtitle,
+    required this.onTap,
+  });
 
   @override
   State<_DocLinkRow> createState() => _DocLinkRowState();
@@ -912,51 +1301,25 @@ class _DocLinkRowState extends State<_DocLinkRow> {
       child: AnimatedOpacity(
         opacity: _pressed ? 0.5 : 1.0,
         duration: const Duration(milliseconds: 100),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.link, size: 20, color: Colors.blue[400]),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.label,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1C1C1E),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (widget.subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.subtitle!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
+              Icon(widget.icon, size: 18, color: const Color(0xFF1C1C1E)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  widget.label,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1C1C1E),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: Colors.grey[600]),
             ],
           ),
         ),

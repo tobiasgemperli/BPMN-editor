@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,9 @@ import '../model/diagram_model.dart';
 import 'api_client.dart';
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
+
+/// Sync status for a diagram.
+enum SyncStatus { synced, syncing, failed }
 
 /// Metadata for a saved diagram.
 class SavedDiagramMeta {
@@ -52,6 +56,21 @@ class DiagramStorage {
 
   Directory? _dir;
   List<SavedDiagramMeta>? _index;
+
+  /// Per-diagram sync status, keyed by local diagram ID.
+  final Map<String, SyncStatus> _syncStatus = {};
+
+  /// Notifier that fires whenever any sync status changes.
+  final syncStatusNotifier = ChangeNotifier();
+
+  /// Get the current sync status for a diagram.
+  SyncStatus getSyncStatus(String id) => _syncStatus[id] ?? SyncStatus.synced;
+
+  void _setSyncStatus(String id, SyncStatus status) {
+    _syncStatus[id] = status;
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    syncStatusNotifier.notifyListeners();
+  }
 
   Future<Directory> _getDir() async {
     if (_dir != null) return _dir!;
@@ -124,13 +143,14 @@ class DiagramStorage {
     await _saveIndex();
 
     // Sync to server in the background.
-    _syncToServer(meta, diagram);
+    unawaited(_syncToServer(meta, diagram));
 
     return meta;
   }
 
   /// Push a diagram to the server. Fire-and-forget — failures are logged.
   Future<void> _syncToServer(SavedDiagramMeta meta, DiagramModel diagram) async {
+    _setSyncStatus(meta.id, SyncStatus.syncing);
     try {
       if (meta.remoteId != null) {
         await _api.updateModel(
@@ -146,8 +166,10 @@ class DiagramStorage {
         meta.remoteId = remote.id;
         await _saveIndex();
       }
+      _setSyncStatus(meta.id, SyncStatus.synced);
     } catch (e) {
       debugPrint('DiagramStorage: server sync failed: $e');
+      _setSyncStatus(meta.id, SyncStatus.failed);
     }
   }
 

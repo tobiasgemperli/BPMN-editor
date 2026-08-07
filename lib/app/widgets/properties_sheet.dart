@@ -2,8 +2,23 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
+
+/// Copies a file from a temporary path to the app's documents directory
+/// so it persists across app restarts. Returns the permanent path.
+Future<String> _persistFile(String tempPath) async {
+  final appDir = await getApplicationDocumentsDirectory();
+  final mediaDir = Directory(p.join(appDir.path, 'media'));
+  if (!mediaDir.existsSync()) mediaDir.createSync(recursive: true);
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final fileName = '${timestamp}_${p.basename(tempPath)}';
+  final dest = p.join(mediaDir.path, fileName);
+  await File(tempPath).copy(dest);
+  return dest;
+}
 
 /// The display type determines how a task card renders in presentation mode.
 enum DisplayType { text, image, video }
@@ -45,16 +60,28 @@ class _NodeEditorScreen extends StatefulWidget {
 
 class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _textCtrl;
-  late final TextEditingController _urlCtrl;
-  late final TextEditingController _urlLabelCtrl;
 
   late DisplayType _displayType;
   final _picker = ImagePicker();
 
-  late List<String> _imagePaths;
-  late List<String> _videoPaths;
-  late List<String> _pdfPaths;
+  // ── Per-mode state: Mixed ──
+  late final TextEditingController _mixedTextCtrl;
+  late final TextEditingController _mixedUrlCtrl;
+  late final TextEditingController _mixedUrlLabelCtrl;
+  late List<String> _mixedImagePaths;
+  late List<String> _mixedPdfPaths;
+
+  // ── Per-mode state: Image ──
+  late final TextEditingController _imageUrlCtrl;
+  late final TextEditingController _imageUrlLabelCtrl;
+  late List<String> _imageImagePaths;
+  late List<String> _imagePdfPaths;
+
+  // ── Per-mode state: Video ──
+  late final TextEditingController _videoUrlCtrl;
+  late final TextEditingController _videoUrlLabelCtrl;
+  late List<String> _videoVideoPaths;
+  late List<String> _videoPdfPaths;
 
   // Gateway outgoing edge label controllers.
   final Map<String, TextEditingController> _edgeLabelCtrls = {};
@@ -71,13 +98,49 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     super.initState();
     final c = widget.node.content;
     _nameCtrl = TextEditingController(text: widget.node.name);
-    _textCtrl = TextEditingController(text: c?.text ?? '');
-    _imagePaths = List<String>.from(c?.imagePaths ?? []);
-    _videoPaths = List<String>.from(c?.videoPaths ?? []);
-    _pdfPaths = List<String>.from(c?.pdfPaths ?? []);
-    _urlCtrl = TextEditingController(text: c?.linkUrl ?? '');
-    _urlLabelCtrl = TextEditingController(text: c?.linkLabel ?? '');
     _displayType = _inferDisplayType(c);
+
+    // Initialize all per-mode controllers with empty defaults.
+    _mixedTextCtrl = TextEditingController();
+    _mixedUrlCtrl = TextEditingController();
+    _mixedUrlLabelCtrl = TextEditingController();
+    _mixedImagePaths = [];
+    _mixedPdfPaths = [];
+
+    _imageUrlCtrl = TextEditingController();
+    _imageUrlLabelCtrl = TextEditingController();
+    _imageImagePaths = [];
+    _imagePdfPaths = [];
+
+    _videoUrlCtrl = TextEditingController();
+    _videoUrlLabelCtrl = TextEditingController();
+    _videoVideoPaths = [];
+    _videoPdfPaths = [];
+
+    // Populate only the saved mode's fields from existing content.
+    if (c != null) {
+      switch (_displayType) {
+        case DisplayType.text:
+          _mixedTextCtrl.text = c.text ?? '';
+          _mixedImagePaths = List<String>.from(c.imagePaths);
+          _mixedPdfPaths = List<String>.from(c.pdfPaths);
+          _mixedUrlCtrl.text = c.linkUrl ?? '';
+          _mixedUrlLabelCtrl.text = c.linkLabel ?? '';
+          break;
+        case DisplayType.image:
+          _imageImagePaths = List<String>.from(c.imagePaths);
+          _imagePdfPaths = List<String>.from(c.pdfPaths);
+          _imageUrlCtrl.text = c.linkUrl ?? '';
+          _imageUrlLabelCtrl.text = c.linkLabel ?? '';
+          break;
+        case DisplayType.video:
+          _videoVideoPaths = List<String>.from(c.videoPaths);
+          _videoPdfPaths = List<String>.from(c.pdfPaths);
+          _videoUrlCtrl.text = c.linkUrl ?? '';
+          _videoUrlLabelCtrl.text = c.linkLabel ?? '';
+          break;
+      }
+    }
 
     // Build edge label controllers for gateway nodes.
     _outgoingEdges = widget.controller.diagram.outgoingEdges(widget.node.id);
@@ -88,22 +151,26 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
 
   DisplayType _inferDisplayType(TaskContent? c) {
     if (c == null) return DisplayType.text;
-    if (c.videoPaths.isNotEmpty && c.text == null && c.imagePaths.isEmpty && c.pdfPaths.isEmpty) {
-      return DisplayType.video;
+    switch (c.displayMode) {
+      case ContentDisplayMode.image:
+        return DisplayType.image;
+      case ContentDisplayMode.video:
+        return DisplayType.video;
+      case ContentDisplayMode.mixed:
+        return DisplayType.text;
     }
-    if (c.imagePaths.isNotEmpty && c.text == null && c.linkUrl == null &&
-        c.links.isEmpty && c.videoPaths.isEmpty && c.pdfPaths.isEmpty) {
-      return DisplayType.image;
-    }
-    return DisplayType.text;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _textCtrl.dispose();
-    _urlCtrl.dispose();
-    _urlLabelCtrl.dispose();
+    _mixedTextCtrl.dispose();
+    _mixedUrlCtrl.dispose();
+    _mixedUrlLabelCtrl.dispose();
+    _imageUrlCtrl.dispose();
+    _imageUrlLabelCtrl.dispose();
+    _videoUrlCtrl.dispose();
+    _videoUrlLabelCtrl.dispose();
     for (final ctrl in _edgeLabelCtrls.values) {
       ctrl.dispose();
     }
@@ -124,50 +191,56 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     );
   }
 
-  Future<void> _pickImage({int? replaceIndex}) async {
+  Future<void> _pickImageFor(List<String> paths, int maxItems,
+      {int? replaceIndex}) async {
     final file = await _picker.pickImage(source: ImageSource.gallery);
     if (file != null) {
+      final permanent = await _persistFile(file.path);
       setState(() {
-        if (replaceIndex != null && replaceIndex < _imagePaths.length) {
-          _imagePaths[replaceIndex] = file.path;
-        } else if (_imagePaths.length < 3) {
-          _imagePaths.add(file.path);
+        if (replaceIndex != null && replaceIndex < paths.length) {
+          paths[replaceIndex] = permanent;
+        } else if (paths.length < maxItems) {
+          paths.add(permanent);
         }
       });
     }
   }
 
-  Future<void> _pickVideo({int? replaceIndex}) async {
+  Future<void> _pickVideoFor(List<String> paths, int maxItems,
+      {int? replaceIndex}) async {
     final file = await _picker.pickVideo(source: ImageSource.gallery);
     if (file != null) {
+      final permanent = await _persistFile(file.path);
       setState(() {
-        if (replaceIndex != null && replaceIndex < _videoPaths.length) {
-          _videoPaths[replaceIndex] = file.path;
-        } else if (_videoPaths.length < 3) {
-          _videoPaths.add(file.path);
+        if (replaceIndex != null && replaceIndex < paths.length) {
+          paths[replaceIndex] = permanent;
+        } else if (paths.length < maxItems) {
+          paths.add(permanent);
         }
       });
     }
   }
 
-  Future<void> _pickPdf({int? replaceIndex}) async {
+  Future<void> _pickPdfFor(List<String> paths, int maxItems,
+      {int? replaceIndex}) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
     if (result != null && result.files.single.path != null) {
+      final permanent = await _persistFile(result.files.single.path!);
       setState(() {
-        final path = result.files.single.path!;
-        if (replaceIndex != null && replaceIndex < _pdfPaths.length) {
-          _pdfPaths[replaceIndex] = path;
-        } else if (_pdfPaths.length < 3) {
-          _pdfPaths.add(path);
+        if (replaceIndex != null && replaceIndex < paths.length) {
+          paths[replaceIndex] = permanent;
+        } else if (paths.length < maxItems) {
+          paths.add(permanent);
         }
       });
     }
   }
 
   void _save() {
+    FocusScope.of(context).unfocus();
     widget.controller.renameNode(widget.node.id, _nameCtrl.text);
 
     // Save gateway edge labels.
@@ -179,27 +252,42 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     }
 
     if (_hasContent) {
-      final text = _textCtrl.text.isNotEmpty ? _textCtrl.text : null;
-
+      String? text;
       List<String> images = [];
       List<String> videos = [];
       List<String> pdfs = [];
       String? url;
       String? urlLabel;
+      ContentDisplayMode mode;
 
       switch (_displayType) {
+        case DisplayType.text:
+          mode = ContentDisplayMode.mixed;
+          text = _mixedTextCtrl.text.isNotEmpty ? _mixedTextCtrl.text : null;
+          images = _mixedImagePaths.where((p) => p.isNotEmpty).toList();
+          pdfs = _mixedPdfPaths.where((p) => p.isNotEmpty).toList();
+          url = _mixedUrlCtrl.text.isNotEmpty ? _mixedUrlCtrl.text : null;
+          urlLabel = _mixedUrlLabelCtrl.text.isNotEmpty
+              ? _mixedUrlLabelCtrl.text
+              : null;
+          break;
         case DisplayType.image:
-          images = _imagePaths.where((p) => p.isNotEmpty).toList();
+          mode = ContentDisplayMode.image;
+          images = _imageImagePaths.where((p) => p.isNotEmpty).toList();
+          pdfs = _imagePdfPaths.where((p) => p.isNotEmpty).toList();
+          url = _imageUrlCtrl.text.isNotEmpty ? _imageUrlCtrl.text : null;
+          urlLabel = _imageUrlLabelCtrl.text.isNotEmpty
+              ? _imageUrlLabelCtrl.text
+              : null;
           break;
         case DisplayType.video:
-          videos = _videoPaths.where((p) => p.isNotEmpty).toList();
-          break;
-        case DisplayType.text:
-          images = _imagePaths.where((p) => p.isNotEmpty).toList();
-          videos = _videoPaths.where((p) => p.isNotEmpty).toList();
-          pdfs = _pdfPaths.where((p) => p.isNotEmpty).toList();
-          url = _urlCtrl.text.isNotEmpty ? _urlCtrl.text : null;
-          urlLabel = _urlLabelCtrl.text.isNotEmpty ? _urlLabelCtrl.text : null;
+          mode = ContentDisplayMode.video;
+          videos = _videoVideoPaths.where((p) => p.isNotEmpty).toList();
+          pdfs = _videoPdfPaths.where((p) => p.isNotEmpty).toList();
+          url = _videoUrlCtrl.text.isNotEmpty ? _videoUrlCtrl.text : null;
+          urlLabel = _videoUrlLabelCtrl.text.isNotEmpty
+              ? _videoUrlLabelCtrl.text
+              : null;
           break;
       }
 
@@ -210,6 +298,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
         pdfPaths: pdfs,
         linkUrl: url,
         linkLabel: urlLabel,
+        displayMode: mode,
       );
 
       widget.controller.updateTaskContent(
@@ -236,23 +325,10 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _nodeTypeColor(widget.node.type).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _nodeTypeLabel(widget.node.type),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _nodeTypeColor(widget.node.type),
-                    ),
-                  ),
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    Navigator.pop(context);
+                  },
                 ),
                 const Spacer(),
                 TextButton(
@@ -313,102 +389,153 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                   // ── Display type picker (task, start, end — not gateway) ──
                   if (_hasContent) ...[
                     const SizedBox(height: 20),
-                    _SectionLabel(label: 'Display'),
+                    _SectionLabel(label: 'Display Mode'),
                     const SizedBox(height: 8),
                     _DisplayTypePicker(
                       selected: _displayType,
                       onChanged: (t) => setState(() => _displayType = t),
                     ),
 
-                    // ── Content fields ──
+                    // ── Content fields per mode ──
                     const SizedBox(height: 20),
 
-                    // Body text — Mixed mode only.
+                    // ── Mixed mode ──
                     if (_displayType == DisplayType.text) ...[
                       _SectionLabel(label: 'Content'),
                       const SizedBox(height: 8),
                       _StyledField(
-                        controller: _textCtrl,
+                        controller: _mixedTextCtrl,
                         placeholder: 'Body text...',
                         maxLines: 6,
                         minLines: 3,
                       ),
                       const SizedBox(height: 10),
-                    ],
-
-                    // Images — image mode (1 image), Mixed mode (up to 3).
-                    if (_displayType == DisplayType.image ||
-                        _displayType == DisplayType.text) ...[
-                      _SectionLabel(
-                        label: _displayType == DisplayType.text
-                            ? 'Images (up to 3)'
-                            : 'Image',
-                      ),
+                      _SectionLabel(label: 'Images (up to 3)'),
                       const SizedBox(height: 8),
                       _MultiMediaPicker(
-                        paths: _imagePaths,
-                        maxItems: _displayType == DisplayType.text ? 3 : 1,
+                        paths: _mixedImagePaths,
+                        maxItems: 3,
                         label: 'Photo',
                         icon: Icons.image_outlined,
-                        onPick: (index) => _pickImage(replaceIndex: index),
-                        onAdd: () => _pickImage(),
+                        onPick: (index) => _pickImageFor(
+                            _mixedImagePaths, 3, replaceIndex: index),
+                        onAdd: () => _pickImageFor(_mixedImagePaths, 3),
                         onRemove: (index) =>
-                            setState(() => _imagePaths.removeAt(index)),
+                            setState(() => _mixedImagePaths.removeAt(index)),
                       ),
                       const SizedBox(height: 10),
-                    ],
-
-                    // Videos — video mode (1 video), Mixed mode (up to 3).
-                    if (_displayType == DisplayType.video ||
-                        _displayType == DisplayType.text) ...[
-                      _SectionLabel(
-                        label: _displayType == DisplayType.text
-                            ? 'Videos (up to 3)'
-                            : 'Video',
-                      ),
-                      const SizedBox(height: 8),
-                      _MultiMediaPicker(
-                        paths: _videoPaths,
-                        maxItems: _displayType == DisplayType.text ? 3 : 1,
-                        label: 'Video',
-                        icon: Icons.videocam_outlined,
-                        onPick: (index) => _pickVideo(replaceIndex: index),
-                        onAdd: () => _pickVideo(),
-                        onRemove: (index) =>
-                            setState(() => _videoPaths.removeAt(index)),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-
-                    // PDFs — Mixed mode only (up to 3).
-                    if (_displayType == DisplayType.text) ...[
                       _SectionLabel(label: 'PDFs (up to 3)'),
                       const SizedBox(height: 8),
                       _MultiMediaPicker(
-                        paths: _pdfPaths,
+                        paths: _mixedPdfPaths,
                         maxItems: 3,
                         label: 'PDF',
                         icon: Icons.picture_as_pdf_outlined,
-                        onPick: (index) => _pickPdf(replaceIndex: index),
-                        onAdd: () => _pickPdf(),
+                        onPick: (index) => _pickPdfFor(
+                            _mixedPdfPaths, 3, replaceIndex: index),
+                        onAdd: () => _pickPdfFor(_mixedPdfPaths, 3),
                         onRemove: (index) =>
-                            setState(() => _pdfPaths.removeAt(index)),
+                            setState(() => _mixedPdfPaths.removeAt(index)),
                       ),
                       const SizedBox(height: 10),
-                    ],
-
-                    // Link — Mixed mode only.
-                    if (_displayType == DisplayType.text) ...[
                       _SectionLabel(label: 'Link'),
                       const SizedBox(height: 8),
                       _StyledField(
-                        controller: _urlCtrl,
+                        controller: _mixedUrlCtrl,
                         placeholder: 'Link URL',
                         prefixIcon: Icons.link,
                       ),
                       const SizedBox(height: 10),
                       _StyledField(
-                        controller: _urlLabelCtrl,
+                        controller: _mixedUrlLabelCtrl,
+                        placeholder: 'Link label',
+                      ),
+                    ],
+
+                    // ── Image mode ──
+                    if (_displayType == DisplayType.image) ...[
+                      _SectionLabel(label: 'Image'),
+                      const SizedBox(height: 8),
+                      _MultiMediaPicker(
+                        paths: _imageImagePaths,
+                        maxItems: 1,
+                        label: 'Photo',
+                        icon: Icons.image_outlined,
+                        onPick: (index) => _pickImageFor(
+                            _imageImagePaths, 1, replaceIndex: index),
+                        onAdd: () => _pickImageFor(_imageImagePaths, 1),
+                        onRemove: (index) =>
+                            setState(() => _imageImagePaths.removeAt(index)),
+                      ),
+                      const SizedBox(height: 10),
+                      _SectionLabel(label: 'PDF'),
+                      const SizedBox(height: 8),
+                      _MultiMediaPicker(
+                        paths: _imagePdfPaths,
+                        maxItems: 1,
+                        label: 'PDF',
+                        icon: Icons.picture_as_pdf_outlined,
+                        onPick: (index) => _pickPdfFor(
+                            _imagePdfPaths, 1, replaceIndex: index),
+                        onAdd: () => _pickPdfFor(_imagePdfPaths, 1),
+                        onRemove: (index) =>
+                            setState(() => _imagePdfPaths.removeAt(index)),
+                      ),
+                      const SizedBox(height: 10),
+                      _SectionLabel(label: 'Link'),
+                      const SizedBox(height: 8),
+                      _StyledField(
+                        controller: _imageUrlCtrl,
+                        placeholder: 'Link URL',
+                        prefixIcon: Icons.link,
+                      ),
+                      const SizedBox(height: 10),
+                      _StyledField(
+                        controller: _imageUrlLabelCtrl,
+                        placeholder: 'Link label',
+                      ),
+                    ],
+
+                    // ── Video mode ──
+                    if (_displayType == DisplayType.video) ...[
+                      _SectionLabel(label: 'Video'),
+                      const SizedBox(height: 8),
+                      _MultiMediaPicker(
+                        paths: _videoVideoPaths,
+                        maxItems: 1,
+                        label: 'Video',
+                        icon: Icons.videocam_outlined,
+                        onPick: (index) => _pickVideoFor(
+                            _videoVideoPaths, 1, replaceIndex: index),
+                        onAdd: () => _pickVideoFor(_videoVideoPaths, 1),
+                        onRemove: (index) =>
+                            setState(() => _videoVideoPaths.removeAt(index)),
+                      ),
+                      const SizedBox(height: 10),
+                      _SectionLabel(label: 'PDF'),
+                      const SizedBox(height: 8),
+                      _MultiMediaPicker(
+                        paths: _videoPdfPaths,
+                        maxItems: 1,
+                        label: 'PDF',
+                        icon: Icons.picture_as_pdf_outlined,
+                        onPick: (index) => _pickPdfFor(
+                            _videoPdfPaths, 1, replaceIndex: index),
+                        onAdd: () => _pickPdfFor(_videoPdfPaths, 1),
+                        onRemove: (index) =>
+                            setState(() => _videoPdfPaths.removeAt(index)),
+                      ),
+                      const SizedBox(height: 10),
+                      _SectionLabel(label: 'Link'),
+                      const SizedBox(height: 8),
+                      _StyledField(
+                        controller: _videoUrlCtrl,
+                        placeholder: 'Link URL',
+                        prefixIcon: Icons.link,
+                      ),
+                      const SizedBox(height: 10),
+                      _StyledField(
+                        controller: _videoUrlLabelCtrl,
                         placeholder: 'Link label',
                       ),
                     ],
@@ -436,7 +563,7 @@ class _SectionLabel extends StatelessWidget {
       style: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w600,
-        color: Colors.grey[500],
+        color: const Color(0xFF1C1C1E),
         letterSpacing: 0.8,
       ),
     );
@@ -468,11 +595,17 @@ class _StyledField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSingleLine = maxLines == 1;
     return TextField(
       controller: controller,
       autofocus: autofocus,
       maxLines: maxLines,
       minLines: minLines,
+      textInputAction:
+          isSingleLine ? TextInputAction.done : TextInputAction.newline,
+      onEditingComplete: isSingleLine
+          ? () => FocusScope.of(context).unfocus()
+          : null,
       style: style ??
           const TextStyle(fontSize: 15, color: Color(0xFF1C1C1E)),
       decoration: InputDecoration(
@@ -546,16 +679,19 @@ class _MediaPickerField extends StatelessWidget {
                   if (path!.startsWith('/'))
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(path!),
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 48,
-                          height: 48,
-                          color: Colors.grey[200],
-                          child: Icon(icon, size: 22, color: Colors.grey[500]),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                            maxHeight: 60, maxWidth: 120),
+                        child: Image.file(
+                          File(path!),
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => Container(
+                            width: 48,
+                            height: 48,
+                            color: Colors.grey[200],
+                            child:
+                                Icon(icon, size: 22, color: Colors.grey[500]),
+                          ),
                         ),
                       ),
                     )
@@ -676,7 +812,7 @@ class _DisplayTypePicker extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               margin: EdgeInsets.only(
                   right: type != DisplayType.video ? 8 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected
                     ? const Color(0xFF007AFF).withValues(alpha: 0.1)
@@ -690,15 +826,13 @@ class _DisplayTypePicker extends StatelessWidget {
                 ),
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    _iconFor(type),
-                    size: 22,
-                    color: isSelected
-                        ? const Color(0xFF007AFF)
-                        : Colors.grey[500],
+                  _MiniScreenPreview(
+                    type: type,
+                    isSelected: isSelected,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     _labelFor(type),
                     style: TextStyle(
@@ -707,7 +841,7 @@ class _DisplayTypePicker extends StatelessWidget {
                           isSelected ? FontWeight.w600 : FontWeight.w500,
                       color: isSelected
                           ? const Color(0xFF007AFF)
-                          : Colors.grey[600],
+                          : const Color(0xFF1C1C1E),
                     ),
                   ),
                 ],
@@ -719,17 +853,6 @@ class _DisplayTypePicker extends StatelessWidget {
     );
   }
 
-  IconData _iconFor(DisplayType type) {
-    switch (type) {
-      case DisplayType.text:
-        return Icons.dashboard_outlined;
-      case DisplayType.image:
-        return Icons.image_outlined;
-      case DisplayType.video:
-        return Icons.videocam_outlined;
-    }
-  }
-
   String _labelFor(DisplayType type) {
     switch (type) {
       case DisplayType.text:
@@ -739,6 +862,132 @@ class _DisplayTypePicker extends StatelessWidget {
       case DisplayType.video:
         return 'Video';
     }
+  }
+}
+
+/// A tiny portrait phone wireframe showing the layout of each display mode.
+class _MiniScreenPreview extends StatelessWidget {
+  final DisplayType type;
+  final bool isSelected;
+
+  const _MiniScreenPreview({required this.type, required this.isSelected});
+
+  Color get _fg =>
+      isSelected ? const Color(0xFF007AFF) : const Color(0xFF999999);
+
+  @override
+  Widget build(BuildContext context) {
+    // 9:16 phone ratio.
+    return AspectRatio(
+      aspectRatio: 9 / 16,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected ? _fg : Colors.grey[300]!,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+        child: _buildLayout(),
+      ),
+    );
+  }
+
+  Widget _buildLayout() {
+    switch (type) {
+      case DisplayType.text:
+        return _buildMixed();
+      case DisplayType.image:
+        return _buildImage();
+      case DisplayType.video:
+        return _buildVideo();
+    }
+  }
+
+  /// Mixed: title at top, text lines, image thumbnail, link at bottom.
+  Widget _buildMixed() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 3),
+        Center(child: _bar(widthFraction: 0.6, height: 4)),
+        const SizedBox(height: 5),
+        _bar(widthFraction: 0.9, height: 3),
+        const SizedBox(height: 3),
+        _bar(widthFraction: 0.75, height: 3),
+        const SizedBox(height: 3),
+        _bar(widthFraction: 0.85, height: 3),
+        const SizedBox(height: 3),
+        _bar(widthFraction: 0.6, height: 3),
+        const Spacer(),
+        Container(
+          height: 26,
+          width: 38,
+          decoration: BoxDecoration(
+            color: _fg.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: Icon(Icons.image, size: 16, color: _fg.withValues(alpha: 0.6)),
+        ),
+        const Spacer(),
+        _bar(widthFraction: 0.55, height: 3),
+        const SizedBox(height: 3),
+      ],
+    );
+  }
+
+  /// Image: fullscreen landscape image, title at top, link at bottom.
+  Widget _buildImage() {
+    return Column(
+      children: [
+        const SizedBox(height: 3),
+        Center(child: _bar(widthFraction: 0.55, height: 4)),
+        const Spacer(),
+        Container(
+          width: double.infinity,
+          height: 36,
+          decoration: BoxDecoration(
+            color: _fg.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: Icon(Icons.image, size: 20, color: _fg.withValues(alpha: 0.6)),
+        ),
+        const Spacer(),
+        _bar(widthFraction: 0.5, height: 3),
+        const SizedBox(height: 3),
+      ],
+    );
+  }
+
+  /// Video: fullscreen with play icon, title at top, link at bottom.
+  Widget _buildVideo() {
+    return Column(
+      children: [
+        const SizedBox(height: 3),
+        Center(child: _bar(widthFraction: 0.55, height: 4)),
+        const Spacer(),
+        Icon(Icons.play_circle_outline, size: 22, color: _fg.withValues(alpha: 0.7)),
+        const Spacer(),
+        _bar(widthFraction: 0.5, height: 3),
+        const SizedBox(height: 3),
+      ],
+    );
+  }
+
+  Widget _bar({required double widthFraction, required double height}) {
+    return FractionallySizedBox(
+      widthFactor: widthFraction,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: _fg.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(1.5),
+        ),
+      ),
+    );
   }
 }
 

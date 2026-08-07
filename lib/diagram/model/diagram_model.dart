@@ -14,6 +14,9 @@ class DocLink {
   const DocLink({required this.url, required this.label, this.subtitle});
 }
 
+/// Display mode for a node in presentation.
+enum ContentDisplayMode { mixed, image, video }
+
 /// Content attached to a node (task, start event, or end event).
 class TaskContent {
   String? text;            // plain text → <bpmn:documentation>
@@ -23,6 +26,7 @@ class TaskContent {
   String? linkUrl;
   String? linkLabel;
   List<DocLink> links;
+  ContentDisplayMode displayMode;
 
   TaskContent({
     this.text,
@@ -35,6 +39,7 @@ class TaskContent {
     this.linkUrl,
     this.linkLabel,
     this.links = const [],
+    this.displayMode = ContentDisplayMode.mixed,
   })  : imagePaths = imagePaths ?? (imagePath != null ? [imagePath] : []),
         videoPaths = videoPaths ?? (videoPath != null ? [videoPath] : []),
         pdfPaths = pdfPaths ?? (pdfPath != null ? [pdfPath] : []);
@@ -61,6 +66,7 @@ class TaskContent {
         linkUrl: linkUrl,
         linkLabel: linkLabel,
         links: links,
+        displayMode: displayMode,
       );
 }
 

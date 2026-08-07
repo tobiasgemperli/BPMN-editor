@@ -31,6 +31,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     _loadRemote();
   }
 
+  Future<void> _refresh() async {
+    _remoteDiagrams.clear();
+    await Future.wait([_loadSaved(), _loadRemote()]);
+  }
+
   Future<void> _loadSaved() async {
     final saved = await DiagramStorage.instance.list();
     if (mounted) setState(() => _savedDiagrams = saved);
@@ -169,7 +174,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
             // ── Scrollable content ────────────────────────────
             Expanded(
-              child: CustomScrollView(
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                child: CustomScrollView(
                 slivers: [
             // ── Featured card ───────────────────────────────────
             if (showFeatured && featured != null)
@@ -325,6 +332,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
                 ],
+              ),
               ),
             ),
           ],
@@ -1054,6 +1062,31 @@ class _SavedDiagramCard extends StatelessWidget {
 
   const _SavedDiagramCard({required this.meta, required this.onReturn});
 
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Diagram'),
+        content: Text('Delete "${meta.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF3B30)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await DiagramStorage.instance.delete(meta.id);
+      onReturn();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DiagramModel?>(
@@ -1072,6 +1105,7 @@ class _SavedDiagramCard extends StatelessWidget {
               );
             }
           },
+          onLongPress: () => _confirmDelete(context),
           child: Container(
             width: 160,
             decoration: BoxDecoration(
@@ -1127,10 +1161,30 @@ class _SavedDiagramCard extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    _formatDate(meta.updatedAt),
-                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                    maxLines: 1,
+                  child: ListenableBuilder(
+                    listenable: DiagramStorage.instance.syncStatusNotifier,
+                    builder: (context, _) {
+                      final status = DiagramStorage.instance.getSyncStatus(meta.id);
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _formatDate(meta.updatedAt),
+                              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                              maxLines: 1,
+                            ),
+                          ),
+                          if (status == SyncStatus.syncing)
+                            const SizedBox(
+                              width: 12, height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 1.5),
+                            )
+                          else if (status == SyncStatus.failed)
+                            const Icon(Icons.cloud_off_outlined,
+                                size: 14, color: Color(0xFFFF3B30)),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -1424,9 +1478,10 @@ class _ListCard extends StatelessWidget {
 /// Wraps a child with press-down opacity feedback.
 class _Pressable extends StatefulWidget {
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final Widget child;
 
-  const _Pressable({required this.onTap, required this.child});
+  const _Pressable({required this.onTap, this.onLongPress, required this.child});
 
   @override
   State<_Pressable> createState() => _PressableState();
@@ -1444,6 +1499,7 @@ class _PressableState extends State<_Pressable> {
         widget.onTap();
       },
       onTapCancel: () => setState(() => _pressed = false),
+      onLongPress: widget.onLongPress,
       child: AnimatedOpacity(
         opacity: _pressed ? 0.5 : 1.0,
         duration: const Duration(milliseconds: 100),

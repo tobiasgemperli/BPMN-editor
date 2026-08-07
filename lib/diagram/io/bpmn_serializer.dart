@@ -121,9 +121,13 @@ class BpmnSerializer {
     if (!hasExtensions) return;
 
     builder.element('bpmn:extensionElements', nest: () {
-      builder.element('ed:content', attributes: {
-        'xmlns:ed': _nsEd,
-      }, nest: () {
+      final contentAttrs = <String, String>{'xmlns:ed': _nsEd};
+      if (content.displayMode == ContentDisplayMode.image) {
+        contentAttrs['display'] = 'image';
+      } else if (content.displayMode == ContentDisplayMode.video) {
+        contentAttrs['display'] = 'video';
+      }
+      builder.element('ed:content', attributes: contentAttrs, nest: () {
         for (final path in content.imagePaths) {
           builder.element('ed:image', attributes: {'src': path});
         }

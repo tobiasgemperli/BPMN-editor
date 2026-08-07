@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 class CloseCircleButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool isBack;
+  final bool isDown;
 
   const CloseCircleButton({
     super.key,
     required this.onPressed,
     this.isBack = false,
+    this.isDown = false,
   });
 
   @override
@@ -31,7 +33,11 @@ class CloseCircleButton extends StatelessWidget {
           ],
         ),
         child: Icon(
-          isBack ? Icons.chevron_left : Icons.close,
+          isDown
+              ? Icons.keyboard_arrow_down
+              : isBack
+                  ? Icons.chevron_left
+                  : Icons.close,
           size: 20,
           color: Colors.black54,
         ),
