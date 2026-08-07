@@ -1191,7 +1191,12 @@ class EditorController extends ChangeNotifier {
       final target = diagram.nodes[edge.targetId];
       if (target == null) continue;
 
-      final preferred = _router.bestSourceSide(node, target);
+      // For gateways with multiple outputs, use unbiased facing so that
+      // targets to the left-below exit LEFT and right-below exit RIGHT,
+      // instead of all clustering on BOTTOM due to the vertical bias.
+      final preferred = (node.type == NodeType.exclusiveGateway && edges.length > 1)
+          ? _bestSideUnbiased(node, target.center)
+          : _router.bestSourceSide(node, target);
       if (!usedPorts.contains(preferred) && !incomingPorts.contains(preferred)) {
         usedPorts.add(preferred);
         final s = sides[edge.id]!;
@@ -1261,6 +1266,18 @@ class EditorController extends ChangeNotifier {
       case ConnectorSide.bottomLeft:  return (-nx + ny) * 0.707;
       case ConnectorSide.left:        return -nx;
       case ConnectorSide.topLeft:     return (-nx - ny) * 0.707;
+    }
+  }
+
+  /// Unbiased facing: pick the cardinal side closest to the target direction
+  /// without the 1.5× vertical bias used in normal routing.
+  ConnectorSide _bestSideUnbiased(NodeModel node, Offset toward) {
+    final dx = toward.dx - node.center.dx;
+    final dy = toward.dy - node.center.dy;
+    if (dx.abs() >= dy.abs()) {
+      return dx >= 0 ? ConnectorSide.right : ConnectorSide.left;
+    } else {
+      return dy >= 0 ? ConnectorSide.bottom : ConnectorSide.top;
     }
   }
 

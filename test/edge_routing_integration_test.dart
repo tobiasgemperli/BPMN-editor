@@ -75,7 +75,7 @@ void routeAllEdges(DiagramModel diagram) {
       if (usedOutPorts.contains(s.$2)) {
         final source = diagram.nodes[inEdge.sourceId];
         if (source != null) {
-          final alt = _alternatePort(node, source.center, usedOutPorts);
+          final alt = _alternatePort(node, source.center, usedOutPorts, diagram: diagram);
           if (!usedOutPorts.contains(alt)) {
             sides[inEdge.id] = (s.$1, alt);
             continue;
@@ -168,7 +168,9 @@ void _distributeSourcePorts(
   for (final edge in edges) {
     final target = diagram.nodes[edge.targetId];
     if (target == null) continue;
-    final preferred = _router.bestSourceSide(node, target);
+    final preferred = (node.type == NodeType.exclusiveGateway && edges.length > 1)
+        ? _bestSideUnbiased(node, target.center)
+        : _router.bestSourceSide(node, target);
     if (!usedPorts.contains(preferred) && !incomingPorts.contains(preferred)) {
       usedPorts.add(preferred);
       sides[edge.id] = (preferred, sides[edge.id]!.$2);
@@ -177,9 +179,9 @@ void _distributeSourcePorts(
       sides[edge.id] = (preferred, sides[edge.id]!.$2);
     } else {
       final avoidSet = <ConnectorSide>{...usedPorts, ...incomingPorts};
-      var alt = _alternatePort(node, target.center, avoidSet);
+      var alt = _alternatePort(node, target.center, avoidSet, diagram: diagram);
       if (usedPorts.contains(alt)) {
-        alt = _alternatePort(node, target.center, usedPorts);
+        alt = _alternatePort(node, target.center, usedPorts, diagram: diagram);
       }
       usedPorts.add(alt);
       sides[edge.id] = (alt, sides[edge.id]!.$2);
@@ -187,12 +189,28 @@ void _distributeSourcePorts(
   }
 }
 
+ConnectorSide _bestSideUnbiased(NodeModel node, Offset toward) {
+  final dx = toward.dx - node.center.dx;
+  final dy = toward.dy - node.center.dy;
+  if (dx.abs() >= dy.abs()) {
+    return dx >= 0 ? ConnectorSide.right : ConnectorSide.left;
+  } else {
+    return dy >= 0 ? ConnectorSide.bottom : ConnectorSide.top;
+  }
+}
+
 ConnectorSide _alternatePort(
-    NodeModel node, Offset target, Set<ConnectorSide> used) {
+    NodeModel node, Offset target, Set<ConnectorSide> used,
+    {DiagramModel? diagram}) {
   final dx = target.dx - node.center.dx;
   final dy = target.dy - node.center.dy;
 
-  final ports = node.type == NodeType.exclusiveGateway
+  final totalConnections = diagram != null
+      ? diagram.edges.values
+          .where((e) => e.sourceId == node.id || e.targetId == node.id)
+          .length
+      : 0;
+  final ports = node.type == NodeType.exclusiveGateway && totalConnections > 4
       ? ConnectorSide.values.toList()
       : ConnectorSide.cardinal.toList();
 
@@ -705,16 +723,17 @@ void main() {
       final diagram = SampleDiagrams.diamond();
       routeAllEdges(diagram);
 
-      // e3: GW -> Process Approval (upper right), e4: GW -> Send Rejection (lower right)
+      // e3: GW -> Process Approval (left-below), e4: GW -> Send Rejection (right-below)
       final e3 = diagram.edges['e3']!;
       final e4 = diagram.edges['e4']!;
 
-      expect(e3.sourceSide, ConnectorSide.right,
-          reason: 'Gateway to upper-right should exit right');
-      expectFirstSegmentMatchesPort(e3.waypoints, ConnectorSide.right, label: 'e3');
+      expect(e3.sourceSide, ConnectorSide.left,
+          reason: 'Gateway to left-below should exit left');
+      expectFirstSegmentMatchesPort(e3.waypoints, ConnectorSide.left, label: 'e3');
 
-      // e4 may exit bottom since target is lower — check it's consistent with its port.
-      expectFirstSegmentMatchesPort(e4.waypoints, e4.sourceSide!, label: 'e4');
+      expect(e4.sourceSide, ConnectorSide.right,
+          reason: 'Gateway to right-below should exit right');
+      expectFirstSegmentMatchesPort(e4.waypoints, ConnectorSide.right, label: 'e4');
     });
 
     test('diamond merge bar is created on Notify Customer', () {
