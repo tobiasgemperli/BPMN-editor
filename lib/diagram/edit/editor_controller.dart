@@ -656,6 +656,12 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void deleteEdge(String edgeId) {
+    _exec(DeleteEdgeCommand(edgeId));
+    _assignPortsAndRoute();
+    notifyListeners();
+  }
+
   void renameNode(String nodeId, String newName) {
     _exec(RenameNodeCommand(nodeId, newName));
   }
