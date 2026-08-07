@@ -222,12 +222,27 @@ class DiagramPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
+  static final _orphanFill = Paint()
+    ..color = const Color(0x22FF0000)
+    ..style = PaintingStyle.fill;
+  static final _orphanStroke = Paint()
+    ..color = Colors.red
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = _strokeWidth;
+
   void _drawNodes(Canvas canvas) {
+    // Compute orphaned nodes: no incoming edges and not a start event.
+    final hasIncoming = <String>{};
+    for (final edge in controller.diagram.edges.values) {
+      hasIncoming.add(edge.targetId);
+    }
+
     for (final node in controller.diagram.nodes.values) {
       final isLifted = node.id == controller.liftNodeId;
       final isConnectionTarget = node.id == controller.connectionTargetId;
       final isSelected = node.id == controller.selectedNodeId || isLifted || isConnectionTarget;
       final isBlob = node.id == controller.blobNodeId && controller.blobScale != 1.0;
+      final isOrphan = node.type != NodeType.startEvent && !hasIncoming.contains(node.id);
 
       // Apply scale transforms (lift or blob, lift takes priority).
       final needsScale = (isLifted && controller.liftScale != 1.0) || isBlob;
@@ -240,20 +255,22 @@ class DiagramPainter extends CustomPainter {
         canvas.translate(-c.dx, -c.dy);
       }
 
-      final fill = _nodePaint;
+      final fill = isOrphan ? _orphanFill : _nodePaint;
+
+      final stroke = isSelected ? _selectedStroke : (isOrphan ? _orphanStroke : null);
 
       switch (node.type) {
         case NodeType.startEvent:
-          _drawCircleNode(canvas, node, isSelected, false, fill);
+          _drawCircleNode(canvas, node, isSelected, false, fill, stroke);
           break;
         case NodeType.endEvent:
-          _drawCircleNode(canvas, node, isSelected, true, fill);
+          _drawCircleNode(canvas, node, isSelected, true, fill, stroke);
           break;
         case NodeType.task:
-          _drawTaskNode(canvas, node, isSelected, fill);
+          _drawTaskNode(canvas, node, isSelected, fill, stroke);
           break;
         case NodeType.exclusiveGateway:
-          _drawGatewayNode(canvas, node, isSelected, fill);
+          _drawGatewayNode(canvas, node, isSelected, fill, stroke);
           break;
       }
 
@@ -263,12 +280,12 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  void _drawCircleNode(Canvas canvas, NodeModel node, bool selected, bool thick, Paint fill) {
+  void _drawCircleNode(Canvas canvas, NodeModel node, bool selected, bool thick, Paint fill, [Paint? overrideStroke]) {
     final c = node.center;
     final r = node.rect.width / 2;
 
     canvas.drawCircle(c, r, fill);
-    canvas.drawCircle(c, r, selected ? _selectedStroke : (thick ? _endNodeStroke : _nodeStroke));
+    canvas.drawCircle(c, r, overrideStroke ?? (selected ? _selectedStroke : (thick ? _endNodeStroke : _nodeStroke)));
 
     // Draw X inside end events.
     if (thick) {
@@ -293,10 +310,10 @@ class DiagramPainter extends CustomPainter {
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.5;
 
-  void _drawTaskNode(Canvas canvas, NodeModel node, bool selected, Paint fill) {
+  void _drawTaskNode(Canvas canvas, NodeModel node, bool selected, Paint fill, [Paint? overrideStroke]) {
     final rr = RRect.fromRectAndRadius(node.rect, const Radius.circular(8));
     canvas.drawRRect(rr, fill);
-    canvas.drawRRect(rr, selected ? _selectedStroke : _nodeStroke);
+    canvas.drawRRect(rr, overrideStroke ?? (selected ? _selectedStroke : _nodeStroke));
 
     // Draw name centered.
     final label = node.name.isNotEmpty ? node.name : 'Task';
@@ -336,7 +353,7 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  void _drawGatewayNode(Canvas canvas, NodeModel node, bool selected, Paint fill) {
+  void _drawGatewayNode(Canvas canvas, NodeModel node, bool selected, Paint fill, [Paint? overrideStroke]) {
     final c = node.center;
     final hw = node.rect.width / 2;
     final hh = node.rect.height / 2;
@@ -349,7 +366,7 @@ class DiagramPainter extends CustomPainter {
       ..close();
 
     canvas.drawPath(path, fill);
-    canvas.drawPath(path, selected ? _selectedStroke : _nodeStroke);
+    canvas.drawPath(path, overrideStroke ?? (selected ? _selectedStroke : _nodeStroke));
 
     if (node.name.isNotEmpty) {
       // Place gateway label above the diamond tip.
