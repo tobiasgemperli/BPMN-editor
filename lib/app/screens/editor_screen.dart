@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../diagram/edit/editor_controller.dart';
@@ -55,6 +57,8 @@ class _EditorScreenState extends State<EditorScreen>
   late String _title;
   Timer? _autosaveTimer;
   bool _dirty = false;
+  Map<String, ui.Image> _screenImages = {};
+  bool _loadingImages = false;
 
   bool get _isOwner => widget.role == DiagramRole.owner;
 
@@ -110,6 +114,36 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _saveIfDirty() async {
     if (!_dirty) return;
     await _saveDiagram();
+  }
+
+  /// Load screenshot images from node content for UI view mode.
+  Future<void> _loadScreenImages() async {
+    if (_loadingImages) return;
+    _loadingImages = true;
+    final images = <String, ui.Image>{};
+    for (final node in _controller.diagram.nodes.values) {
+      final content = node.content;
+      if (content == null) continue;
+      final path = content.imagePath;
+      if (path == null) continue;
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          final codec = await ui.instantiateImageCodec(bytes);
+          final frame = await codec.getNextFrame();
+          images[node.id] = frame.image;
+        }
+      } catch (_) {
+        // Skip failed image loads.
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _screenImages = images;
+        _loadingImages = false;
+      });
+    }
   }
 
   Future<void> _saveDiagram() async {
@@ -271,6 +305,9 @@ class _EditorScreenState extends State<EditorScreen>
             controller: _controller,
             transformationController: _transformController,
             readOnly: !_isOwner,
+            screenImages: _controller.viewMode == ViewMode.ui
+                ? _screenImages
+                : null,
           ),
           // ── Right-side shape palette + action buttons (owner only) ──
           if (_isOwner)
@@ -448,40 +485,54 @@ class _EditorScreenState extends State<EditorScreen>
               left: 60,
               right: 60,
               child: Center(
-                child: GestureDetector(
-                  onTap: _editTitle,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          _title,
-                          style: const TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: _editTitle,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              _title,
+                              style: const TextStyle(
+                                  fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          ListenableBuilder(
+                            listenable: Listenable.merge([
+                              _controller,
+                              DiagramStorage.instance.syncStatusNotifier,
+                            ]),
+                            builder: (context, _) {
+                              if (_dirty) {
+                                return const Icon(Icons.cloud_outlined,
+                                    size: 18, color: Color(0xFFAEAEB2));
+                              }
+                              if (_savedId == null) {
+                                return const SizedBox.shrink();
+                              }
+                              final status = DiagramStorage.instance
+                                  .getSyncStatus(_savedId!);
+                              return _SyncIndicator(status: status);
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      ListenableBuilder(
-                        listenable: Listenable.merge([
-                          _controller,
-                          DiagramStorage.instance.syncStatusNotifier,
-                        ]),
-                        builder: (context, _) {
-                          if (_dirty) {
-                            return const Icon(Icons.cloud_outlined,
-                                size: 18, color: Color(0xFFAEAEB2));
-                          }
-                          if (_savedId == null) {
-                            return const SizedBox.shrink();
-                          }
-                          final status = DiagramStorage.instance
-                              .getSyncStatus(_savedId!);
-                          return _SyncIndicator(status: status);
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 8),
+                    _ViewModeToggle(
+                      controller: _controller,
+                      onModeChanged: (mode) {
+                        if (mode == ViewMode.ui) {
+                          _loadScreenImages();
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -517,6 +568,76 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
+}
+
+/// Segmented control to toggle between Diagram and UI view modes.
+class _ViewModeToggle extends StatelessWidget {
+  final EditorController controller;
+  final ValueChanged<ViewMode>? onModeChanged;
+
+  const _ViewModeToggle({required this.controller, this.onModeChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final mode = controller.viewMode;
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F2F7),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.all(2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSegment('Diagram', ViewMode.diagram, mode),
+              _buildSegment('UI', ViewMode.ui, mode),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSegment(String label, ViewMode value, ViewMode current) {
+    final isActive = value == current;
+    return GestureDetector(
+      onTap: () {
+        controller.viewMode = value;
+        onModeChanged?.call(value);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            color: isActive
+                ? const Color(0xFF1C1C1E)
+                : const Color(0xFF8E8E93),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Floating creator chip — avatar + name in a pill.

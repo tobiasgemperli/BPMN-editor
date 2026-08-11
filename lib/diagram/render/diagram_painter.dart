@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../model/diagram_model.dart';
 import '../edit/editor_controller.dart';
@@ -8,6 +9,11 @@ import 'merge_bar.dart';
 /// Custom painter that draws the entire BPMN diagram on a canvas.
 class DiagramPainter extends CustomPainter {
   final EditorController controller;
+  final Map<String, ui.Image>? screenImages;
+
+  // UI mode node dimensions (portrait phone screen).
+  static const double _uiTaskWidth = 100.0;
+  static const double _uiTaskHeight = 178.0;
 
   // Merge bar constants.
   static const double _mergeBarThickness = 3.5;
@@ -68,7 +74,28 @@ class DiagramPainter extends CustomPainter {
     ..style = PaintingStyle.stroke
     ..strokeWidth = _strokeWidth;
 
-  DiagramPainter(this.controller) : super(repaint: controller);
+  // UI mode paints.
+  static final _phoneBezelPaint = Paint()
+    ..color = const Color(0xFF1C1C1E)
+    ..style = PaintingStyle.fill;
+  static final _phoneScreenPaint = Paint()
+    ..color = Colors.white
+    ..style = PaintingStyle.fill;
+  static final _phoneNotchPaint = Paint()
+    ..color = const Color(0xFF1C1C1E)
+    ..style = PaintingStyle.fill;
+  static final _phoneScreenBorderPaint = Paint()
+    ..color = const Color(0xFFE0E0E0)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.5;
+  static final _phoneStatusBarPaint = Paint()
+    ..color = const Color(0xFFBBBBBB)
+    ..style = PaintingStyle.fill;
+  static final _phoneNavBarPaint = Paint()
+    ..color = const Color(0xFF333333)
+    ..style = PaintingStyle.fill;
+
+  DiagramPainter(this.controller, {this.screenImages}) : super(repaint: controller);
 
   /// Offset that shifts diagram coordinates into the widget's local space.
   /// Must match [_DiagramCanvasState._canvasOffset].
@@ -77,9 +104,19 @@ class DiagramPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     _drawGrid(canvas, size);
-    // Translate so diagram coordinates (which can be negative) are visible.
     canvas.save();
     canvas.translate(_canvasOffset.dx, _canvasOffset.dy);
+
+    if (controller.viewMode == ViewMode.ui) {
+      _paintUiMode(canvas, size);
+    } else {
+      _paintDiagramMode(canvas, size);
+    }
+
+    canvas.restore();
+  }
+
+  void _paintDiagramMode(Canvas canvas, Size size) {
     final mergeBars = computeMergeBars(controller.diagram);
     final orphans = controller.diagram.orphanedNodeIds();
     _drawEdges(canvas, mergeBars, orphans);
@@ -88,7 +125,41 @@ class DiagramPainter extends CustomPainter {
     _drawSnapGuides(canvas, size);
     _drawConnectionPreview(canvas);
     _drawConnectorHandle(canvas);
-    canvas.restore();
+  }
+
+  void _paintUiMode(Canvas canvas, Size size) {
+    final diagram = controller.diagram;
+    // Build display-rect map for UI mode (portrait for tasks).
+    final displayRects = <String, Rect>{};
+    for (final node in diagram.nodes.values) {
+      displayRects[node.id] = _uiDisplayRect(node);
+    }
+    _drawUiEdges(canvas, diagram, displayRects);
+    _drawUiNodes(canvas, diagram, displayRects);
+  }
+
+  /// Returns the display rect for a node in UI mode.
+  Rect _uiDisplayRect(NodeModel node) {
+    if (node.type == NodeType.task) {
+      return Rect.fromCenter(
+        center: node.center,
+        width: _uiTaskWidth,
+        height: _uiTaskHeight,
+      );
+    }
+    return node.rect;
+  }
+
+  /// Creates a virtual NodeModel with the UI display rect (for clipToNodeBorder).
+  NodeModel _uiVirtualNode(NodeModel node, Rect displayRect) {
+    if (displayRect == node.rect) return node;
+    return NodeModel(
+      id: node.id,
+      type: node.type,
+      name: node.name,
+      rect: displayRect,
+      content: node.content,
+    );
   }
 
   void _drawGrid(Canvas canvas, Size size) {
@@ -97,6 +168,273 @@ class DiagramPainter extends CustomPainter {
       for (double y = 0; y < size.height; y += step) {
         canvas.drawCircle(Offset(x, y), 0.7, _gridPaint);
       }
+    }
+  }
+
+  // ── UI mode: edges ──
+  void _drawUiEdges(Canvas canvas, DiagramModel diagram,
+      Map<String, Rect> displayRects) {
+    for (final edge in diagram.edges.values) {
+      final isSelected = edge.id == controller.selectedEdgeId;
+      final paint = isSelected ? _edgeSelectedPaint : _edgePaint;
+      final arrowFill = isSelected ? _arrowSelectedPaint : _arrowPaint;
+
+      final source = diagram.nodes[edge.sourceId];
+      final target = diagram.nodes[edge.targetId];
+      if (source == null || target == null) continue;
+
+      final sourceRect = displayRects[source.id] ?? source.rect;
+      final targetRect = displayRects[target.id] ?? target.rect;
+      final virtualSource = _uiVirtualNode(source, sourceRect);
+      final virtualTarget = _uiVirtualNode(target, targetRect);
+
+      // Simple direct connection: source center → target center, clipped.
+      final clippedStart = clipToNodeBorder(virtualSource, virtualTarget.center);
+      final clippedEnd = clipToNodeBorder(virtualTarget, virtualSource.center);
+
+      // Draw a simple L-shaped orthogonal edge.
+      final path = Path();
+      path.moveTo(clippedStart.dx, clippedStart.dy);
+
+      // Determine the dominant exit direction and route orthogonally.
+      final dx = clippedEnd.dx - clippedStart.dx;
+      final dy = clippedEnd.dy - clippedStart.dy;
+      final horizontal = dx.abs() > dy.abs();
+
+      if (horizontal) {
+        final midX = clippedStart.dx + dx / 2;
+        path.lineTo(midX, clippedStart.dy);
+        path.lineTo(midX, clippedEnd.dy);
+      } else {
+        final midY = clippedStart.dy + dy / 2;
+        path.lineTo(clippedStart.dx, midY);
+        path.lineTo(clippedEnd.dx, midY);
+      }
+      path.lineTo(clippedEnd.dx, clippedEnd.dy);
+      canvas.drawPath(path, paint);
+
+      // Arrowhead.
+      final prevPt = horizontal
+          ? Offset(clippedStart.dx + dx / 2, clippedEnd.dy)
+          : Offset(clippedEnd.dx, clippedStart.dy + dy / 2);
+      _drawArrow(canvas, prevPt, clippedEnd, arrowFill);
+
+      // Edge name label.
+      if (edge.name.isNotEmpty) {
+        final labelPos = Offset(
+          (clippedStart.dx + clippedEnd.dx) / 2,
+          (clippedStart.dy + clippedEnd.dy) / 2 - 12,
+        );
+        _drawText(canvas, edge.name, labelPos, fontSize: 11, background: true);
+      }
+    }
+  }
+
+  // ── UI mode: nodes ──
+  void _drawUiNodes(Canvas canvas, DiagramModel diagram,
+      Map<String, Rect> displayRects) {
+    for (final node in diagram.nodes.values) {
+      final isSelected = node.id == controller.selectedNodeId;
+      final displayRect = displayRects[node.id] ?? node.rect;
+
+      if (node.type == NodeType.task) {
+        _drawPhoneFrame(canvas, node, displayRect, isSelected);
+      } else if (node.type == NodeType.startEvent) {
+        _drawUiStartEvent(canvas, node, isSelected);
+      } else if (node.type == NodeType.endEvent) {
+        _drawUiEndEvent(canvas, node, isSelected);
+      } else {
+        // Gateway — keep diamond shape.
+        final fill = _nodePaint;
+        final stroke = isSelected ? _selectedStroke : null;
+        _drawGatewayNode(canvas, node, isSelected, fill, stroke);
+      }
+    }
+  }
+
+  void _drawPhoneFrame(Canvas canvas, NodeModel node, Rect displayRect,
+      bool selected) {
+    final bezelRadius = Radius.circular(14);
+    final screenRadius = Radius.circular(11);
+    const bezelWidth = 4.0;
+
+    // Phone body (bezel).
+    final bodyRR = RRect.fromRectAndRadius(displayRect, bezelRadius);
+    canvas.drawRRect(bodyRR, _phoneBezelPaint);
+
+    // Screen area.
+    final screenRect = displayRect.deflate(bezelWidth);
+    final screenRR = RRect.fromRectAndRadius(screenRect, screenRadius);
+
+    // Check for a screenshot image.
+    final img = screenImages?[node.id];
+    if (img != null) {
+      // Clip to screen shape and draw the image.
+      canvas.save();
+      canvas.clipRRect(screenRR);
+      final src = Rect.fromLTWH(
+          0, 0, img.width.toDouble(), img.height.toDouble());
+      canvas.drawImageRect(img, src, screenRect, Paint());
+      canvas.restore();
+    } else {
+      // Placeholder gradient screen.
+      final gradient = ui.Gradient.linear(
+        screenRect.topCenter,
+        screenRect.bottomCenter,
+        [const Color(0xFFF8F9FA), const Color(0xFFE9ECEF)],
+      );
+      canvas.drawRRect(
+          screenRR, Paint()..shader = gradient);
+    }
+
+    // Dynamic island / notch.
+    final notchRR = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(displayRect.center.dx, screenRect.top + 10),
+        width: 22,
+        height: 7,
+      ),
+      const Radius.circular(4),
+    );
+    canvas.drawRRect(notchRR, _phoneNotchPaint);
+
+    // Status bar indicators (time, signal, battery).
+    final statusY = screenRect.top + 8;
+    // Time (left).
+    _drawText(canvas, '9:41', Offset(screenRect.left + 16, statusY),
+        fontSize: 7);
+    // Signal + battery (right) — simple dots.
+    final batteryRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(screenRect.right - 12, statusY),
+        width: 14,
+        height: 6,
+      ),
+      const Radius.circular(1.5),
+    );
+    canvas.drawRRect(batteryRect, _phoneScreenBorderPaint);
+    // Battery fill.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+            batteryRect.left + 1, batteryRect.top + 1,
+            (batteryRect.width - 2) * 0.7, batteryRect.height - 2),
+        const Radius.circular(0.5),
+      ),
+      Paint()..color = const Color(0xFF34C759),
+    );
+
+    // Node name centered on screen (below notch).
+    final label = node.name.isNotEmpty ? node.name : 'Screen';
+    _drawText(canvas, label,
+        Offset(displayRect.center.dx, displayRect.center.dy - 10),
+        fontSize: 11, maxWidth: screenRect.width - 12);
+
+    // Content type hints.
+    final content = node.content;
+    if (content != null && !content.isEmpty) {
+      if (content.text != null) {
+        // Show text preview lines.
+        for (int i = 0; i < 3; i++) {
+          final y = displayRect.center.dy + 10 + i * 8.0;
+          final lineWidth = screenRect.width * (i < 2 ? 0.6 : 0.35);
+          canvas.drawLine(
+            Offset(displayRect.center.dx - lineWidth / 2, y),
+            Offset(displayRect.center.dx + lineWidth / 2, y),
+            Paint()
+              ..color = const Color(0xFFCCCCCC)
+              ..strokeWidth = 2
+              ..strokeCap = StrokeCap.round,
+          );
+        }
+      }
+    }
+
+    // Home indicator bar at bottom.
+    final homeBarRR = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(displayRect.center.dx, screenRect.bottom - 6),
+        width: 30,
+        height: 3,
+      ),
+      const Radius.circular(1.5),
+    );
+    canvas.drawRRect(homeBarRR, _phoneNavBarPaint);
+
+    // Selection highlight.
+    if (selected) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            displayRect.inflate(2), Radius.circular(16)),
+        _selectedStroke,
+      );
+    }
+  }
+
+  void _drawUiStartEvent(Canvas canvas, NodeModel node, bool selected) {
+    // Draw as a small app icon.
+    final iconRect = Rect.fromCenter(
+        center: node.center, width: 44, height: 44);
+    final rr = RRect.fromRectAndRadius(iconRect, const Radius.circular(10));
+
+    // Green gradient.
+    final gradient = ui.Gradient.linear(
+      iconRect.topCenter,
+      iconRect.bottomCenter,
+      [const Color(0xFF34C759), const Color(0xFF28A745)],
+    );
+    canvas.drawRRect(rr, Paint()..shader = gradient);
+
+    // Play icon.
+    final c = node.center;
+    final playPath = Path()
+      ..moveTo(c.dx - 6, c.dy - 8)
+      ..lineTo(c.dx + 8, c.dy)
+      ..lineTo(c.dx - 6, c.dy + 8)
+      ..close();
+    canvas.drawPath(playPath, Paint()..color = Colors.white);
+
+    if (selected) {
+      canvas.drawRRect(rr.inflate(2), _selectedStroke);
+    }
+
+    if (node.name.isNotEmpty) {
+      _drawText(canvas, node.name,
+          Offset(c.dx, node.rect.bottom + 14), fontSize: 11, background: true);
+    }
+  }
+
+  void _drawUiEndEvent(Canvas canvas, NodeModel node, bool selected) {
+    // Draw as a small stop icon.
+    final iconRect = Rect.fromCenter(
+        center: node.center, width: 44, height: 44);
+    final rr = RRect.fromRectAndRadius(iconRect, const Radius.circular(10));
+
+    // Red gradient.
+    final gradient = ui.Gradient.linear(
+      iconRect.topCenter,
+      iconRect.bottomCenter,
+      [const Color(0xFFFF3B30), const Color(0xFFCC2F26)],
+    );
+    canvas.drawRRect(rr, Paint()..shader = gradient);
+
+    // Stop square.
+    final c = node.center;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: c, width: 12, height: 12),
+        const Radius.circular(2),
+      ),
+      Paint()..color = Colors.white,
+    );
+
+    if (selected) {
+      canvas.drawRRect(rr.inflate(2), _selectedStroke);
+    }
+
+    if (node.name.isNotEmpty) {
+      _drawText(canvas, node.name,
+          Offset(c.dx, node.rect.bottom + 14), fontSize: 11, background: true);
     }
   }
 

@@ -10,6 +10,9 @@ import 'hit_test.dart';
 /// The tool currently active in the editor.
 enum EditorTool { select, addStart, addEnd, addTask, addGateway }
 
+/// Whether to show the standard BPMN diagram or the UI screenshot view.
+enum ViewMode { diagram, ui }
+
 /// Central controller for the diagram editor.
 ///
 /// Notifies listeners whenever the diagram or selection state changes.
@@ -26,6 +29,16 @@ class EditorController extends ChangeNotifier {
 
   /// Active tool.
   EditorTool activeTool = EditorTool.select;
+
+  /// View mode: standard BPMN diagram or UI screenshot view.
+  ViewMode _viewMode = ViewMode.diagram;
+  ViewMode get viewMode => _viewMode;
+  set viewMode(ViewMode mode) {
+    if (_viewMode != mode) {
+      _viewMode = mode;
+      notifyListeners();
+    }
+  }
 
   /// Connection drag state.
   bool isConnecting = false;

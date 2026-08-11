@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/edit/hit_test.dart';
@@ -10,12 +11,14 @@ class DiagramCanvas extends StatefulWidget {
   final EditorController controller;
   final TransformationController transformationController;
   final bool readOnly;
+  final Map<String, ui.Image>? screenImages;
 
   const DiagramCanvas({
     super.key,
     required this.controller,
     required this.transformationController,
     this.readOnly = false,
+    this.screenImages,
   });
 
   @override
@@ -261,7 +264,8 @@ class _DiagramCanvasState extends State<DiagramCanvas>
         height: canvasSize.height,
         child: RepaintBoundary(
           child: CustomPaint(
-            painter: DiagramPainter(widget.controller),
+            painter: DiagramPainter(widget.controller,
+                screenImages: widget.screenImages),
             size: canvasSize,
           ),
         ),
