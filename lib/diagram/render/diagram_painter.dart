@@ -12,8 +12,11 @@ class DiagramPainter extends CustomPainter {
   final Map<String, ui.Image>? screenImages;
 
   // UI mode node dimensions (portrait phone screen).
-  static const double _uiTaskWidth = 100.0;
-  static const double _uiTaskHeight = 178.0;
+  static const double _uiScreenWidth = 100.0;
+  static const double _uiScreenHeight = 178.0;
+  // Smaller phone frame for start/end events.
+  static const double _uiSmallScreenWidth = 80.0;
+  static const double _uiSmallScreenHeight = 142.0;
 
   // Merge bar constants.
   static const double _mergeBarThickness = 3.5;
@@ -129,33 +132,150 @@ class DiagramPainter extends CustomPainter {
 
   void _paintUiMode(Canvas canvas, Size size) {
     final diagram = controller.diagram;
-    // Build display-rect map for UI mode (portrait for tasks).
+
+    // Compute spread positions so phone frames don't overlap.
+    final uiPositions = _computeUiPositions(diagram);
+
+    // Build display-rect map using the spread positions.
     final displayRects = <String, Rect>{};
     for (final node in diagram.nodes.values) {
-      displayRects[node.id] = _uiDisplayRect(node);
+      final center = uiPositions[node.id] ?? node.center;
+      displayRects[node.id] = _uiDisplayRectAt(node, center);
     }
     _drawUiEdges(canvas, diagram, displayRects);
     _drawUiNodes(canvas, diagram, displayRects);
   }
 
+  /// Compute spread-out positions for UI mode to prevent overlap.
+  /// Scales the diagram layout from its centroid so bigger phone frames fit.
+  Map<String, Offset> _computeUiPositions(DiagramModel diagram) {
+    if (diagram.nodes.isEmpty) return {};
+
+    final nodes = diagram.nodes.values.toList();
+
+    // Compute centroid of all node centers.
+    double cx = 0, cy = 0;
+    for (final n in nodes) {
+      cx += n.center.dx;
+      cy += n.center.dy;
+    }
+    cx /= nodes.length;
+    cy /= nodes.length;
+    final centroid = Offset(cx, cy);
+
+    // Determine the scale factor needed.
+    // Phone frames are taller: task 100×178 vs original 140×70.
+    // The height grew by ~2.5x, width is similar. Scale spacing by ~2.5.
+    // But also check for actual overlaps and adjust.
+    const scaleFactor = 2.2;
+
+    // Scale all positions outward from centroid.
+    final positions = <String, Offset>{};
+    for (final n in nodes) {
+      final delta = n.center - centroid;
+      positions[n.id] = centroid + delta * scaleFactor;
+    }
+
+    // Iterative overlap resolution: push apart any overlapping pairs.
+    for (var pass = 0; pass < 8; pass++) {
+      var moved = false;
+      final ids = positions.keys.toList();
+      for (var i = 0; i < ids.length; i++) {
+        for (var j = i + 1; j < ids.length; j++) {
+          final a = ids[i], b = ids[j];
+          final posA = positions[a]!;
+          final posB = positions[b]!;
+          final nodeA = diagram.nodes[a]!;
+          final nodeB = diagram.nodes[b]!;
+          final rectA = _uiDisplayRectAt(nodeA, posA);
+          final rectB = _uiDisplayRectAt(nodeB, posB);
+
+          // Check overlap with padding.
+          const pad = 20.0;
+          final inflatedA = rectA.inflate(pad);
+          if (!inflatedA.overlaps(rectB)) continue;
+
+          // Push apart along the axis of least overlap.
+          final overlapX = (inflatedA.width + rectB.width) / 2 -
+              (posB.dx - posA.dx).abs();
+          final overlapY = (inflatedA.height + rectB.height) / 2 -
+              (posB.dy - posA.dy).abs();
+
+          if (overlapX <= 0 || overlapY <= 0) continue;
+
+          moved = true;
+          if (overlapX < overlapY) {
+            final pushX = overlapX / 2 + 5;
+            final sign = posB.dx >= posA.dx ? 1.0 : -1.0;
+            positions[a] = Offset(posA.dx - sign * pushX, posA.dy);
+            positions[b] = Offset(posB.dx + sign * pushX, posB.dy);
+          } else {
+            final pushY = overlapY / 2 + 5;
+            final sign = posB.dy >= posA.dy ? 1.0 : -1.0;
+            positions[a] = Offset(posA.dx, posA.dy - sign * pushY);
+            positions[b] = Offset(posB.dx, posB.dy + sign * pushY);
+          }
+        }
+      }
+      if (!moved) break;
+    }
+
+    return positions;
+  }
+
+  /// Returns the UI display rect centered at a specific position.
+  Rect _uiDisplayRectAt(NodeModel node, Offset center) {
+    switch (node.type) {
+      case NodeType.task:
+        return Rect.fromCenter(
+            center: center, width: _uiScreenWidth, height: _uiScreenHeight);
+      case NodeType.startEvent:
+      case NodeType.endEvent:
+        return Rect.fromCenter(
+            center: center,
+            width: _uiSmallScreenWidth,
+            height: _uiSmallScreenHeight);
+      case NodeType.exclusiveGateway:
+        return Rect.fromCenter(
+            center: center,
+            width: node.rect.width,
+            height: node.rect.height);
+    }
+  }
+
   /// Returns the display rect for a node in UI mode.
   Rect _uiDisplayRect(NodeModel node) {
-    if (node.type == NodeType.task) {
-      return Rect.fromCenter(
-        center: node.center,
-        width: _uiTaskWidth,
-        height: _uiTaskHeight,
-      );
+    switch (node.type) {
+      case NodeType.task:
+        return Rect.fromCenter(
+          center: node.center,
+          width: _uiScreenWidth,
+          height: _uiScreenHeight,
+        );
+      case NodeType.startEvent:
+      case NodeType.endEvent:
+        return Rect.fromCenter(
+          center: node.center,
+          width: _uiSmallScreenWidth,
+          height: _uiSmallScreenHeight,
+        );
+      case NodeType.exclusiveGateway:
+        return node.rect;
     }
-    return node.rect;
   }
 
   /// Creates a virtual NodeModel with the UI display rect (for clipToNodeBorder).
+  /// Uses task type for start/end events so clipToNodeBorder uses rect clipping
+  /// instead of circle clipping (since they're phone frames in UI mode).
   NodeModel _uiVirtualNode(NodeModel node, Rect displayRect) {
     if (displayRect == node.rect) return node;
+    final virtualType = (node.type == NodeType.startEvent ||
+            node.type == NodeType.endEvent)
+        ? NodeType.task
+        : node.type;
     return NodeModel(
       id: node.id,
-      type: node.type,
+      type: virtualType,
       name: node.name,
       rect: displayRect,
       content: node.content,
@@ -240,9 +360,9 @@ class DiagramPainter extends CustomPainter {
       if (node.type == NodeType.task) {
         _drawPhoneFrame(canvas, node, displayRect, isSelected);
       } else if (node.type == NodeType.startEvent) {
-        _drawUiStartEvent(canvas, node, isSelected);
+        _drawEventPhoneFrame(canvas, node, displayRect, isSelected, isStart: true);
       } else if (node.type == NodeType.endEvent) {
-        _drawUiEndEvent(canvas, node, isSelected);
+        _drawEventPhoneFrame(canvas, node, displayRect, isSelected, isStart: false);
       } else {
         // Gateway — keep diamond shape.
         final fill = _nodePaint;
@@ -371,70 +491,88 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  void _drawUiStartEvent(Canvas canvas, NodeModel node, bool selected) {
-    // Draw as a small app icon.
-    final iconRect = Rect.fromCenter(
-        center: node.center, width: 44, height: 44);
-    final rr = RRect.fromRectAndRadius(iconRect, const Radius.circular(10));
+  /// Draws a phone frame for start/end events with distinctive screen content.
+  void _drawEventPhoneFrame(Canvas canvas, NodeModel node, Rect displayRect,
+      bool selected, {required bool isStart}) {
+    const bezelWidth = 3.5;
+    final bezelRadius = Radius.circular(12);
+    final screenRadius = Radius.circular(9);
 
-    // Green gradient.
+    // Phone body.
+    final bodyRR = RRect.fromRectAndRadius(displayRect, bezelRadius);
+    canvas.drawRRect(bodyRR, _phoneBezelPaint);
+
+    // Screen.
+    final screenRect = displayRect.deflate(bezelWidth);
+    final screenRR = RRect.fromRectAndRadius(screenRect, screenRadius);
+
+    // Tinted gradient background.
+    final colors = isStart
+        ? [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)]
+        : [const Color(0xFFFFEBEE), const Color(0xFFFFCDD2)];
     final gradient = ui.Gradient.linear(
-      iconRect.topCenter,
-      iconRect.bottomCenter,
-      [const Color(0xFF34C759), const Color(0xFF28A745)],
+      screenRect.topCenter, screenRect.bottomCenter, colors,
     );
-    canvas.drawRRect(rr, Paint()..shader = gradient);
+    canvas.drawRRect(screenRR, Paint()..shader = gradient);
 
-    // Play icon.
-    final c = node.center;
-    final playPath = Path()
-      ..moveTo(c.dx - 6, c.dy - 8)
-      ..lineTo(c.dx + 8, c.dy)
-      ..lineTo(c.dx - 6, c.dy + 8)
-      ..close();
-    canvas.drawPath(playPath, Paint()..color = Colors.white);
-
-    if (selected) {
-      canvas.drawRRect(rr.inflate(2), _selectedStroke);
-    }
-
-    if (node.name.isNotEmpty) {
-      _drawText(canvas, node.name,
-          Offset(c.dx, node.rect.bottom + 14), fontSize: 11, background: true);
-    }
-  }
-
-  void _drawUiEndEvent(Canvas canvas, NodeModel node, bool selected) {
-    // Draw as a small stop icon.
-    final iconRect = Rect.fromCenter(
-        center: node.center, width: 44, height: 44);
-    final rr = RRect.fromRectAndRadius(iconRect, const Radius.circular(10));
-
-    // Red gradient.
-    final gradient = ui.Gradient.linear(
-      iconRect.topCenter,
-      iconRect.bottomCenter,
-      [const Color(0xFFFF3B30), const Color(0xFFCC2F26)],
-    );
-    canvas.drawRRect(rr, Paint()..shader = gradient);
-
-    // Stop square.
-    final c = node.center;
+    // Notch.
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromCenter(center: c, width: 12, height: 12),
-        const Radius.circular(2),
+        Rect.fromCenter(
+          center: Offset(displayRect.center.dx, screenRect.top + 8),
+          width: 18, height: 6,
+        ),
+        const Radius.circular(3),
       ),
-      Paint()..color = Colors.white,
+      _phoneNotchPaint,
+    );
+
+    // Center icon: play triangle or stop square.
+    final c = node.center;
+    final iconColor = isStart
+        ? const Color(0xFF34C759)
+        : const Color(0xFFFF3B30);
+    if (isStart) {
+      final playPath = Path()
+        ..moveTo(c.dx - 8, c.dy - 10)
+        ..lineTo(c.dx + 10, c.dy)
+        ..lineTo(c.dx - 8, c.dy + 10)
+        ..close();
+      canvas.drawPath(playPath, Paint()..color = iconColor);
+    } else {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: c, width: 16, height: 16),
+          const Radius.circular(3),
+        ),
+        Paint()..color = iconColor,
+      );
+    }
+
+    // Label below icon.
+    final label = node.name.isNotEmpty
+        ? node.name
+        : (isStart ? 'Launch' : 'Exit');
+    _drawText(canvas, label,
+        Offset(c.dx, c.dy + 22), fontSize: 9, maxWidth: screenRect.width - 10);
+
+    // Home indicator.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(displayRect.center.dx, screenRect.bottom - 5),
+          width: 24, height: 2.5,
+        ),
+        const Radius.circular(1.5),
+      ),
+      _phoneNavBarPaint,
     );
 
     if (selected) {
-      canvas.drawRRect(rr.inflate(2), _selectedStroke);
-    }
-
-    if (node.name.isNotEmpty) {
-      _drawText(canvas, node.name,
-          Offset(c.dx, node.rect.bottom + 14), fontSize: 11, background: true);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(displayRect.inflate(2), Radius.circular(14)),
+        _selectedStroke,
+      );
     }
   }
 
