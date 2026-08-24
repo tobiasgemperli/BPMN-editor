@@ -43,7 +43,9 @@
       "Bash(expect:*)",
       "Bash(brew list:*)",
       "Bash(/usr/bin/unzip:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(open:*)",
+      "Bash(subl:*)"
     ]
   }
 }

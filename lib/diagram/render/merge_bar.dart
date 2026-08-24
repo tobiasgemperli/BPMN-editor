@@ -277,7 +277,8 @@ List<Offset> _perpendicularApproach(
 }
 
 /// Build a clip-at-bar path: follow the original route until it crosses the
-/// bar line, clip there, then go along the bar to the slot.
+/// bar line, then bend perpendicularly into the slot so the edge approaches
+/// from the front rather than running along the bar.
 List<Offset> _clipAtBar(
     List<Offset> rawWps, Offset clippedStart, MergeBarInfo bar, Offset slotPoint) {
   final result = <Offset>[clippedStart];
@@ -288,12 +289,16 @@ List<Offset> _clipAtBar(
 
     final crossing = _segmentBarCrossing(prev, wp, bar);
     if (crossing != null) {
-      if ((crossing - prev).distance > 1.0) {
-        result.add(crossing);
+      // Step back from the bar so the final approach is perpendicular.
+      // If stepping back would create a zigzag (crossing is past the slot
+      // on the cross axis), skip the crossing and bend directly from prev.
+      final stepped = _stepBackFromBar(crossing, bar);
+      if (!_wouldZigzag(prev, stepped, slotPoint, bar)) {
+        if ((stepped - prev).distance > 1.0) {
+          result.add(stepped);
+        }
       }
-      if ((result.last - slotPoint).distance > 1.0) {
-        result.add(slotPoint);
-      }
+      _addBendToSlot(result, slotPoint, bar);
       return result;
     }
 
@@ -309,6 +314,36 @@ List<Offset> _clipAtBar(
 
   _addBendToSlot(result, slotPoint, bar);
   return result;
+}
+
+/// Returns a point slightly in front of the bar (away from the node).
+Offset _stepBackFromBar(Offset crossing, MergeBarInfo bar) {
+  const stepBack = 10.0;
+  if (bar.isHorizontal) {
+    final isTop = bar.side == ConnectorSide.top ||
+        bar.side == ConnectorSide.topRight ||
+        bar.side == ConnectorSide.topLeft;
+    return Offset(crossing.dx, isTop ? crossing.dy - stepBack : crossing.dy + stepBack);
+  } else {
+    return Offset(
+      bar.side == ConnectorSide.left ? crossing.dx - stepBack : crossing.dx + stepBack,
+      crossing.dy,
+    );
+  }
+}
+
+/// Check if going prev → stepped → bend-to-slot would create a zigzag
+/// (direction reversal on the bar's cross axis).
+bool _wouldZigzag(Offset prev, Offset stepped, Offset slotPoint, MergeBarInfo bar) {
+  if (bar.isHorizontal) {
+    final toStepped = stepped.dx - prev.dx;
+    final toSlot = slotPoint.dx - stepped.dx;
+    return toStepped * toSlot < 0 && toStepped.abs() > 1.0 && toSlot.abs() > 1.0;
+  } else {
+    final toStepped = stepped.dy - prev.dy;
+    final toSlot = slotPoint.dy - stepped.dy;
+    return toStepped * toSlot < 0 && toStepped.abs() > 1.0 && toSlot.abs() > 1.0;
+  }
 }
 
 /// Check if any segment of a path crosses through an obstacle node rect.
