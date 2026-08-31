@@ -36,7 +36,18 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     super.initState();
     _loadMyModels();
     _loadRemote();
+    // Refresh "My Flowcharts" whenever a diagram finishes syncing, so newly
+    // saved diagrams appear automatically once they reach the server.
+    DiagramStorage.instance.syncStatusNotifier.addListener(_onSyncChanged);
   }
+
+  @override
+  void dispose() {
+    DiagramStorage.instance.syncStatusNotifier.removeListener(_onSyncChanged);
+    super.dispose();
+  }
+
+  void _onSyncChanged() => _loadMyModels();
 
   Future<void> _refresh() async {
     _remoteDiagrams.clear();
