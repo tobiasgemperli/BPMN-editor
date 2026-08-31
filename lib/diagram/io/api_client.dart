@@ -2,11 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
+import 'node_graph.dart';
 import '../model/diagram_model.dart';
 
 const _baseUrl = 'https://odoules.pfn.cz/rest2';
-const _username = 'test';
-const _password = 'j5K_fv3sg';
+// QA test account (user id 22) — a clean account whose owned models make a
+// realistic "My Flowcharts". The legacy `test`/`j5K_fv3sg` account (id 14)
+// owns ~599 models and is a poor fit for that section.
+const _username = 'qa_1787670944';
+const _password = '8bkZwhLK';
 
 String get _authHeader =>
     'Basic ${base64Encode(utf8.encode('$_username:$_password'))}';
@@ -82,6 +86,9 @@ class ApiClient {
   http.Client? _httpClient;
   http.Client get _client => _httpClient ?? http.Client();
 
+  /// Cached id of the authenticated user (see [currentUserId]).
+  int? _cachedUserId;
+
   final _parser = BpmnParser();
   final _serializer = BpmnSerializer();
 
@@ -107,6 +114,57 @@ class ApiClient {
         .toList();
   }
 
+  /// The id of the currently authenticated user, from `/user/settings`.
+  /// Cached after the first successful lookup.
+  Future<int> currentUserId() async {
+    if (_cachedUserId != null) return _cachedUserId!;
+    final response = await _client.get(
+      Uri.parse('$_baseUrl/user/settings'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final id = json['id'];
+    final parsed = (id is int) ? id : int.tryParse(id?.toString() ?? '');
+    if (parsed == null) {
+      throw ApiException(response.statusCode, 'no user id in /user/settings');
+    }
+    return _cachedUserId = parsed;
+  }
+
+  /// List the models owned by the authenticated user, with their parsed
+  /// diagrams. Powers the "My Flowcharts" section.
+  ///
+  /// The list endpoint returns metadata only (BpmnXml/Nodes are omitted), so
+  /// each owned model is fetched via [getModel] to obtain its diagram.
+  Future<List<ApiModel>> listMyModels() async {
+    final myId = await currentUserId();
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/browser/list/'),
+      headers: _jsonHeaders,
+      body: jsonEncode({}),
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    final list = jsonDecode(response.body) as List;
+    final mineMeta = <ApiModelMeta>[];
+    for (final e in list) {
+      final json = e as Map<String, dynamic>;
+      if (json['OwnerId']?.toString() != myId.toString()) continue;
+      mineMeta.add(ApiModelMeta.fromJson(json));
+    }
+    return Future.wait(mineMeta.map((meta) async {
+      try {
+        return await getModel(meta.id);
+      } catch (_) {
+        return ApiModel(meta: meta);
+      }
+    }));
+  }
+
   /// Get a single model by ID, including its BpmnXml.
   Future<ApiModel> getModel(String id) async {
     final response = await _client.get(
@@ -117,6 +175,13 @@ class ApiClient {
       throw ApiException(response.statusCode, response.body);
     }
     final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return _modelFromJson(json);
+  }
+
+  /// Build an [ApiModel] from a model JSON object (as returned by getmodel or
+  /// inline in the list response). Parses BpmnXml first, falling back to the
+  /// legacy Nodes flow format.
+  ApiModel _modelFromJson(Map<String, dynamic> json) {
     final meta = ApiModelMeta.fromJson(json);
     final bpmnXml = json['BpmnXml'] as String?;
     DiagramModel? diagram;
@@ -126,6 +191,11 @@ class ApiClient {
       } catch (_) {
         // If XML is malformed, return null diagram.
       }
+    }
+    // Legacy models carry no BpmnXml — reconstruct from the Nodes flow format.
+    if (diagram == null && json['Nodes'] is List) {
+      final built = diagramFromNodes(json['Nodes'] as List);
+      if (built.nodes.isNotEmpty) diagram = built;
     }
     return ApiModel(meta: meta, bpmnXml: bpmnXml, diagram: diagram);
   }

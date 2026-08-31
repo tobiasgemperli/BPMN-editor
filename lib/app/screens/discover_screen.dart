@@ -19,7 +19,8 @@ class DiscoverScreen extends StatefulWidget {
 class _DiscoverScreenState extends State<DiscoverScreen> {
   static const _categories = ['All', 'Tutorials', 'Technical', 'Certification', 'Templates', 'Recent'];
   String _selected = 'All';
-  List<SavedDiagramMeta> _savedDiagrams = [];
+  List<ApiModel> _myModels = [];
+  bool _myLoading = false;
   List<ApiModelMeta> _remoteModels = [];
   final Map<String, DiagramModel> _remoteDiagrams = {};
   bool _remoteLoading = false;
@@ -27,18 +28,28 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSaved();
+    _loadMyModels();
     _loadRemote();
   }
 
   Future<void> _refresh() async {
     _remoteDiagrams.clear();
-    await Future.wait([_loadSaved(), _loadRemote()]);
+    await Future.wait([_loadMyModels(), _loadRemote()]);
   }
 
-  Future<void> _loadSaved() async {
-    final saved = await DiagramStorage.instance.list();
-    if (mounted) setState(() => _savedDiagrams = saved);
+  /// Load the authenticated user's own models from the backend for the
+  /// "My Flowcharts" section (only renderable ones).
+  Future<void> _loadMyModels() async {
+    setState(() => _myLoading = true);
+    try {
+      final models = await DiagramStorage.instance.listMyModels();
+      final renderable = models.where((m) => m.diagram != null).toList();
+      if (mounted) setState(() => _myModels = renderable);
+    } catch (_) {
+      // Server unavailable — keep whatever we had.
+    } finally {
+      if (mounted) setState(() => _myLoading = false);
+    }
   }
 
   Future<void> _loadRemote() async {
@@ -136,7 +147,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     onTap: () => Navigator.push(
                       context,
                       _bottomToTopRoute(
-                          EditorScreen(showCloseButton: true, onSaved: _loadSaved)),
+                          EditorScreen(showCloseButton: true, onSaved: _loadMyModels)),
                     ),
                     child: Container(
                       width: 44,
@@ -187,32 +198,37 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 ),
               ),
 
-            // ── My Flowcharts section ──────────────────────────
-            if (showMyFlowcharts && (_savedDiagrams.isNotEmpty || SampleDiagrams.myDiagrams.isNotEmpty)) ...[
+            // ── My Flowcharts section (backend, owner-filtered) ──
+            if (showMyFlowcharts && (_myModels.isNotEmpty || _myLoading)) ...[
               _sectionHeader(context, 'My Flowcharts'),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 210,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: _savedDiagrams.length + SampleDiagrams.myDiagrams.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 12),
-                    itemBuilder: (context, i) {
-                      if (i < _savedDiagrams.length) {
-                        return _SavedDiagramCard(
-                          meta: _savedDiagrams[i],
-                          onReturn: _loadSaved,
-                        );
-                      }
-                      return _SmallCard(
-                        entry: SampleDiagrams.myDiagrams[i - _savedDiagrams.length],
-                        isOwned: true,
-                      );
-                    },
+              if (_myModels.isEmpty && _myLoading)
+                const SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 210,
+                    child: Center(
+                      child: SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 210,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: _myModels.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, i) => _MyModelCard(
+                        model: _myModels[i],
+                        onChanged: _loadMyModels,
+                      ),
+                    ),
                   ),
                 ),
-              ),
             ],
 
             // ── Server Models section ────────────────────────────
@@ -1054,20 +1070,40 @@ class _BadgeCircle extends StatelessWidget {
   }
 }
 
-// ── Saved diagram card (horizontal scroll) ──────────────────────
+// ── My model card (backend-owned, horizontal scroll) ────────────
 
-class _SavedDiagramCard extends StatelessWidget {
-  final SavedDiagramMeta meta;
-  final VoidCallback onReturn;
+class _MyModelCard extends StatelessWidget {
+  final ApiModel model;
 
-  const _SavedDiagramCard({required this.meta, required this.onReturn});
+  /// Called after the model is edited or deleted so the list can refresh.
+  final VoidCallback onChanged;
+
+  const _MyModelCard({required this.model, required this.onChanged});
+
+  String get _localId => 'remote_${model.meta.id}';
+
+  Future<void> _open(BuildContext context) async {
+    final diagram = model.diagram;
+    if (diagram == null) return;
+    // Cache locally (keyed by remote id) so edits save back to the server.
+    await DiagramStorage.instance
+        .importRemote(model.meta.id, model.meta.name, diagram);
+    if (!context.mounted) return;
+    _openOwnedEditor(
+      context,
+      diagram,
+      title: model.meta.name,
+      savedId: _localId,
+      onSaved: onChanged,
+    );
+  }
 
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Diagram'),
-        content: Text('Delete "${meta.title}"? This cannot be undone.'),
+        content: Text('Delete "${model.meta.name}"? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -1082,128 +1118,108 @@ class _SavedDiagramCard extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      await DiagramStorage.instance.delete(meta.id);
-      onReturn();
+      await DiagramStorage.instance.deleteMyModel(model.meta.id);
+      onChanged();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DiagramModel?>(
-      future: DiagramStorage.instance.load(meta.id),
-      builder: (context, snapshot) {
-        final diagram = snapshot.data;
-        return _Pressable(
-          onTap: () {
-            if (diagram != null) {
-              _openOwnedEditor(
-                context,
-                diagram,
-                title: meta.title,
-                savedId: meta.id,
-                onSaved: onReturn,
-              );
-            }
-          },
-          onLongPress: () => _confirmDelete(context),
-          child: Container(
-            width: 160,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+    final diagram = model.diagram;
+    return _Pressable(
+      onTap: () => _open(context),
+      onLongPress: () => _confirmDelete(context),
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (diagram != null)
-                  _TeaserPreview(
-                    diagram: diagram,
-                    width: 160,
-                    height: 100,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(12)),
-                  )
-                else
-                  Container(
-                    width: 160,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(12)),
-                    ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (diagram != null)
+              _TeaserPreview(
+                diagram: diagram,
+                width: 160,
+                height: 100,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
+              )
+            else
+              Container(
+                width: 160,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              child: Text(
+                model.meta.name,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1C1C1E)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: ListenableBuilder(
+                listenable: DiagramStorage.instance.syncStatusNotifier,
+                builder: (context, _) {
+                  final status =
+                      DiagramStorage.instance.getSyncStatus(_localId);
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _formatDate(model.meta.createdAt),
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          maxLines: 1,
+                        ),
                       ),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-                  child: Text(
-                    meta.title,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E)),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: ListenableBuilder(
-                    listenable: DiagramStorage.instance.syncStatusNotifier,
-                    builder: (context, _) {
-                      final status = DiagramStorage.instance.getSyncStatus(meta.id);
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _formatDate(meta.updatedAt),
-                              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                              maxLines: 1,
-                            ),
-                          ),
-                          if (status == SyncStatus.syncing)
-                            const SizedBox(
-                              width: 12, height: 12,
-                              child: CircularProgressIndicator(strokeWidth: 1.5),
-                            )
-                          else if (status == SyncStatus.failed)
-                            const Icon(Icons.cloud_off_outlined,
-                                size: 14, color: Color(0xFFFF3B30)),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
+                      if (status == SyncStatus.syncing)
+                        const SizedBox(
+                          width: 12, height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        )
+                      else if (status == SyncStatus.failed)
+                        const Icon(Icons.cloud_off_outlined,
+                            size: 14, color: Color(0xFFFF3B30)),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
+}
 
-  static String _formatDate(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.day}.${dt.month}.${dt.year}';
-  }
+String _formatDate(DateTime dt) {
+  final now = DateTime.now();
+  final diff = now.difference(dt);
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+  if (diff.inDays < 1) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return '${dt.day}.${dt.month}.${dt.year}';
 }
 
 // ── Remote model card (horizontal scroll) ────────────────────────
@@ -1307,21 +1323,16 @@ class _RemoteModelCard extends StatelessWidget {
 
 class _SmallCard extends StatelessWidget {
   final SampleDiagramEntry entry;
-  final bool isOwned;
 
-  const _SmallCard({required this.entry, this.isOwned = false});
+  const _SmallCard({required this.entry});
 
   @override
   Widget build(BuildContext context) {
     final diagram = entry.builder();
     return _Pressable(
       onTap: () {
-        if (isOwned) {
-          _openOwnedEditor(context, diagram, title: entry.name);
-        } else {
-          _openPresentation(context, diagram,
-              title: entry.name, creator: entry.creator, entry: entry);
-        }
+        _openPresentation(context, diagram,
+            title: entry.name, creator: entry.creator, entry: entry);
       },
       child: Container(
         width: 160,

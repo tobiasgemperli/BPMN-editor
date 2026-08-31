@@ -222,4 +222,59 @@ class DiagramStorage {
   Future<List<ApiModelMeta>> listRemote() async {
     return _api.listModels();
   }
+
+  /// Fetch the authenticated user's own models, with diagrams parsed inline
+  /// (for the "My Flowcharts" section).
+  Future<List<ApiModel>> listMyModels() async {
+    return _api.listMyModels();
+  }
+
+  /// Local diagram id used to cache a given server model. Deterministic so
+  /// re-opening the same remote model reuses one local entry.
+  String _localIdForRemote(String remoteId) => 'remote_$remoteId';
+
+  /// Cache a server model into local storage (keyed by its remote id) so it can
+  /// be opened in the owned editor and saved back to the server. Returns the
+  /// local diagram id to hand to the editor.
+  Future<String> importRemote(
+      String remoteId, String title, DiagramModel diagram) async {
+    final dir = await _getDir();
+    final index = await list();
+    final localId = _localIdForRemote(remoteId);
+    await _diagramFile(dir, localId)
+        .writeAsString(BpmnSerializer().serialize(diagram));
+    final existing = index
+        .cast<SavedDiagramMeta?>()
+        .firstWhere((e) => e!.id == localId, orElse: () => null);
+    if (existing != null) {
+      existing.title = title;
+      existing.updatedAt = DateTime.now();
+    } else {
+      index.insert(
+        0,
+        SavedDiagramMeta(
+          id: localId,
+          title: title,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          remoteId: remoteId,
+        ),
+      );
+    }
+    await _saveIndex();
+    _setSyncStatus(localId, SyncStatus.synced);
+    return localId;
+  }
+
+  /// Delete one of the user's own models from the server (and any local cache).
+  Future<void> deleteMyModel(String remoteId) async {
+    final localId = _localIdForRemote(remoteId);
+    final index = await list();
+    if (index.any((e) => e.id == localId)) {
+      // delete() removes the local file/index entry and the server model.
+      await delete(localId);
+    } else {
+      await _api.deleteModel(remoteId);
+    }
+  }
 }
