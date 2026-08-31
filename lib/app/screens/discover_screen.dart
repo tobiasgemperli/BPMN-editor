@@ -25,6 +25,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   final Map<String, DiagramModel> _remoteDiagrams = {};
   bool _remoteLoading = false;
 
+  /// The Featured / Tutorials / Certification / Technical / Flow Patterns
+  /// sections are driven by SampleDiagrams (local hardcoded dummy data).
+  /// Set to false to hide them so the screen shows only real backend data
+  /// (My Flowcharts + Discover). Flip to true to bring the samples back.
+  final bool _showSampleSections = false;
+
   @override
   void initState() {
     super.initState();
@@ -189,8 +195,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 onRefresh: _refresh,
                 child: CustomScrollView(
                 slivers: [
-            // ── Featured card ───────────────────────────────────
-            if (showFeatured && featured != null)
+            // ── Featured card (hardcoded sample) ────────────────
+            if (_showSampleSections && showFeatured && featured != null)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
@@ -276,7 +282,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
 
             // ── Tutorials section ───────────────────────────────
-            if (showTutorials && tutorials.isNotEmpty) ...[
+            if (_showSampleSections && showTutorials && tutorials.isNotEmpty) ...[
               _sectionHeader(context, 'Tutorials'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -294,7 +300,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
 
             // ── Certification section ─────────────────────────────
-            if (showCertification && certification.isNotEmpty) ...[
+            if (_showSampleSections && showCertification && certification.isNotEmpty) ...[
               _sectionHeader(context, 'Certification Processes'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -312,7 +318,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
 
             // ── Technical section ───────────────────────────────
-            if (showTechnical && technical.isNotEmpty) ...[
+            if (_showSampleSections && showTechnical && technical.isNotEmpty) ...[
               _sectionHeader(context, 'Technical'),
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -330,7 +336,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ],
 
             // ── Flow Patterns section ───────────────────────────
-            if (showPatterns && patterns.isNotEmpty) ...[
+            if (_showSampleSections && showPatterns && patterns.isNotEmpty) ...[
               _sectionHeader(context, 'Flow Patterns'),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),

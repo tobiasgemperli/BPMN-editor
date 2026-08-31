@@ -24,6 +24,10 @@ class _SearchScreenState extends State<SearchScreen> {
   final Map<String, DiagramModel> _remoteDiagrams = {};
   bool _remoteLoading = false;
 
+  /// Include hardcoded SampleDiagrams in the results. Disabled so search only
+  /// returns real backend models. Flip to true to bring the samples back.
+  final bool _showSampleResults = false;
+
   @override
   void initState() {
     super.initState();
@@ -73,15 +77,17 @@ class _SearchScreenState extends State<SearchScreen> {
     final topPad = MediaQuery.of(context).padding.top;
     final q = _query.toLowerCase();
 
-    // Filter sample diagrams.
+    // Filter sample diagrams (hardcoded — disabled unless _showSampleResults).
     final allSamples = SampleDiagrams.all;
-    final filteredSamples = q.isEmpty
-        ? allSamples
-        : allSamples
-            .where((e) =>
-                e.name.toLowerCase().contains(q) ||
-                e.creator.name.toLowerCase().contains(q))
-            .toList();
+    final filteredSamples = !_showSampleResults
+        ? const <SampleDiagramEntry>[]
+        : q.isEmpty
+            ? allSamples
+            : allSamples
+                .where((e) =>
+                    e.name.toLowerCase().contains(q) ||
+                    e.creator.name.toLowerCase().contains(q))
+                .toList();
 
     // Filter remote models.
     final filteredRemote = q.isEmpty
