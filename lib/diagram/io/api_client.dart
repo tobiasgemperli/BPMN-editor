@@ -137,14 +137,16 @@ class ApiClient {
   /// List the models owned by the authenticated user, with their parsed
   /// diagrams. Powers the "My Flowcharts" section.
   ///
-  /// The list endpoint returns metadata only (BpmnXml/Nodes are omitted), so
-  /// each owned model is fetched via [getModel] to obtain its diagram.
+  /// Uses the server-side `ownerid` filter; the client-side owner check below
+  /// is a safety net in case the filter is ignored. The list endpoint returns
+  /// metadata only (BpmnXml/Nodes are omitted), so each owned model is fetched
+  /// via [getModel] to obtain its diagram.
   Future<List<ApiModel>> listMyModels() async {
     final myId = await currentUserId();
     final response = await _client.post(
       Uri.parse('$_baseUrl/browser/list/'),
       headers: _jsonHeaders,
-      body: jsonEncode({}),
+      body: jsonEncode({'ownerid': myId}),
     );
     if (response.statusCode != 200) {
       throw ApiException(response.statusCode, response.body);
