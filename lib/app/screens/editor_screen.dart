@@ -50,6 +50,7 @@ class _EditorScreenState extends State<EditorScreen>
   final TransformationController _transformController =
       TransformationController(Matrix4.diagonal3Values(0.55, 0.55, 1));
   final GlobalKey _canvasKey = GlobalKey();
+  static const _defaultTitle = 'New Diagram';
   String? _savedId;
   late String _title;
   Timer? _autosaveTimer;
@@ -61,7 +62,7 @@ class _EditorScreenState extends State<EditorScreen>
   void initState() {
     super.initState();
     _savedId = widget.savedId;
-    _title = widget.title ?? 'New Diagram';
+    _title = widget.title ?? _defaultTitle;
     _controller = EditorController();
     _controller.onLimitReached = (msg) {
       if (mounted) {
@@ -120,6 +121,53 @@ class _EditorScreenState extends State<EditorScreen>
     _savedId = meta.id;
     _dirty = false;
     widget.onSaved?.call();
+  }
+
+  /// Dismiss the editor. If this is a freshly created diagram that still has
+  /// the default name, prompt for a name first so it isn't saved as
+  /// "New Diagram".
+  Future<void> _handleClose() async {
+    final nav = Navigator.of(context, rootNavigator: true);
+    final isFreshUnnamed = _isOwner &&
+        widget.initialDiagram == null &&
+        _title == _defaultTitle &&
+        (_dirty || _savedId != null);
+    if (isFreshUnnamed) {
+      final name = await _promptSaveName();
+      if (name != null && name.trim().isNotEmpty) {
+        _title = name.trim();
+        _dirty = true; // ensure the chosen name is persisted
+      }
+    }
+    await _saveIfDirty();
+    if (mounted) nav.pop();
+  }
+
+  /// Name prompt shown when closing an unnamed new diagram.
+  Future<String?> _promptSaveName() {
+    final textController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Diagram'),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Diagram name'),
+          onSubmitted: (_) => Navigator.pop(context, textController.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, textController.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _editTitle() {
@@ -382,8 +430,7 @@ class _EditorScreenState extends State<EditorScreen>
               top: topPad + 8,
               left: 16,
               child: CloseCircleButton(
-                onPressed: () =>
-                    Navigator.of(context, rootNavigator: true).pop(),
+                onPressed: _handleClose,
               ),
             ),
           // Close button (right) — dismisses the entire modal.
@@ -392,8 +439,7 @@ class _EditorScreenState extends State<EditorScreen>
               top: topPad + 8,
               right: 16,
               child: CloseCircleButton(
-                onPressed: () =>
-                    Navigator.of(context, rootNavigator: true).pop(),
+                onPressed: _handleClose,
               ),
             ),
           if (_isOwner)
