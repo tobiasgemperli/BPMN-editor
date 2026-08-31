@@ -229,6 +229,11 @@ class DiagramStorage {
     return _api.listMyModels();
   }
 
+  /// Fetch the models owned by [ownerId] (for the creator profile screen).
+  Future<List<ApiModel>> listModelsByOwner(int ownerId) async {
+    return _api.listModelsByOwner(ownerId);
+  }
+
   /// Local diagram id used to cache a given server model. Deterministic so
   /// re-opening the same remote model reuses one local entry.
   String _localIdForRemote(String remoteId) => 'remote_$remoteId';

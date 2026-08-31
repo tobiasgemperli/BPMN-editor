@@ -1528,15 +1528,53 @@ class _PressableState extends State<_Pressable> {
 
 // ── Creator profile screen (fullscreen) ───────────────────────
 
-class _CreatorProfileScreen extends StatelessWidget {
+class _CreatorProfileScreen extends StatefulWidget {
   final SampleCreator creator;
 
   const _CreatorProfileScreen({required this.creator});
 
   @override
+  State<_CreatorProfileScreen> createState() => _CreatorProfileScreenState();
+}
+
+class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
+  SampleCreator get creator => widget.creator;
+
+  /// Backend creators have a numeric id (server user id); sample creators use
+  /// string ids like 'maria'. Load real models for the former.
+  late final int? _ownerId = int.tryParse(creator.id);
+  bool get _isBackendCreator => _ownerId != null;
+
+  List<ApiModel> _remoteModels = [];
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_ownerId != null) _loadRemote(_ownerId);
+  }
+
+  Future<void> _loadRemote(int ownerId) async {
+    setState(() => _loading = true);
+    try {
+      final models = await DiagramStorage.instance.listModelsByOwner(ownerId);
+      final renderable = models.where((m) => m.diagram != null).toList();
+      if (mounted) setState(() => _remoteModels = renderable);
+    } catch (_) {
+      // Server unavailable — leave the list empty.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final creatorDiagrams =
-        SampleDiagrams.all.where((e) => e.creator.id == creator.id).toList();
+    // Sample creators fall back to the hardcoded sample diagrams.
+    final creatorDiagrams = _isBackendCreator
+        ? const <SampleDiagramEntry>[]
+        : SampleDiagrams.all.where((e) => e.creator.id == creator.id).toList();
+    final processCount =
+        _isBackendCreator ? _remoteModels.length : creatorDiagrams.length;
     final topPad = MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -1577,7 +1615,7 @@ class _CreatorProfileScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${_formatNumber(creator.followers)} followers · '
-                    '${creatorDiagrams.length} processes',
+                    '${_loading ? "…" : processCount} processes',
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 16),
@@ -1650,29 +1688,65 @@ class _CreatorProfileScreen extends StatelessWidget {
             ),
           ),
           // ── Diagram list ──
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) {
-                  final entry = creatorDiagrams[i];
-                  final diagram = entry.builder();
-                  final teaser = _findTeaserImage(diagram);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _ProfileDiagramCard(
-                      name: entry.name,
-                      diagram: diagram,
-                      subtitle: _subtitle(entry.name),
-                      teaserImage: teaser,
-                      creator: entry.creator,
-                    ),
-                  );
-                },
-                childCount: creatorDiagrams.length,
+          if (_loading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(top: 24),
+                child: Center(
+                  child: SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            )
+          else if (_isBackendCreator)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final model = _remoteModels[i];
+                    final diagram = model.diagram!;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ProfileDiagramCard(
+                        name: model.meta.name,
+                        diagram: diagram,
+                        subtitle: _subtitle(model.meta.name),
+                        teaserImage: _findTeaserImage(diagram),
+                        creator: creator,
+                      ),
+                    );
+                  },
+                  childCount: _remoteModels.length,
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final entry = creatorDiagrams[i];
+                    final diagram = entry.builder();
+                    final teaser = _findTeaserImage(diagram);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ProfileDiagramCard(
+                        name: entry.name,
+                        diagram: diagram,
+                        subtitle: _subtitle(entry.name),
+                        teaserImage: teaser,
+                        creator: entry.creator,
+                      ),
+                    );
+                  },
+                  childCount: creatorDiagrams.length,
+                ),
               ),
             ),
-          ),
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
