@@ -66,6 +66,47 @@ class ApiModel {
   ApiModel({required this.meta, this.bpmnXml, this.diagram});
 }
 
+/// A user's public profile, from `/user/profile/{id}`.
+class ApiUserProfile {
+  final int id;
+  final String name;
+  final int followerCount;
+  final int followingCount;
+  final bool isFollowedByMe;
+
+  ApiUserProfile({
+    required this.id,
+    required this.name,
+    required this.followerCount,
+    required this.followingCount,
+    required this.isFollowedByMe,
+  });
+
+  ApiUserProfile copyWith({int? followerCount, bool? isFollowedByMe}) =>
+      ApiUserProfile(
+        id: id,
+        name: name,
+        followerCount: followerCount ?? this.followerCount,
+        followingCount: followingCount,
+        isFollowedByMe: isFollowedByMe ?? this.isFollowedByMe,
+      );
+
+  factory ApiUserProfile.fromJson(Map<String, dynamic> json) {
+    int asInt(dynamic v) =>
+        (v is int) ? v : int.tryParse(v?.toString() ?? '') ?? 0;
+    final first = (json['Name'] as String?)?.trim() ?? '';
+    final last = (json['Surname'] as String?)?.trim() ?? '';
+    final name = [first, last].where((s) => s.isNotEmpty).join(' ');
+    return ApiUserProfile(
+      id: asInt(json['Id']),
+      name: name,
+      followerCount: asInt(json['FollowerCount']),
+      followingCount: asInt(json['FollowingCount']),
+      isFollowedByMe: json['IsFollowedByMe'] == true,
+    );
+  }
+}
+
 class ApiException implements Exception {
   final int statusCode;
   final String message;
@@ -132,6 +173,59 @@ class ApiClient {
       throw ApiException(response.statusCode, 'no user id in /user/settings');
     }
     return _cachedUserId = parsed;
+  }
+
+  /// Fetch a user's public profile (name, follower counts, follow state).
+  Future<ApiUserProfile> getUserProfile(int userId) async {
+    final response = await _client.get(
+      Uri.parse('$_baseUrl/user/profile/$userId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    return ApiUserProfile.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  /// Ids of the users the authenticated user follows. Reliable source of
+  /// follow state — `/user/profile`'s `IsFollowedByMe` is currently unreliable.
+  Future<Set<int>> followingUserIds() async {
+    final response = await _client.get(
+      Uri.parse('$_baseUrl/user/following'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    final list = jsonDecode(response.body) as List;
+    return list
+        .map((e) =>
+            int.tryParse((e as Map<String, dynamic>)['Id']?.toString() ?? ''))
+        .whereType<int>()
+        .toSet();
+  }
+
+  /// Follow a user (idempotent server-side).
+  Future<void> followUser(int userId) async {
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/user/follow/$userId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+  }
+
+  /// Unfollow a user (idempotent server-side).
+  Future<void> unfollowUser(int userId) async {
+    final response = await _client.delete(
+      Uri.parse('$_baseUrl/user/follow/$userId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
   }
 
   /// List the models owned by the authenticated user, with their parsed

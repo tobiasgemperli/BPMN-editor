@@ -1559,10 +1559,16 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
   List<ApiModel> _remoteModels = [];
   bool _loading = false;
 
+  ApiUserProfile? _profile;
+  bool _followBusy = false;
+
   @override
   void initState() {
     super.initState();
-    if (_ownerId != null) _loadRemote(_ownerId);
+    if (_ownerId != null) {
+      _loadRemote(_ownerId);
+      _loadProfile(_ownerId);
+    }
   }
 
   Future<void> _loadRemote(int ownerId) async {
@@ -1575,6 +1581,48 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
       // Server unavailable — leave the list empty.
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadProfile(int ownerId) async {
+    try {
+      final profile = await ApiClient.instance.getUserProfile(ownerId);
+      // /user/profile's IsFollowedByMe is unreliable; derive it from the
+      // authoritative following list instead.
+      final followingIds = await ApiClient.instance.followingUserIds();
+      if (mounted) {
+        setState(() => _profile = profile.copyWith(
+              isFollowedByMe: followingIds.contains(ownerId),
+            ));
+      }
+    } catch (_) {
+      // Leave follower count / follow state at their defaults.
+    }
+  }
+
+  /// Follow or unfollow this creator, updating the UI optimistically.
+  Future<void> _toggleFollow() async {
+    final profile = _profile;
+    final ownerId = _ownerId;
+    if (profile == null || ownerId == null || _followBusy) return;
+    final wasFollowing = profile.isFollowedByMe;
+    setState(() {
+      _followBusy = true;
+      _profile = profile.copyWith(
+        isFollowedByMe: !wasFollowing,
+        followerCount: profile.followerCount + (wasFollowing ? -1 : 1),
+      );
+    });
+    try {
+      if (wasFollowing) {
+        await ApiClient.instance.unfollowUser(ownerId);
+      } else {
+        await ApiClient.instance.followUser(ownerId);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _profile = profile); // revert on failure
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
     }
   }
 
@@ -1625,7 +1673,7 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_formatNumber(creator.followers)} followers · '
+                    '${_formatNumber(_profile?.followerCount ?? creator.followers)} followers · '
                     '${_loading ? "…" : processCount} processes',
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
@@ -1644,16 +1692,32 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {},
+                          onPressed:
+                              (_isBackendCreator && _profile != null && !_followBusy)
+                                  ? _toggleFollow
+                                  : null,
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF1C1C1E),
-                            side: const BorderSide(color: Color(0xFF1C1C1E)),
+                            foregroundColor: (_profile?.isFollowedByMe ?? false)
+                                ? Colors.grey[700]
+                                : const Color(0xFF1C1C1E),
+                            backgroundColor: (_profile?.isFollowedByMe ?? false)
+                                ? Colors.grey[200]
+                                : null,
+                            side: BorderSide(
+                              color: (_profile?.isFollowedByMe ?? false)
+                                  ? Colors.grey.shade400
+                                  : const Color(0xFF1C1C1E),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text('Follow'),
+                          child: Text(
+                            (_profile?.isFollowedByMe ?? false)
+                                ? 'Following'
+                                : 'Follow',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
