@@ -429,7 +429,7 @@ String? _findTeaserImage(DiagramModel diagram) {
 }
 
 void _openOwnedEditor(BuildContext context, DiagramModel diagram,
-    {String? title, String? savedId, VoidCallback? onSaved}) {
+    {String? title, String? savedId, VoidCallback? onSaved, ApiModelMeta? meta}) {
   Navigator.push(
     context,
     _bottomToTopRoute(_ModalNavigatorShell(
@@ -438,6 +438,7 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
       role: DiagramRole.owner,
       savedId: savedId,
       onSaved: onSaved,
+      meta: meta,
     )),
   );
 }
@@ -1119,6 +1120,7 @@ class _MyModelCard extends StatelessWidget {
       title: model.meta.name,
       savedId: _localId,
       onSaved: onChanged,
+      meta: model.meta,
     );
   }
 
