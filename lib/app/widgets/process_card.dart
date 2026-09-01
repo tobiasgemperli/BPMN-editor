@@ -738,10 +738,10 @@ class ProcessCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                // Close button top-left.
+                // Close button top-right.
                 Positioned(
                   top: topPad + 8,
-                  left: 16,
+                  right: 16,
                   child: CloseCircleButton(
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -791,10 +791,10 @@ class ProcessCard extends StatelessWidget {
                   videoPath: videoPath!,
                   child: const SizedBox.expand(),
                 ),
-                // Close button top-left.
+                // Close button top-right.
                 Positioned(
                   top: topPad + 8,
-                  left: 16,
+                  right: 16,
                   child: CloseCircleButton(
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -995,7 +995,7 @@ class _ImageDetailView extends StatelessWidget {
           // Close button top-left.
           Positioned(
             top: topPad + 8,
-            left: 16,
+            right: 16,
             child: CloseCircleButton(
               onPressed: () => Navigator.pop(context),
             ),

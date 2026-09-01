@@ -424,11 +424,11 @@ class _EditorScreenState extends State<EditorScreen>
                 isBack: true,
               ),
             ),
-          // Close button for modal screens (no back) — top left.
+          // Close button for modal screens (no back) — top right.
           if (widget.showCloseButton && !widget.showBackButton)
             Positioned(
               top: topPad + 8,
-              left: 16,
+              right: 16,
               child: CloseCircleButton(
                 onPressed: _handleClose,
               ),

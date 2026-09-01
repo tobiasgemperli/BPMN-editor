@@ -251,19 +251,19 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 );
               },
             ),
-            // Close button top-left — dismisses the entire modal.
+            // Close button top-right — dismisses the entire modal.
             Positioned(
               top: topPad + 8,
-              left: 16,
+              right: 16,
               child: CloseCircleButton(
                 onPressed: () => _dismissModal(context),
               ),
             ),
-            // Info button top-right.
+            // Info button top-left.
             if (widget.entry?.entryId != null)
               Positioned(
                 top: topPad + 8,
-                right: 16,
+                left: 16,
                 child: _InfoCircleButton(
                   onPressed: () => _showEntryInfo(context, widget.entry!),
                 ),
