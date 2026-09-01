@@ -684,14 +684,47 @@ void _showModelInfo(
   );
 }
 
-class _ModelInfoSheet extends StatelessWidget {
+class _ModelInfoSheet extends StatefulWidget {
   final ApiModelMeta meta;
   final DiagramModel diagram;
 
   const _ModelInfoSheet({required this.meta, required this.diagram});
 
   @override
+  State<_ModelInfoSheet> createState() => _ModelInfoSheetState();
+}
+
+class _ModelInfoSheetState extends State<_ModelInfoSheet> {
+  late ApiModelMeta _meta = widget.meta;
+  bool _canEdit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOwnership();
+  }
+
+  Future<void> _checkOwnership() async {
+    try {
+      final myId = await ApiClient.instance.currentUserId();
+      if (mounted) setState(() => _canEdit = myId.toString() == _meta.ownerId);
+    } catch (_) {}
+  }
+
+  Future<void> _edit() async {
+    final updated = await showModalBottomSheet<ApiModelMeta>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _MetaEditSheet(meta: _meta),
+    );
+    if (updated != null && mounted) setState(() => _meta = updated);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final meta = _meta;
+    final diagram = widget.diagram;
     final bottomPad = MediaQuery.of(context).padding.bottom;
     final stepCount = diagram.nodes.length;
     final decisionCount = diagram.nodes.values
@@ -737,6 +770,13 @@ class _ModelInfoSheet extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (_canEdit)
+                  IconButton(
+                    onPressed: _edit,
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 22, color: Color(0xFF007AFF)),
+                    tooltip: 'Edit details',
+                  ),
               ],
             ),
           ),
@@ -791,6 +831,169 @@ class _ModelInfoSheet extends StatelessWidget {
                   ],
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Edit sheet for the model metadata fields that persist server-side
+/// (Name, Description, Keywords, Sources, Categories/Relations).
+class _MetaEditSheet extends StatefulWidget {
+  final ApiModelMeta meta;
+
+  const _MetaEditSheet({required this.meta});
+
+  @override
+  State<_MetaEditSheet> createState() => _MetaEditSheetState();
+}
+
+class _MetaEditSheetState extends State<_MetaEditSheet> {
+  late final _name = TextEditingController(text: widget.meta.name);
+  late final _description =
+      TextEditingController(text: widget.meta.description);
+  late final _keywords =
+      TextEditingController(text: widget.meta.keywords.join(', '));
+  late final _sources =
+      TextEditingController(text: widget.meta.sources.join(', '));
+  late final _relations =
+      TextEditingController(text: widget.meta.categories.join(', '));
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    _keywords.dispose();
+    _sources.dispose();
+    _relations.dispose();
+    super.dispose();
+  }
+
+  List<String> _parseList(String s) =>
+      s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final updated = await ApiClient.instance.updateModel(
+        widget.meta.id,
+        name: _name.text.trim(),
+        description: _description.text.trim(),
+        keywords: _parseList(_keywords.text),
+        sources: _parseList(_sources.text),
+        categories: _parseList(_relations.text),
+      );
+      if (mounted) Navigator.pop(context, updated);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 10, bottom: 6),
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: _saving ? null : () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const Spacer(),
+                  const Text('Edit details',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1C1C1E))),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Save',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _field('Name', _name),
+                    _field('Description', _description, maxLines: 4),
+                    _field('Keywords', _keywords, hint: 'comma-separated'),
+                    _field('Additional Sources', _sources,
+                        hint: 'comma-separated'),
+                    _field('Relations', _relations, hint: 'comma-separated'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _field(String label, TextEditingController c,
+      {int maxLines = 1, String? hint}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[600])),
+          const SizedBox(height: 6),
+          TextField(
+            controller: c,
+            maxLines: maxLines,
+            decoration: InputDecoration(
+              hintText: hint,
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ],

@@ -420,17 +420,23 @@ class ApiClient {
     return ApiModelMeta.fromJson(json);
   }
 
-  /// Update an existing model on the server.
+  /// Update an existing model on the server. Any field left null is untouched.
   Future<ApiModelMeta> updateModel(
     String id, {
     String? name,
     DiagramModel? diagram,
+    String? description,
     List<String>? keywords,
+    List<String>? sources,
+    List<String>? categories,
   }) async {
     final body = <String, dynamic>{};
     if (name != null) body['Name'] = name;
     if (diagram != null) body['BpmnXml'] = _serializer.serialize(diagram);
+    if (description != null) body['Description'] = description;
     if (keywords != null) body['Keywords'] = keywords;
+    if (sources != null) body['Sources'] = sources;
+    if (categories != null) body['Categories'] = categories;
 
     final response = await _client.put(
       Uri.parse('$_baseUrl/browser/updatemodel/$id'),
