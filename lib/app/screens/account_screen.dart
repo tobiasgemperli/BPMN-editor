@@ -15,6 +15,7 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   String _name = 'My Account';
+  int? _myId;
   List<ApiUserRef>? _following;
   List<ApiUserRef>? _followers;
   bool _loading = true;
@@ -35,6 +36,7 @@ class _AccountScreenState extends State<AccountScreen> {
       final followers = await api.getFollowers();
       if (!mounted) return;
       setState(() {
+        _myId = id;
         if (profile.name.isNotEmpty) _name = profile.name;
         _following = following;
         _followers = followers;
@@ -136,23 +138,12 @@ class _AccountScreenState extends State<AccountScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFF007AFF),
-              ),
-              child: Center(
-                child: Text(
-                  _initials(_name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+            _UserAvatar(
+              userId: _myId,
+              initials: _initials(_name),
+              size: 56,
+              background: const Color(0xFF007AFF),
+              textColor: Colors.white,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -208,6 +199,63 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 }
 
+/// Circular avatar that loads a user's `/user/thumbnail/{id}` image, falling
+/// back to initials while loading or when the user has no picture.
+class _UserAvatar extends StatelessWidget {
+  final int? userId;
+  final String initials;
+  final double size;
+  final Color background;
+  final Color textColor;
+
+  const _UserAvatar({
+    required this.userId,
+    required this.initials,
+    required this.size,
+    required this.background,
+    required this.textColor,
+  });
+
+  Widget _initialsChild() => Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            color: textColor,
+            fontSize: size * 0.32,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    Widget inner;
+    final id = userId;
+    if (id == null) {
+      inner = _initialsChild();
+    } else {
+      inner = FutureBuilder<Uint8List?>(
+        future: ApiClient.instance.getUserThumbnail(id),
+        builder: (context, snap) {
+          final bytes = snap.data;
+          if (bytes != null) {
+            return Image.memory(bytes,
+                width: size, height: size, fit: BoxFit.cover);
+          }
+          return _initialsChild();
+        },
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: background),
+      child: inner,
+    );
+  }
+}
+
 class _UserRow extends StatelessWidget {
   final ApiUserRef user;
   final void Function(ApiUserRef) onTap;
@@ -224,22 +272,12 @@ class _UserRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey[300],
-              ),
-              child: Center(
-                child: Text(
-                  _AccountScreenState._initials(name),
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1C1C1E)),
-                ),
-              ),
+            _UserAvatar(
+              userId: user.id,
+              initials: _AccountScreenState._initials(name),
+              size: 40,
+              background: Colors.grey[300]!,
+              textColor: const Color(0xFF1C1C1E),
             ),
             const SizedBox(width: 12),
             Expanded(

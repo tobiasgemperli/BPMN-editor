@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
@@ -205,6 +206,67 @@ class ApiClient {
     }
     return ApiUserProfile.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  /// Decoded avatar bytes for [userId] from `/user/thumbnail/{id}`, or null if
+  /// the user has no picture. Cached per user (including the "no image" result).
+  Future<Uint8List?> getUserThumbnail(int userId) =>
+      _thumbnailCache.putIfAbsent(userId, () => _fetchThumbnail(userId));
+
+  final Map<int, Future<Uint8List?>> _thumbnailCache = {};
+
+  Future<Uint8List?> _fetchThumbnail(int userId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/user/thumbnail/$userId'),
+        headers: _headers,
+      );
+      if (response.statusCode != 200) return null;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final t = json['thumbnail'];
+      if (t is! String || t.isEmpty) return null; // `false` when no avatar
+      return _decodeAvatar(t);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Decode an avatar payload, peeling any extra base64 layers until the bytes
+  /// look like a real image (the backend has historically wrapped these).
+  Uint8List? _decodeAvatar(String data) {
+    var s = data.trim();
+    final comma = s.indexOf(',');
+    if (s.startsWith('data:') && comma != -1) s = s.substring(comma + 1);
+    Uint8List? bytes;
+    for (var i = 0; i < 4; i++) {
+      try {
+        bytes = base64Decode(s);
+      } catch (_) {
+        return bytes;
+      }
+      if (_looksLikeImage(bytes)) return bytes;
+      try {
+        s = utf8.decode(bytes).trim(); // maybe another base64 layer
+      } catch (_) {
+        return bytes; // not text — treat as the (unrecognized) image
+      }
+    }
+    return bytes;
+  }
+
+  bool _looksLikeImage(Uint8List b) {
+    if (b.length < 4) return false;
+    if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) {
+      return true; // PNG
+    }
+    if (b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return true; // JPEG
+    if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) return true; // GIF
+    if (b.length >= 12 &&
+        b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46 &&
+        b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) {
+      return true; // WEBP
+    }
+    return false;
   }
 
   /// Users the authenticated user follows.
