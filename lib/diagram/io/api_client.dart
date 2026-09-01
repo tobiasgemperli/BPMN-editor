@@ -24,6 +24,7 @@ class ApiModelMeta {
   final String ownerId;
   final DateTime createdAt;
   final int version;
+  final String description;
   final List<String> keywords;
   final List<String> sources;
   final List<String> categories;
@@ -35,6 +36,7 @@ class ApiModelMeta {
     required this.ownerId,
     required this.createdAt,
     required this.version,
+    this.description = '',
     required this.keywords,
     required this.sources,
     required this.categories,
@@ -49,6 +51,7 @@ class ApiModelMeta {
         version: (json['Version'] is int)
             ? json['Version'] as int
             : int.tryParse(json['Version']?.toString() ?? '') ?? 1,
+        description: (json['Description'] as String?) ?? '',
         keywords: _stringList(json['Keywords']),
         sources: _stringList(json['Sources']),
         categories: _stringList(json['Categories']),

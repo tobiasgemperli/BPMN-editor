@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../diagram/io/api_client.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -14,6 +15,9 @@ class PresentationScreen extends StatefulWidget {
   final DiagramRole role;
   final SampleCreator? creator;
   final SampleDiagramEntry? entry;
+
+  /// Metadata for a backend model (drives the info card for real models).
+  final ApiModelMeta? meta;
   final String? savedId;
   final VoidCallback? onSaved;
 
@@ -24,6 +28,7 @@ class PresentationScreen extends StatefulWidget {
     this.role = DiagramRole.owner,
     this.creator,
     this.entry,
+    this.meta,
     this.savedId,
     this.onSaved,
   });
@@ -260,12 +265,18 @@ class _PresentationScreenState extends State<PresentationScreen> {
               ),
             ),
             // Info button top-left.
-            if (widget.entry?.entryId != null)
+            if (widget.entry?.entryId != null || widget.meta != null)
               Positioned(
                 top: topPad + 8,
                 left: 16,
                 child: _InfoCircleButton(
-                  onPressed: () => _showEntryInfo(context, widget.entry!),
+                  onPressed: () {
+                    if (widget.meta != null) {
+                      _showModelInfo(context, widget.meta!, widget.diagram);
+                    } else {
+                      _showEntryInfo(context, widget.entry!);
+                    }
+                  },
                 ),
               ),
             // Mini process map bottom-right — tap to open full view.
@@ -652,6 +663,190 @@ class _EntryInfoSheet extends StatelessWidget {
                         )),
                   ],
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Backend model info sheet ───────────────────────────────────
+
+void _showModelInfo(
+    BuildContext context, ApiModelMeta meta, DiagramModel diagram) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _ModelInfoSheet(meta: meta, diagram: diagram),
+  );
+}
+
+class _ModelInfoSheet extends StatelessWidget {
+  final ApiModelMeta meta;
+  final DiagramModel diagram;
+
+  const _ModelInfoSheet({required this.meta, required this.diagram});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final stepCount = diagram.nodes.length;
+    final decisionCount = diagram.nodes.values
+        .where((n) => n.type == NodeType.exclusiveGateway)
+        .length;
+    final d = meta.createdAt;
+    final created =
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 6),
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    meta.name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, bottomPad + 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _MetaRow(
+                      label: 'Author',
+                      value: meta.ownerName.isNotEmpty ? meta.ownerName : '—'),
+                  if (meta.sources.isNotEmpty)
+                    _SourcesRow(value: meta.sources.join(', ')),
+                  _MetaRow(label: 'Steps', value: '$stepCount'),
+                  _MetaRow(label: 'Decision points', value: '$decisionCount'),
+                  _MetaRow(label: 'Created', value: created),
+                  _MetaRow(label: 'Version', value: 'v${meta.version}'),
+                  if (meta.description.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _MetaSectionTitle(label: 'Description'),
+                    const SizedBox(height: 8),
+                    Text(
+                      meta.description,
+                      style: TextStyle(
+                          fontSize: 14, height: 1.4, color: Colors.grey[800]),
+                    ),
+                  ],
+                  if (meta.categories.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _MetaSectionTitle(label: 'Relations'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: meta.categories
+                          .map((c) => _MetaChip(label: c))
+                          .toList(),
+                    ),
+                  ],
+                  if (meta.keywords.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _MetaSectionTitle(label: 'Keywords'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: meta.keywords
+                          .map((k) => _MetaChip(label: k))
+                          .toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Additional Sources" row with a tooltip explaining what a source is.
+class _SourcesRow extends StatelessWidget {
+  final String value;
+
+  const _SourcesRow({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    'Additional Sources',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Tooltip(
+                  triggerMode: TooltipTriggerMode.tap,
+                  showDuration: const Duration(seconds: 6),
+                  message:
+                      'A source is the institution or author of a larger work '
+                      'this guide is based on — e.g. an author who wrote an '
+                      'interpretation of an ISO standard.',
+                  child: Icon(Icons.info_outline,
+                      size: 14, color: Colors.grey[400]),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1C1C1E),
               ),
             ),
           ),

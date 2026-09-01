@@ -443,7 +443,10 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
 }
 
 void _openPresentation(BuildContext context, DiagramModel diagram,
-    {String? title, SampleCreator? creator, SampleDiagramEntry? entry}) {
+    {String? title,
+    SampleCreator? creator,
+    SampleDiagramEntry? entry,
+    ApiModelMeta? meta}) {
   Navigator.push(
     context,
     _bottomToTopRoute(_ModalNavigatorShell(
@@ -452,6 +455,7 @@ void _openPresentation(BuildContext context, DiagramModel diagram,
       role: DiagramRole.viewer,
       creator: creator,
       entry: entry,
+      meta: meta,
     )),
   );
 }
@@ -465,6 +469,7 @@ class _ModalNavigatorShell extends StatelessWidget {
   final DiagramRole role;
   final SampleCreator? creator;
   final SampleDiagramEntry? entry;
+  final ApiModelMeta? meta;
   final String? savedId;
   final VoidCallback? onSaved;
 
@@ -474,6 +479,7 @@ class _ModalNavigatorShell extends StatelessWidget {
     this.role = DiagramRole.owner,
     this.creator,
     this.entry,
+    this.meta,
     this.savedId,
     this.onSaved,
   });
@@ -488,6 +494,7 @@ class _ModalNavigatorShell extends StatelessWidget {
           role: role,
           creator: creator,
           entry: entry,
+          meta: meta,
           savedId: savedId,
           onSaved: onSaved,
         ),
@@ -1256,6 +1263,7 @@ class _RemoteModelCard extends StatelessWidget {
         : ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?';
     _openPresentation(context, diagram!,
         title: meta.name,
+        meta: meta,
         creator: SampleCreator(
           id: meta.ownerId,
           name: ownerName,
