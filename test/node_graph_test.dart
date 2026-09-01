@@ -57,13 +57,13 @@ void main() {
     expect(d.incomingEdges('5').length, 2);
   });
 
-  test('start is leftmost, stop is to its right; empty list is safe', () {
+  test('start is topmost, stop is below it (vertical layout); empty is safe', () {
     final d = diagramFromNodes(linear);
-    final startX = d.nodes['1']!.center.dx;
+    final startY = d.nodes['1']!.center.dy;
     for (final n in d.nodes.values) {
-      expect(n.center.dx, greaterThanOrEqualTo(startX));
+      expect(n.center.dy, greaterThanOrEqualTo(startY));
     }
-    expect(d.nodes['24']!.center.dx, greaterThan(startX));
+    expect(d.nodes['24']!.center.dy, greaterThan(startY));
     expect(diagramFromNodes(const []).nodes, isEmpty);
   });
 }

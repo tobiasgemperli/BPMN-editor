@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import '../model/diagram_model.dart';
+import '../edit/editor_controller.dart';
 
 /// Builds a [DiagramModel] from the backend's legacy `Nodes` flow format,
 /// used when a model has no `BpmnXml` (most of the older Guide library).
@@ -8,8 +9,9 @@ import '../model/diagram_model.dart';
 /// Nodes link via connection ids, not node ids: a node's output id
 /// (`ConnectToId`, or one of `ConnectToIds`; `-1` means no branch) matches
 /// the node whose `IdInput` equals it. `Type`: 4=start, 0=step, 1=decision,
-/// 5=stop. The backend supplies no coordinates, so nodes are auto-laid-out
-/// left-to-right by longest-path layering.
+/// 5=stop. The backend supplies no coordinates, so the final positions come
+/// from the editor's auto-layout ("brush"), which lays nodes out top-to-bottom
+/// like the rest of the app.
 DiagramModel diagramFromNodes(List<dynamic> nodesJson) {
   final nodes = nodesJson.whereType<Map<String, dynamic>>().toList();
   final diagram = DiagramModel();
@@ -111,7 +113,12 @@ DiagramModel diagramFromNodes(List<dynamic> nodesJson) {
     );
   }
 
-  return diagram;
+  // Re-layout top-to-bottom with the editor's auto-layout ("brush"), so
+  // converted models read vertically like the rest of the app instead of
+  // the left-to-right layering built above.
+  final ctrl = EditorController(diagram: diagram);
+  ctrl.autoLayout();
+  return ctrl.diagram;
 }
 
 NodeType _mapType(int serverType) {
