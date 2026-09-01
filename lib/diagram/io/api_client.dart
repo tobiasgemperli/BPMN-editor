@@ -107,6 +107,25 @@ class ApiUserProfile {
   }
 }
 
+/// A lightweight reference to a user, as returned in follower/following lists.
+class ApiUserRef {
+  final int id;
+  final String name;
+  final String uname;
+
+  ApiUserRef({required this.id, required this.name, required this.uname});
+
+  factory ApiUserRef.fromJson(Map<String, dynamic> json) {
+    final first = (json['Name'] as String?)?.trim() ?? '';
+    final last = (json['Surname'] as String?)?.trim() ?? '';
+    return ApiUserRef(
+      id: int.tryParse(json['Id']?.toString() ?? '') ?? 0,
+      name: [first, last].where((s) => s.isNotEmpty).join(' '),
+      uname: (json['Uname'] as String?) ?? '',
+    );
+  }
+}
+
 class ApiException implements Exception {
   final int statusCode;
   final String message;
@@ -188,11 +207,15 @@ class ApiClient {
         jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  /// Ids of the users the authenticated user follows. Reliable source of
-  /// follow state — `/user/profile`'s `IsFollowedByMe` is currently unreliable.
-  Future<Set<int>> followingUserIds() async {
+  /// Users the authenticated user follows.
+  Future<List<ApiUserRef>> getFollowing() => _userList('following');
+
+  /// Users who follow the authenticated user.
+  Future<List<ApiUserRef>> getFollowers() => _userList('followers');
+
+  Future<List<ApiUserRef>> _userList(String which) async {
     final response = await _client.get(
-      Uri.parse('$_baseUrl/user/following'),
+      Uri.parse('$_baseUrl/user/$which'),
       headers: _headers,
     );
     if (response.statusCode != 200) {
@@ -200,11 +223,14 @@ class ApiClient {
     }
     final list = jsonDecode(response.body) as List;
     return list
-        .map((e) =>
-            int.tryParse((e as Map<String, dynamic>)['Id']?.toString() ?? ''))
-        .whereType<int>()
-        .toSet();
+        .map((e) => ApiUserRef.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
+
+  /// Ids of the users the authenticated user follows. Reliable source of
+  /// follow state — `/user/profile`'s `IsFollowedByMe` is currently unreliable.
+  Future<Set<int>> followingUserIds() async =>
+      (await getFollowing()).map((u) => u.id).toSet();
 
   /// Follow a user (idempotent server-side).
   Future<void> followUser(int userId) async {
