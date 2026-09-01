@@ -897,11 +897,14 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
       child: Container(
+        // Cap to the space above the keyboard so the Save/Cancel header stays
+        // visible when the keyboard is open.
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxHeight: (mq.size.height - mq.viewInsets.bottom) * 0.92,
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
