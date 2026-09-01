@@ -1697,17 +1697,15 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
                                   ? _toggleFollow
                                   : null,
                           style: OutlinedButton.styleFrom(
+                            // "Following" reads as an active state: solid black
+                            // with white text; "Follow" stays outlined.
                             foregroundColor: (_profile?.isFollowedByMe ?? false)
-                                ? Colors.grey[700]
+                                ? Colors.white
                                 : const Color(0xFF1C1C1E),
                             backgroundColor: (_profile?.isFollowedByMe ?? false)
-                                ? Colors.grey[200]
+                                ? const Color(0xFF1C1C1E)
                                 : null,
-                            side: BorderSide(
-                              color: (_profile?.isFollowedByMe ?? false)
-                                  ? Colors.grey.shade400
-                                  : const Color(0xFF1C1C1E),
-                            ),
+                            side: const BorderSide(color: Color(0xFF1C1C1E)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
