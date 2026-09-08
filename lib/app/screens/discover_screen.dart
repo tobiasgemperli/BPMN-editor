@@ -19,10 +19,9 @@ class DiscoverScreen extends StatefulWidget {
 class _DiscoverScreenState extends State<DiscoverScreen> {
   static const _categories = ['All', 'Tutorials', 'Technical', 'Certification', 'Templates', 'Recent'];
   String _selected = 'All';
-  List<ApiModel> _myModels = [];
+  List<ApiModelMeta> _myModels = [];
   bool _myLoading = false;
   List<ApiModelMeta> _remoteModels = [];
-  final Map<String, DiagramModel> _remoteDiagrams = {};
   bool _remoteLoading = false;
 
   /// The Featured / Tutorials / Certification / Technical / Flow Patterns
@@ -50,18 +49,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   void _onSyncChanged() => _loadMyModels();
 
   Future<void> _refresh() async {
-    _remoteDiagrams.clear();
     await Future.wait([_loadMyModels(), _loadRemote()]);
   }
 
   /// Load the authenticated user's own models from the backend for the
-  /// "My Flowcharts" section (only renderable ones).
+  /// "My Flowcharts" section. Metadata only — diagrams load lazily on open.
   Future<void> _loadMyModels() async {
     setState(() => _myLoading = true);
     try {
-      final models = await DiagramStorage.instance.listMyModels();
-      final renderable = models.where((m) => m.diagram != null).toList();
-      if (mounted) setState(() => _myModels = renderable);
+      final models = await DiagramStorage.instance.listMyModelsMeta();
+      if (mounted) setState(() => _myModels = models);
     } catch (_) {
       // Server unavailable — keep whatever we had.
     } finally {
@@ -72,24 +69,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Future<void> _loadRemote() async {
     setState(() => _remoteLoading = true);
     try {
+      // Metadata only — a single request. Diagrams load lazily on open.
       final models = await DiagramStorage.instance.listRemote();
-      // Load each model in parallel to check for BpmnXml and cache diagrams.
-      final results = await Future.wait(
-        models.map((m) async {
-          try {
-            final full = await DiagramStorage.instance.loadRemote(m.id);
-            if (full.diagram != null) {
-              _remoteDiagrams[m.id] = full.diagram!;
-              return m;
-            }
-            return null;
-          } catch (_) {
-            return null;
-          }
-        }),
-      );
-      final valid = results.whereType<ApiModelMeta>().toList();
-      if (mounted) setState(() => _remoteModels = valid);
+      if (mounted) setState(() => _remoteModels = models);
     } catch (_) {
       // Server unavailable — keep empty list.
     } finally {
@@ -240,7 +222,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       itemCount: _myModels.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, i) => _MyModelCard(
-                        model: _myModels[i],
+                        meta: _myModels[i],
                         onChanged: _loadMyModels,
                       ),
                     ),
@@ -284,7 +266,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, i) => _RemoteModelCard(
                         meta: _remoteModels[i],
-                        diagram: _remoteDiagrams[_remoteModels[i].id],
                       ),
                     ),
                   ),
@@ -894,7 +875,10 @@ class _ThumbnailPainter extends CustomPainter {
 // ── Teaser preview (image or diagram thumbnail) ──────────────────
 
 class _TeaserPreview extends StatelessWidget {
-  final DiagramModel diagram;
+  /// The live diagram for the content-teaser / mini-render fallback. May be
+  /// null for backend model cards that haven't fetched their diagram yet — in
+  /// that case the stored [thumbnailFileId] carries the preview.
+  final DiagramModel? diagram;
   final double width;
   final double height;
   final BorderRadius borderRadius;
@@ -941,7 +925,8 @@ class _TeaserPreview extends StatelessWidget {
 
   // 2. Content teaser image, else 3. the live diagram mini-render.
   Widget _teaserOrFallback() {
-    final teaser = _findTeaserImage(diagram);
+    final d = diagram;
+    final teaser = d == null ? null : _findTeaserImage(d);
     if (teaser != null && teaser.startsWith('assets/')) {
       return ClipRRect(
         borderRadius: borderRadius,
@@ -958,6 +943,7 @@ class _TeaserPreview extends StatelessWidget {
   }
 
   Widget _fallback() {
+    final d = diagram;
     return Container(
       width: width,
       height: height,
@@ -965,13 +951,16 @@ class _TeaserPreview extends StatelessWidget {
         color: Colors.grey[100],
         borderRadius: borderRadius,
       ),
-      child: Center(
-        child: _DiagramThumbnail(
-          diagram: diagram,
-          width: width - 20,
-          height: height - 20,
-        ),
-      ),
+      // No diagram yet (loads on open) and no usable thumbnail → neutral box.
+      child: d == null
+          ? null
+          : Center(
+              child: _DiagramThumbnail(
+                diagram: d,
+                width: width - 20,
+                height: height - 20,
+              ),
+            ),
     );
   }
 }
@@ -1131,29 +1120,34 @@ class _BadgeCircle extends StatelessWidget {
 // ── My model card (backend-owned, horizontal scroll) ────────────
 
 class _MyModelCard extends StatelessWidget {
-  final ApiModel model;
+  final ApiModelMeta meta;
 
   /// Called after the model is edited or deleted so the list can refresh.
   final VoidCallback onChanged;
 
-  const _MyModelCard({required this.model, required this.onChanged});
+  const _MyModelCard({required this.meta, required this.onChanged});
 
-  String get _localId => 'remote_${model.meta.id}';
+  String get _localId => 'remote_${meta.id}';
 
   Future<void> _open(BuildContext context) async {
-    final diagram = model.diagram;
-    if (diagram == null) return;
+    // Fetch the diagram lazily (the list is metadata-only for speed).
+    final DiagramModel? diagram;
+    try {
+      diagram = (await DiagramStorage.instance.loadRemote(meta.id)).diagram;
+    } catch (_) {
+      return;
+    }
+    if (diagram == null || !context.mounted) return;
     // Cache locally (keyed by remote id) so edits save back to the server.
-    await DiagramStorage.instance
-        .importRemote(model.meta.id, model.meta.name, diagram);
+    await DiagramStorage.instance.importRemote(meta.id, meta.name, diagram);
     if (!context.mounted) return;
     _openOwnedEditor(
       context,
       diagram,
-      title: model.meta.name,
+      title: meta.name,
       savedId: _localId,
       onSaved: onChanged,
-      meta: model.meta,
+      meta: meta,
     );
   }
 
@@ -1162,7 +1156,7 @@ class _MyModelCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Diagram'),
-        content: Text('Delete "${model.meta.name}"? This cannot be undone.'),
+        content: Text('Delete "${meta.name}"? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -1177,14 +1171,13 @@ class _MyModelCard extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      await DiagramStorage.instance.deleteMyModel(model.meta.id);
+      await DiagramStorage.instance.deleteMyModel(meta.id);
       onChanged();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final diagram = model.diagram;
     return _Pressable(
       onTap: () => _open(context),
       onLongPress: () => _confirmDelete(context),
@@ -1204,29 +1197,18 @@ class _MyModelCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (diagram != null)
-              _TeaserPreview(
-                diagram: diagram,
-                thumbnailFileId: model.meta.thumbnailFileId,
-                width: 160,
-                height: 100,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-              )
-            else
-              Container(
-                width: 160,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(12)),
-                ),
-              ),
+            _TeaserPreview(
+              diagram: null,
+              thumbnailFileId: meta.thumbnailFileId,
+              width: 160,
+              height: 100,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
               child: Text(
-                model.meta.name,
+                meta.name,
                 style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1246,7 +1228,7 @@ class _MyModelCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          _formatDate(model.meta.createdAt),
+                          _formatDate(meta.createdAt),
                           style:
                               TextStyle(fontSize: 11, color: Colors.grey[500]),
                           maxLines: 1,
@@ -1286,18 +1268,24 @@ String _formatDate(DateTime dt) {
 
 class _RemoteModelCard extends StatelessWidget {
   final ApiModelMeta meta;
-  final DiagramModel? diagram;
 
-  const _RemoteModelCard({required this.meta, this.diagram});
+  const _RemoteModelCard({required this.meta});
 
-  void _openModel(BuildContext context) {
-    if (diagram == null) return;
+  Future<void> _openModel(BuildContext context) async {
+    // Fetch the diagram lazily (the list is metadata-only for speed).
+    final DiagramModel? diagram;
+    try {
+      diagram = (await DiagramStorage.instance.loadRemote(meta.id)).diagram;
+    } catch (_) {
+      return;
+    }
+    if (diagram == null || !context.mounted) return;
     final ownerName = meta.ownerName;
     final parts = ownerName.split(' ');
     final initials = parts.length >= 2
         ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
         : ownerName.isNotEmpty ? ownerName[0].toUpperCase() : '?';
-    _openPresentation(context, diagram!,
+    _openPresentation(context, diagram,
         title: meta.name,
         meta: meta,
         creator: SampleCreator(
@@ -1330,28 +1318,14 @@ class _RemoteModelCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (diagram != null)
-              _TeaserPreview(
-                diagram: diagram!,
-                thumbnailFileId: meta.thumbnailFileId,
-                width: 160,
-                height: 100,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-              )
-            else
-              Container(
-                width: 160,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(12)),
-                ),
-                child: Center(
-                  child: Icon(Icons.cloud_off, color: Colors.grey[400]),
-                ),
-              ),
+            _TeaserPreview(
+              diagram: null,
+              thumbnailFileId: meta.thumbnailFileId,
+              width: 160,
+              height: 100,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
               child: Text(

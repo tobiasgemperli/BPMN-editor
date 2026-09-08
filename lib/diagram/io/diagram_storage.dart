@@ -285,6 +285,12 @@ class DiagramStorage {
     return _api.listMyModels();
   }
 
+  /// Metadata-only "My Flowcharts" list — a single request, no per-model
+  /// diagram fetch. Diagrams load lazily when a model is opened.
+  Future<List<ApiModelMeta>> listMyModelsMeta() async {
+    return _api.listModelsByOwnerMeta(await _api.currentUserId());
+  }
+
   /// Fetch the models owned by [ownerId] (for the creator profile screen).
   Future<List<ApiModel>> listModelsByOwner(int ownerId) async {
     return _api.listModelsByOwner(ownerId);

@@ -363,6 +363,27 @@ class ApiClient {
     }));
   }
 
+  /// Like [listModelsByOwner] but metadata only — no per-model [getModel], so
+  /// it stays a single request. Diagrams are fetched lazily when a model is
+  /// opened. Powers the fast "My Flowcharts" list.
+  Future<List<ApiModelMeta>> listModelsByOwnerMeta(int ownerId) async {
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/browser/list/'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'ownerid': ownerId}),
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    final list = jsonDecode(response.body) as List;
+    return [
+      for (final e in list)
+        if ((e as Map<String, dynamic>)['OwnerId']?.toString() ==
+            ownerId.toString())
+          ApiModelMeta.fromJson(e),
+    ];
+  }
+
   /// Get a single model by ID, including its BpmnXml.
   Future<ApiModel> getModel(String id) async {
     final response = await _client.get(
