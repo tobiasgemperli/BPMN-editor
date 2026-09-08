@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
 import '../model/diagram_model.dart';
@@ -28,6 +29,10 @@ class ApiModelMeta {
   final List<String> sources;
   final List<String> categories;
 
+  /// Id of the model's custom thumbnail file (served at `/files/file/{id}`),
+  /// or empty when the model has no uploaded thumbnail.
+  final String thumbnailFileId;
+
   ApiModelMeta({
     required this.id,
     required this.name,
@@ -39,6 +44,7 @@ class ApiModelMeta {
     required this.keywords,
     required this.sources,
     required this.categories,
+    this.thumbnailFileId = '',
   });
 
   factory ApiModelMeta.fromJson(Map<String, dynamic> json) => ApiModelMeta(
@@ -54,6 +60,7 @@ class ApiModelMeta {
         keywords: _stringList(json['Keywords']),
         sources: _stringList(json['Sources']),
         categories: _stringList(json['Categories']),
+        thumbnailFileId: (json['ThumbnailFileId'] as String?) ?? '',
       );
 
   static List<String> _stringList(dynamic v) =>
@@ -393,6 +400,7 @@ class ApiClient {
     List<String> keywords = const [],
     List<String> sources = const [],
     List<String> categories = const [],
+    String? thumbnailFileId,
   }) async {
     final bpmnXml = _serializer.serialize(diagram);
     final body = {
@@ -401,6 +409,8 @@ class ApiClient {
       if (keywords.isNotEmpty) 'Keywords': keywords,
       if (sources.isNotEmpty) 'Sources': sources,
       if (categories.isNotEmpty) 'Categories': categories,
+      if (thumbnailFileId != null && thumbnailFileId.isNotEmpty)
+        'ThumbnailFileId': thumbnailFileId,
     };
     final response = await _client.post(
       Uri.parse('$_baseUrl/browser/savemodel'),
@@ -423,6 +433,7 @@ class ApiClient {
     List<String>? keywords,
     List<String>? sources,
     List<String>? categories,
+    String? thumbnailFileId,
   }) async {
     final body = <String, dynamic>{};
     if (name != null) body['Name'] = name;
@@ -431,6 +442,7 @@ class ApiClient {
     if (keywords != null) body['Keywords'] = keywords;
     if (sources != null) body['Sources'] = sources;
     if (categories != null) body['Categories'] = categories;
+    if (thumbnailFileId != null) body['ThumbnailFileId'] = thumbnailFileId;
 
     final response = await _client.put(
       Uri.parse('$_baseUrl/browser/updatemodel/$id'),
@@ -453,5 +465,57 @@ class ApiClient {
     if (response.statusCode != 200) {
       throw ApiException(response.statusCode, response.body);
     }
+  }
+
+  /// Upload [bytes] to the file store and return the assigned file id
+  /// (e.g. "f_x0recF"), which can be used as a model's [ThumbnailFileId] or
+  /// fetched back via [getFileBytes].
+  Future<String> uploadFile(
+    Uint8List bytes, {
+    String filename = 'thumbnail.png',
+    String mime = 'image/png',
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/files/upload'),
+    )
+      ..headers['Authorization'] = _authHeader
+      ..files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: MediaType.parse(mime),
+      ));
+    final response =
+        await http.Response.fromStream(await _client.send(request));
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final fileId = json['Id'] as String?;
+    if (fileId == null || fileId.isEmpty) {
+      throw ApiException(response.statusCode, 'no file id in upload response');
+    }
+    return fileId;
+  }
+
+  final Map<String, Future<Uint8List?>> _fileCache = {};
+
+  /// Bytes of the stored file [fileId] (served at `/files/file/{id}`), or null
+  /// when the id is empty or the fetch fails. Cached per id.
+  Future<Uint8List?> getFileBytes(String fileId) {
+    if (fileId.isEmpty) return Future.value(null);
+    return _fileCache.putIfAbsent(fileId, () async {
+      try {
+        final response = await _client.get(
+          Uri.parse('$_baseUrl/files/file/$fileId'),
+          headers: _headers,
+        );
+        if (response.statusCode != 200) return null;
+        return response.bodyBytes;
+      } catch (_) {
+        return null;
+      }
+    });
   }
 }

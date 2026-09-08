@@ -899,15 +899,48 @@ class _TeaserPreview extends StatelessWidget {
   final double height;
   final BorderRadius borderRadius;
 
+  /// When set, the model's stored thumbnail (`ThumbnailFileId`) is shown in
+  /// preference to the content teaser or the live mini-render.
+  final String? thumbnailFileId;
+
   const _TeaserPreview({
     required this.diagram,
     required this.width,
     required this.height,
     required this.borderRadius,
+    this.thumbnailFileId,
   });
 
   @override
   Widget build(BuildContext context) {
+    // 1. Prefer the stored thumbnail image, if any.
+    final fileId = thumbnailFileId;
+    if (fileId != null && fileId.isNotEmpty) {
+      return FutureBuilder<Uint8List?>(
+        future: ApiClient.instance.getFileBytes(fileId),
+        builder: (context, snap) {
+          if (snap.data != null) {
+            return ClipRRect(
+              borderRadius: borderRadius,
+              child: Image.memory(
+                snap.data!,
+                width: width,
+                height: height,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _teaserOrFallback(),
+              ),
+            );
+          }
+          // Still loading, or fetch failed → fall back to the live preview.
+          return _teaserOrFallback();
+        },
+      );
+    }
+    return _teaserOrFallback();
+  }
+
+  // 2. Content teaser image, else 3. the live diagram mini-render.
+  Widget _teaserOrFallback() {
     final teaser = _findTeaserImage(diagram);
     if (teaser != null && teaser.startsWith('assets/')) {
       return ClipRRect(
@@ -1174,6 +1207,7 @@ class _MyModelCard extends StatelessWidget {
             if (diagram != null)
               _TeaserPreview(
                 diagram: diagram,
+                thumbnailFileId: model.meta.thumbnailFileId,
                 width: 160,
                 height: 100,
                 borderRadius:
@@ -1299,6 +1333,7 @@ class _RemoteModelCard extends StatelessWidget {
             if (diagram != null)
               _TeaserPreview(
                 diagram: diagram!,
+                thumbnailFileId: meta.thumbnailFileId,
                 width: 160,
                 height: 100,
                 borderRadius:

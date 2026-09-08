@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../diagram/io/api_client.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
@@ -862,6 +863,15 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
       TextEditingController(text: widget.meta.categories.join(', '));
   bool _saving = false;
 
+  final _picker = ImagePicker();
+  // Current thumbnail file id (null = none). Starts from the model, updates
+  // after a custom upload.
+  late String? _thumbnailFileId =
+      widget.meta.thumbnailFileId.isEmpty ? null : widget.meta.thumbnailFileId;
+  // Locally-picked bytes shown as an immediate preview before/after upload.
+  Uint8List? _thumbPreview;
+  bool _thumbBusy = false;
+
   @override
   void dispose() {
     _name.dispose();
@@ -875,6 +885,41 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
   List<String> _parseList(String s) =>
       s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
+  /// Pick a custom image from the gallery and upload it as this model's
+  /// thumbnail. Shows a local preview immediately; the id is persisted on Save.
+  Future<void> _pickThumbnail() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _thumbPreview = bytes;
+      _thumbBusy = true;
+    });
+    try {
+      final mime = picked.mimeType ??
+          (picked.name.toLowerCase().endsWith('.png')
+              ? 'image/png'
+              : 'image/jpeg');
+      final fileId = await ApiClient.instance
+          .uploadFile(bytes, filename: picked.name, mime: mime);
+      if (!mounted) return;
+      setState(() {
+        _thumbnailFileId = fileId;
+        _thumbBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _thumbBusy = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Thumbnail upload failed: $e')));
+    }
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
@@ -885,6 +930,8 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
         keywords: _parseList(_keywords.text),
         sources: _parseList(_sources.text),
         categories: _parseList(_relations.text),
+        // '' explicitly clears a removed thumbnail; a real id sets it.
+        thumbnailFileId: _thumbnailFileId ?? '',
       );
       if (mounted) Navigator.pop(context, updated);
     } catch (e) {
@@ -958,6 +1005,7 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _thumbnailSection(),
                     _field('Name', _name),
                     _field('Description', _description, maxLines: 4),
                     _field('Keywords', _keywords, hint: 'comma-separated'),
@@ -970,6 +1018,96 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _thumbnailSection() {
+    Widget preview;
+    if (_thumbPreview != null) {
+      preview = Image.memory(_thumbPreview!, fit: BoxFit.cover);
+    } else if (_thumbnailFileId != null) {
+      preview = FutureBuilder<Uint8List?>(
+        future: ApiClient.instance.getFileBytes(_thumbnailFileId!),
+        builder: (context, snap) => snap.data != null
+            ? Image.memory(snap.data!, fit: BoxFit.cover)
+            : const ColoredBox(color: Color(0xFFF2F4F7)),
+      );
+    } else {
+      preview = const ColoredBox(
+        color: Color(0xFFF2F4F7),
+        child: Icon(Icons.image_outlined, color: Colors.black26),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Thumbnail',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[600])),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 96,
+                  height: 72,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      preview,
+                      if (_thumbBusy)
+                        const ColoredBox(
+                          color: Color(0x66000000),
+                          child: Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _thumbBusy ? null : _pickThumbnail,
+                      icon: const Icon(Icons.upload, size: 18),
+                      label: Text(_thumbnailFileId == null
+                          ? 'Upload custom image'
+                          : 'Replace image'),
+                    ),
+                    if (_thumbnailFileId != null && !_thumbBusy)
+                      TextButton(
+                        onPressed: () => setState(() {
+                          _thumbnailFileId = null;
+                          _thumbPreview = null;
+                        }),
+                        child: const Text('Remove'),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Leave empty to auto-generate from the diagram on save.',
+            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+          ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../model/diagram_model.dart';
+import '../render/diagram_rasterizer.dart';
 import 'api_client.dart';
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
@@ -167,9 +168,25 @@ class DiagramStorage {
         await _saveIndex();
       }
       _setSyncStatus(meta.id, SyncStatus.synced);
+      // Refresh the stored thumbnail so cards don't have to re-render the
+      // diagram. Best-effort: a thumbnail failure must not fail the save.
+      await _syncThumbnail(meta.remoteId!, diagram);
     } catch (e) {
       debugPrint('DiagramStorage: server sync failed: $e');
       _setSyncStatus(meta.id, SyncStatus.failed);
+    }
+  }
+
+  /// Rasterize [diagram], upload it, and set it as the model's thumbnail.
+  /// Swallows all errors — this is a non-critical enhancement to the save.
+  Future<void> _syncThumbnail(String remoteId, DiagramModel diagram) async {
+    try {
+      final png = await rasterizeDiagramPng(diagram);
+      if (png == null) return;
+      final fileId = await _api.uploadFile(png);
+      await _api.updateModel(remoteId, thumbnailFileId: fileId);
+    } catch (e) {
+      debugPrint('DiagramStorage: thumbnail sync failed: $e');
     }
   }
 
