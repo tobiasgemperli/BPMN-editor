@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../diagram/io/api_client.dart';
+import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -871,6 +872,9 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
   // Locally-picked bytes shown as an immediate preview before/after upload.
   Uint8List? _thumbPreview;
   bool _thumbBusy = false;
+  // null = thumbnail untouched this session; true = user set a custom image;
+  // false = user removed it. Persisted on save so auto-regen respects it.
+  bool? _customThumbIntent;
 
   @override
   void dispose() {
@@ -910,6 +914,7 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
       if (!mounted) return;
       setState(() {
         _thumbnailFileId = fileId;
+        _customThumbIntent = true; // user-set → protect from auto-regen
         _thumbBusy = false;
       });
     } catch (e) {
@@ -933,6 +938,12 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
         // '' explicitly clears a removed thumbnail; a real id sets it.
         thumbnailFileId: _thumbnailFileId ?? '',
       );
+      // Persist whether this thumbnail is user-set so auto-regen on diagram
+      // edits won't overwrite a custom image (or resumes if it was removed).
+      if (_customThumbIntent != null) {
+        await DiagramStorage.instance
+            .setCustomThumbnail(widget.meta.id, _customThumbIntent!);
+      }
       if (mounted) Navigator.pop(context, updated);
     } catch (e) {
       if (!mounted) return;
@@ -1094,6 +1105,7 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
                         onPressed: () => setState(() {
                           _thumbnailFileId = null;
                           _thumbPreview = null;
+                          _customThumbIntent = false; // allow auto-regen again
                         }),
                         child: const Text('Remove'),
                       ),

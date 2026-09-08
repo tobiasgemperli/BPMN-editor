@@ -181,12 +181,51 @@ class DiagramStorage {
   /// Swallows all errors — this is a non-critical enhancement to the save.
   Future<void> _syncThumbnail(String remoteId, DiagramModel diagram) async {
     try {
+      // Never overwrite a user-set custom thumbnail with an auto-render.
+      if (await isCustomThumbnail(remoteId)) return;
       final png = await rasterizeDiagramPng(diagram);
       if (png == null) return;
       final fileId = await _api.uploadFile(png);
       await _api.updateModel(remoteId, thumbnailFileId: fileId);
     } catch (e) {
       debugPrint('DiagramStorage: thumbnail sync failed: $e');
+    }
+  }
+
+  // ── Custom thumbnails ──────────────────────────────────────────
+  // Remote model ids whose thumbnail was set by the user (a custom image),
+  // persisted so auto-generation on save never overwrites them.
+  Set<String>? _customThumbs;
+
+  File _customThumbsFile(Directory dir) =>
+      File('${dir.path}/_custom_thumbs.json');
+
+  Future<Set<String>> _loadCustomThumbs() async {
+    if (_customThumbs != null) return _customThumbs!;
+    try {
+      final file = _customThumbsFile(await _getDir());
+      if (await file.exists()) {
+        final list = jsonDecode(await file.readAsString()) as List;
+        return _customThumbs = list.map((e) => e.toString()).toSet();
+      }
+    } catch (_) {
+      // Corrupt/missing file — start fresh.
+    }
+    return _customThumbs = <String>{};
+  }
+
+  /// Whether [remoteId]'s thumbnail was set by the user (a custom image).
+  Future<bool> isCustomThumbnail(String remoteId) async =>
+      (await _loadCustomThumbs()).contains(remoteId);
+
+  /// Record whether [remoteId] has a user-set custom thumbnail. When true,
+  /// auto-generation on save will skip it.
+  Future<void> setCustomThumbnail(String remoteId, bool custom) async {
+    final set = await _loadCustomThumbs();
+    final changed = custom ? set.add(remoteId) : set.remove(remoteId);
+    if (changed) {
+      await _customThumbsFile(await _getDir())
+          .writeAsString(jsonEncode(set.toList()));
     }
   }
 
