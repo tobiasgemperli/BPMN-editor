@@ -817,12 +817,18 @@ class EditorController extends ChangeNotifier {
 
     // ── 1. Longest-path layering (push nodes as deep as possible) ──
     final layer = <String, int>{};
+    final onPath = <String>{};
     void assignLayer(String id, int depth) {
       if (layer.containsKey(id) && layer[id]! >= depth) return;
+      // Cycle guard: if this node is already on the current DFS path, following
+      // it again is a back-edge — skip it so cyclic graphs don't recurse
+      // forever. Acyclic graphs are unaffected.
+      if (!onPath.add(id)) return;
       layer[id] = depth;
       for (final kid in childMap[id] ?? <String>[]) {
         assignLayer(kid, depth + 1);
       }
+      onPath.remove(id);
     }
     for (final root in roots) {
       assignLayer(root, 0);

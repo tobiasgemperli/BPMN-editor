@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
-import 'node_graph.dart';
 import '../model/diagram_model.dart';
 
 const _baseUrl = 'https://odoules.pfn.cz/rest2';
@@ -371,8 +370,8 @@ class ApiClient {
   }
 
   /// Build an [ApiModel] from a model JSON object (as returned by getmodel or
-  /// inline in the list response). Parses BpmnXml first, falling back to the
-  /// legacy Nodes flow format.
+  /// inline in the list response). Reads BpmnXml only; the legacy Nodes flow
+  /// format is no longer consulted (all models are migrated to BpmnXml).
   ApiModel _modelFromJson(Map<String, dynamic> json) {
     final meta = ApiModelMeta.fromJson(json);
     final bpmnXml = json['BpmnXml'] as String?;
@@ -383,11 +382,6 @@ class ApiClient {
       } catch (_) {
         // If XML is malformed, return null diagram.
       }
-    }
-    // Legacy models carry no BpmnXml — reconstruct from the Nodes flow format.
-    if (diagram == null && json['Nodes'] is List) {
-      final built = diagramFromNodes(json['Nodes'] as List);
-      if (built.nodes.isNotEmpty) diagram = built;
     }
     return ApiModel(meta: meta, bpmnXml: bpmnXml, diagram: diagram);
   }
