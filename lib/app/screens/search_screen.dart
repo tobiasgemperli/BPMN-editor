@@ -386,6 +386,42 @@ class _RemoteResultCard extends StatefulWidget {
 class _RemoteResultCardState extends State<_RemoteResultCard> {
   bool _pressed = false;
 
+  /// Preview: prefer the model's stored thumbnail, falling back to the live
+  /// mini-process-map, then a cloud placeholder.
+  Widget _preview(DiagramModel? diagram) {
+    final fileId = widget.model.thumbnailFileId;
+    if (fileId.isNotEmpty) {
+      return FutureBuilder<Uint8List?>(
+        future: ApiClient.instance.getFileBytes(fileId),
+        builder: (context, snap) {
+          if (snap.data != null) {
+            return Image.memory(snap.data!,
+                width: 90, height: 96, fit: BoxFit.cover);
+          }
+          return _miniOrPlaceholder(diagram);
+        },
+      );
+    }
+    return _miniOrPlaceholder(diagram);
+  }
+
+  Widget _miniOrPlaceholder(DiagramModel? diagram) {
+    if (diagram != null) {
+      return Center(
+        child: MiniProcessMap(
+          steps: diagram.nodes.values.toList(),
+          diagram: diagram,
+          currentNodeId: '',
+          backgroundColor: const Color(0xFFE8EAF6),
+          showShadow: false,
+        ),
+      );
+    }
+    return const Center(
+      child: Icon(Icons.cloud_outlined, color: Color(0xFF9FA8DA), size: 28),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = widget.model;
@@ -447,19 +483,7 @@ class _RemoteResultCardState extends State<_RemoteResultCard> {
                   width: 90,
                   height: 96,
                   color: const Color(0xFFE8EAF6),
-                  child: diagram != null
-                      ? Center(
-                          child: MiniProcessMap(
-                            steps: diagram.nodes.values.toList(),
-                            diagram: diagram,
-                            currentNodeId: '',
-                            backgroundColor: const Color(0xFFE8EAF6),
-                            showShadow: false,
-                          ),
-                        )
-                      : const Center(
-                          child: Icon(Icons.cloud_outlined,
-                              color: Color(0xFF9FA8DA), size: 28)),
+                  child: _preview(diagram),
                 ),
               ),
               Expanded(
