@@ -1044,11 +1044,11 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Thumbnail',
+          const Text('Thumbnail',
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[600])),
+                  color: Color(0xFF1C1C1E))),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -1105,7 +1105,7 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
           const SizedBox(height: 4),
           Text(
             'Leave empty to auto-generate from the diagram on save.',
-            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 11, color: Colors.grey[700]),
           ),
         ],
       ),
@@ -1120,10 +1120,10 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: TextStyle(
+              style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[600])),
+                  color: Color(0xFF1C1C1E))),
           const SizedBox(height: 6),
           TextField(
             controller: c,
