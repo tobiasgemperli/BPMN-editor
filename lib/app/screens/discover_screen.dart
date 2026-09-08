@@ -1651,11 +1651,15 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
     final ownerId = _ownerId;
     if (profile == null || ownerId == null || _followBusy) return;
     final wasFollowing = profile.isFollowedByMe;
+    // Never let the optimistic count go negative: the server's FollowerCount
+    // can be stale, so an unfollow from a starting value of 0 must floor at 0
+    // rather than show "-1 followers".
+    final nextCount = profile.followerCount + (wasFollowing ? -1 : 1);
     setState(() {
       _followBusy = true;
       _profile = profile.copyWith(
         isFollowedByMe: !wasFollowing,
-        followerCount: profile.followerCount + (wasFollowing ? -1 : 1),
+        followerCount: nextCount < 0 ? 0 : nextCount,
       );
     });
     try {
