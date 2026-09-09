@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/io/api_client.dart';
 import '../../diagram/io/bpmn_serializer.dart';
@@ -59,7 +60,8 @@ class _EditorScreenState extends State<EditorScreen>
   late String _title;
   Timer? _autosaveTimer;
   bool _dirty = false;
-  Map<String, ui.Image> _screenImages = {};
+  Map<String, List<ui.Image>> _screenImages = {};
+  Map<String, ui.Image> _videoThumbs = {};
   bool _loadingImages = false;
 
   bool get _isOwner => widget.role == DiagramRole.owner;
@@ -122,37 +124,78 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _loadScreenImages() async {
     if (_loadingImages) return;
     _loadingImages = true;
-    final images = <String, ui.Image>{};
+    final images = <String, List<ui.Image>>{};
+    final videoThumbs = <String, ui.Image>{};
     for (final node in _controller.diagram.nodes.values) {
       final content = node.content;
       if (content == null) continue;
-      final path = content.imagePath;
-      if (path == null) continue;
-      try {
-        // Resolve the image bytes from the backend (remote:), a bundled asset,
-        // or a device-local file.
-        Uint8List? bytes;
-        if (MediaRef.isRemote(path)) {
-          bytes = await ApiClient.instance.getFileBytes(MediaRef.fileId(path));
-        } else if (path.startsWith('assets/')) {
-          bytes = (await rootBundle.load(path)).buffer.asUint8List();
-        } else {
-          final file = File(path);
-          if (await file.exists()) bytes = await file.readAsBytes();
-        }
-        if (bytes == null) continue;
-        final codec = await ui.instantiateImageCodec(bytes);
-        final frame = await codec.getNextFrame();
-        images[node.id] = frame.image;
-      } catch (_) {
-        // Skip failed image loads.
+      // All content images (in order).
+      final decoded = <ui.Image>[];
+      for (final path in content.imagePaths) {
+        final img = await _decodeMedia(path);
+        if (img != null) decoded.add(img);
+      }
+      if (decoded.isNotEmpty) images[node.id] = decoded;
+      // Video thumbnail (first frame) for the first video.
+      final vpath = content.videoPath;
+      if (vpath != null) {
+        final thumb = await _loadVideoThumb(vpath);
+        if (thumb != null) videoThumbs[node.id] = thumb;
       }
     }
     if (mounted) {
       setState(() {
         _screenImages = images;
+        _videoThumbs = videoThumbs;
         _loadingImages = false;
       });
+    }
+  }
+
+  /// Decode an image [path] (backend remote:, bundled asset, or local file).
+  Future<ui.Image?> _decodeMedia(String path) async {
+    try {
+      Uint8List? bytes;
+      if (MediaRef.isRemote(path)) {
+        bytes = await ApiClient.instance.getFileBytes(MediaRef.fileId(path));
+      } else if (path.startsWith('assets/')) {
+        bytes = (await rootBundle.load(path)).buffer.asUint8List();
+      } else {
+        final file = File(path);
+        if (await file.exists()) bytes = await file.readAsBytes();
+      }
+      if (bytes == null) return null;
+      final frame = await (await ui.instantiateImageCodec(bytes)).getNextFrame();
+      return frame.image;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Extract a poster frame from a video [path] (remote URL or local file).
+  Future<ui.Image?> _loadVideoThumb(String path) async {
+    try {
+      String? source;
+      Map<String, String>? headers;
+      if (MediaRef.isRemote(path)) {
+        source = ApiClient.instance.mediaUrl(MediaRef.fileId(path));
+        headers = ApiClient.instance.mediaHeaders;
+      } else if (!path.startsWith('assets/')) {
+        if (await File(path).exists()) source = path;
+      }
+      if (source == null) return null;
+      final data = await VideoThumbnail.thumbnailData(
+        video: source,
+        headers: headers,
+        imageFormat: ImageFormat.PNG,
+        maxWidth: 160,
+        quality: 60,
+      );
+      if (data == null) return null;
+      final frame = await (await ui.instantiateImageCodec(data)).getNextFrame();
+      return frame.image;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -331,6 +374,9 @@ class _EditorScreenState extends State<EditorScreen>
             readOnly: !_isOwner,
             screenImages: _controller.viewMode == ViewMode.ui
                 ? _screenImages
+                : null,
+            videoThumbs: _controller.viewMode == ViewMode.ui
+                ? _videoThumbs
                 : null,
             onScreenTap: _openScreenDetail,
           ),

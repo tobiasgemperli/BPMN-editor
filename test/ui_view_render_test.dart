@@ -47,7 +47,7 @@ void main() {
         rect: const Rect.fromLTWH(638, 626, 140, 70),
         content: TaskContent(
             text: 'Do 5 minutes of light cardio to prepare.',
-            imagePaths: ['assets/x.png'],
+            imagePaths: ['assets/1.png', 'assets/2.png', 'assets/3.png'],
             displayMode: ContentDisplayMode.mixed));
     d.nodes['b'] = NodeModel(
         id: 'b',
@@ -75,7 +75,12 @@ void main() {
     // Decoded content images with distinct aspect ratios to verify contain-fit.
     final landscape = await _solidImage(160, 90, const Color(0xFF4C9AFF)); // 16:9
     final portrait = await _solidImage(90, 160, const Color(0xFFFF6B6B)); // 9:16
-    final images = {'a': landscape, 's': portrait};
+    final square = await _solidImage(120, 120, const Color(0xFF34C759));
+    final images = {
+      'a': [landscape, portrait, square], // multiple images (mixed) → row
+      's': [portrait],
+    };
+    final videoThumbs = {'b': landscape}; // video poster thumbnail
 
     const size = Size(820, 860);
     final rec = ui.PictureRecorder();
@@ -86,7 +91,8 @@ void main() {
     canvas.translate(size.width / 2, size.height / 2);
     canvas.scale(0.44);
     canvas.translate(-2578.0, -2296.0);
-    DiagramPainter(c, screenImages: images).paint(canvas, size);
+    DiagramPainter(c, screenImages: images, videoThumbs: videoThumbs)
+        .paint(canvas, size);
     final img =
         await rec.endRecording().toImage(size.width.toInt(), size.height.toInt());
     final data = await img.toByteData(format: ui.ImageByteFormat.png);

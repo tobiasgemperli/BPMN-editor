@@ -9,7 +9,12 @@ import 'merge_bar.dart';
 /// Custom painter that draws the entire BPMN diagram on a canvas.
 class DiagramPainter extends CustomPainter {
   final EditorController controller;
-  final Map<String, ui.Image>? screenImages;
+
+  /// Decoded content images per node (in order), for the UI-view replicas.
+  final Map<String, List<ui.Image>>? screenImages;
+
+  /// Decoded video poster/thumbnail per node, for the UI-view replicas.
+  final Map<String, ui.Image>? videoThumbs;
 
   // UI mode node dimensions (portrait phone screen).
   static const double _uiScreenWidth = 100.0;
@@ -98,7 +103,8 @@ class DiagramPainter extends CustomPainter {
     ..color = const Color(0xFF333333)
     ..style = PaintingStyle.fill;
 
-  DiagramPainter(this.controller, {this.screenImages}) : super(repaint: controller);
+  DiagramPainter(this.controller, {this.screenImages, this.videoThumbs})
+      : super(repaint: controller);
 
   /// Offset that shifts diagram coordinates into the widget's local space.
   /// Must match [_DiagramCanvasState._canvasOffset].
@@ -470,7 +476,8 @@ class DiagramPainter extends CustomPainter {
       return;
     }
 
-    final img = screenImages?[node.id];
+    final imgs = screenImages?[node.id] ?? const <ui.Image>[];
+    final vthumb = videoThumbs?[node.id];
     final mode = content?.displayMode ?? ContentDisplayMode.mixed;
     final hasImage = content?.imagePaths.isNotEmpty ?? false;
     final hasVideo = content?.videoPaths.isNotEmpty ?? false;
@@ -478,15 +485,14 @@ class DiagramPainter extends CustomPainter {
         (content?.links.isNotEmpty ?? false) ||
         (content?.pdfPaths.isNotEmpty ?? false);
 
-    // Image mode: the whole screen shows the image contained (BoxFit.contain
-    // in _buildImageFull — the entire image, never cropped).
+    // Image mode: the whole screen shows the (first) image contained.
     if (mode == ContentDisplayMode.image && hasImage) {
-      _drawMiniImage(canvas, area, img);
+      _drawMiniImage(canvas, area, imgs.isNotEmpty ? imgs.first : null);
       return;
     }
-    // Video mode: full-screen video.
+    // Video mode: full-screen video thumbnail.
     if (mode == ContentDisplayMode.video && hasVideo) {
-      _drawMiniVideo(canvas, area, img);
+      _drawMiniVideo(canvas, area, vthumb);
       return;
     }
 
@@ -509,16 +515,36 @@ class DiagramPainter extends CustomPainter {
       bottom -= h + area.height * 0.035;
     }
     if (hasImage || hasVideo) {
-      // The real card constrains media to maxHeight 150 (~30% of the card).
+      // The real card constrains media to maxHeight 150 (~30% of the card),
+      // laid out as a row of thumbnails (multiple images + a video).
       final boxH = (area.height * 0.30).clamp(0.0, bottom - top);
       if (boxH > 4) {
         final box = Rect.fromLTWH(area.left, bottom - boxH, area.width, boxH);
-        if (hasImage) {
-          _drawMiniImage(canvas, box, img, anchorBottom: true);
-        } else {
-          _drawMiniVideo(canvas, box, img);
-        }
+        _drawMiniMediaRow(canvas, box, imgs, hasVideo ? vthumb : null, hasVideo);
       }
+    }
+  }
+
+  /// Lays out image thumbnails (contain) and an optional video cell (cover +
+  /// play) in a bottom row, like the real card's Wrap of media thumbnails.
+  void _drawMiniMediaRow(Canvas canvas, Rect box, List<ui.Image> imgs,
+      ui.Image? vthumb, bool hasVideo) {
+    final count = (imgs.length + (hasVideo ? 1 : 0)).clamp(1, 4);
+    const gap = 2.0;
+    final cellW = (box.width - gap * (count - 1)) / count;
+    if (cellW <= 1) return;
+    var x = box.left;
+    var placed = 0;
+    for (var i = 0; i < imgs.length && placed < count; i++) {
+      _drawMiniImage(canvas, Rect.fromLTWH(x, box.top, cellW, box.height),
+          imgs[i],
+          anchorBottom: true);
+      x += cellW + gap;
+      placed++;
+    }
+    if (hasVideo && placed < count) {
+      _drawMiniVideo(
+          canvas, Rect.fromLTWH(x, box.top, cellW, box.height), vthumb);
     }
   }
 

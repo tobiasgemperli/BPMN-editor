@@ -11,7 +11,8 @@ class DiagramCanvas extends StatefulWidget {
   final EditorController controller;
   final TransformationController transformationController;
   final bool readOnly;
-  final Map<String, ui.Image>? screenImages;
+  final Map<String, List<ui.Image>>? screenImages;
+  final Map<String, ui.Image>? videoThumbs;
 
   /// Called in UI mode when a screen is tapped, with the node id — used to
   /// open that screen's detail.
@@ -23,6 +24,7 @@ class DiagramCanvas extends StatefulWidget {
     required this.transformationController,
     this.readOnly = false,
     this.screenImages,
+    this.videoThumbs,
     this.onScreenTap,
   });
 
@@ -310,7 +312,8 @@ class _DiagramCanvasState extends State<DiagramCanvas>
         child: RepaintBoundary(
           child: CustomPaint(
             painter: DiagramPainter(widget.controller,
-                screenImages: widget.screenImages),
+                screenImages: widget.screenImages,
+                videoThumbs: widget.videoThumbs),
             size: canvasSize,
           ),
         ),
