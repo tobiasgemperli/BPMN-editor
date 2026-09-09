@@ -21,7 +21,6 @@ class _SearchScreenState extends State<SearchScreen> {
   String _query = '';
 
   List<ApiModelMeta> _remoteModels = [];
-  final Map<String, DiagramModel> _remoteDiagrams = {};
   bool _remoteLoading = false;
 
   /// Include hardcoded SampleDiagrams in the results. Disabled so search only
@@ -35,30 +34,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _refresh() async {
-    _remoteDiagrams.clear();
     await _loadRemote();
   }
 
   Future<void> _loadRemote() async {
     setState(() => _remoteLoading = true);
     try {
+      // Metadata only — one request. Diagrams load lazily when a result opens.
       final models = await DiagramStorage.instance.listRemote();
-      final results = await Future.wait(
-        models.map((m) async {
-          try {
-            final full = await DiagramStorage.instance.loadRemote(m.id);
-            if (full.diagram != null) {
-              _remoteDiagrams[m.id] = full.diagram!;
-              return m;
-            }
-            return null;
-          } catch (_) {
-            return null;
-          }
-        }),
-      );
-      final valid = results.whereType<ApiModelMeta>().toList();
-      if (mounted) setState(() => _remoteModels = valid);
+      if (mounted) setState(() => _remoteModels = models);
     } catch (_) {
       // Server unavailable — keep empty list.
     } finally {
@@ -175,12 +159,8 @@ class _SearchScreenState extends State<SearchScreen> {
                               itemBuilder: (context, i) {
                                 // Remote results first, then samples.
                                 if (i < filteredRemote.length) {
-                                  final model = filteredRemote[i];
-                                  final diagram = _remoteDiagrams[model.id];
                                   return _RemoteResultCard(
-                                    model: model,
-                                    diagram: diagram,
-                                  );
+                                      model: filteredRemote[i]);
                                 }
                                 final entry =
                                     filteredSamples[i - filteredRemote.length];
@@ -375,9 +355,8 @@ String? _findTeaserImage(DiagramModel diagram) {
 
 class _RemoteResultCard extends StatefulWidget {
   final ApiModelMeta model;
-  final DiagramModel? diagram;
 
-  const _RemoteResultCard({required this.model, this.diagram});
+  const _RemoteResultCard({required this.model});
 
   @override
   State<_RemoteResultCard> createState() => _RemoteResultCardState();
@@ -422,42 +401,54 @@ class _RemoteResultCardState extends State<_RemoteResultCard> {
     );
   }
 
+  Future<void> _open() async {
+    final model = widget.model;
+    final DiagramModel? diagram;
+    try {
+      diagram = (await DiagramStorage.instance.loadRemote(model.id)).diagram;
+    } catch (_) {
+      return;
+    }
+    if (diagram == null || !mounted) return;
+    final loaded = diagram;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PresentationScreen(
+          diagram: loaded,
+          title: model.name,
+          role: DiagramRole.viewer,
+          creator: SampleCreator(
+            id: model.ownerId,
+            name: model.ownerName,
+            initials: _initials(model.ownerName),
+            colorValue: 0xFF6C63FF,
+            bio: '',
+            followers: 0,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = widget.model;
-    final diagram = widget.diagram;
-    final stepCount = diagram?.nodes.values
-            .where((n) => n.type == NodeType.task)
-            .length ??
-        0;
+    const stepCount = 0; // diagram loads lazily on open
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
         setState(() => _pressed = false);
-        if (diagram != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PresentationScreen(
-                diagram: diagram,
-                title: model.name,
-                role: DiagramRole.viewer,
-                creator: SampleCreator(
-                  id: model.ownerId,
-                  name: model.ownerName,
-                  initials: _initials(model.ownerName),
-                  colorValue: 0xFF6C63FF,
-                  bio: '',
-                  followers: 0,
-                ),
-              ),
-            ),
-          );
-        }
+        _open();
       },
       onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedOpacity(
+      child: _cardBody(model, stepCount),
+    );
+  }
+
+  Widget _cardBody(ApiModelMeta model, int stepCount) {
+    return AnimatedOpacity(
         opacity: _pressed ? 0.5 : 1.0,
         duration: const Duration(milliseconds: 100),
         child: Container(
@@ -483,7 +474,7 @@ class _RemoteResultCardState extends State<_RemoteResultCard> {
                   width: 90,
                   height: 96,
                   color: const Color(0xFFE8EAF6),
-                  child: _preview(diagram),
+                  child: _preview(null),
                 ),
               ),
               Expanded(
@@ -557,7 +548,6 @@ class _RemoteResultCardState extends State<_RemoteResultCard> {
             ],
           ),
         ),
-      ),
     );
   }
 }
