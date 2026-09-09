@@ -35,6 +35,9 @@ Current `GET /user/settings` returns: `id, uname, name, surname, email, phone, r
 - Can `POST /user/settings` accept a new `uname` (with a uniqueness check → `409` if taken)? Or is `uname` immutable by design?
 - Just need a definitive yes/no so the client either offers the field or shows it read-only.
 
+### 2d. Avatar upload format is rejected
+`POST /user/settings` with `thumbnail` = single-base64 of the raw PNG bytes (the encoding the old guide app used) returns **`500 "Program fatal error: invalid thumbnail"`** (verified on the QA account 2026-09-09). Reads are multiply-wrapped base64 (profile `Image` ×2, settings `thumbnail` ×3). **What exact format does the write expect** — a data-URI (`data:image/png;base64,…`), double-base64, a specific size/mime? Please document the accepted thumbnail write format (and ideally accept a plain single base64 or a `/files/upload` file id like models do).
+
 ### 2c. Delete-account endpoint
 - No endpoint exists today. Please add e.g. `DELETE /user/account` (or `POST /user/delete`) that removes the authenticated user (and decides what happens to their models — orphan, transfer, or delete).
 - Needed for app-store compliance (both Apple and Google require in-app account deletion).

@@ -1722,32 +1722,43 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
-                          onPressed:
-                              (_isBackendCreator && _profile != null && !_followBusy)
-                                  ? _toggleFollow
-                                  : null,
-                          style: OutlinedButton.styleFrom(
-                            // "Following" reads as an active state: solid black
-                            // with white text; "Follow" stays outlined.
-                            foregroundColor: (_profile?.isFollowedByMe ?? false)
-                                ? Colors.white
-                                : const Color(0xFF1C1C1E),
-                            backgroundColor: (_profile?.isFollowedByMe ?? false)
-                                ? const Color(0xFF1C1C1E)
+                        child: Builder(builder: (context) {
+                          final following = _profile?.isFollowedByMe ?? false;
+                          final fg = following
+                              ? Colors.white
+                              : const Color(0xFF1C1C1E);
+                          final bg = following ? const Color(0xFF1C1C1E) : null;
+                          return OutlinedButton(
+                            onPressed: (_isBackendCreator &&
+                                    _profile != null &&
+                                    !_followBusy)
+                                ? _toggleFollow
                                 : null,
-                            side: const BorderSide(color: Color(0xFF1C1C1E)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                            style: OutlinedButton.styleFrom(
+                              // "Following" reads as an active state: solid black
+                              // with white text; "Follow" stays outlined. Keep the
+                              // same colors while disabled (busy) so the label
+                              // doesn't vanish during the network call.
+                              foregroundColor: fg,
+                              backgroundColor: bg,
+                              disabledForegroundColor: fg,
+                              disabledBackgroundColor: bg,
+                              side: const BorderSide(color: Color(0xFF1C1C1E)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            (_profile?.isFollowedByMe ?? false)
-                                ? 'Following'
-                                : 'Follow',
-                          ),
-                        ),
+                            child: _followBusy
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: fg),
+                                  )
+                                : Text(following ? 'Following' : 'Follow'),
+                          );
+                        }),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
