@@ -670,6 +670,12 @@ class ApiClient {
     return fileId;
   }
 
+  /// Full URL of a stored media file — for direct playback (e.g. video).
+  String mediaUrl(String fileId) => '$_baseUrl/files/file/$fileId';
+
+  /// Auth headers for fetching media directly (e.g. network video playback).
+  Map<String, String> get mediaHeaders => {'Authorization': _authHeader};
+
   final Map<String, Future<Uint8List?>> _fileCache = {};
 
   /// Bytes of the stored file [fileId] (served at `/files/file/{id}`), or null

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
+import '../../diagram/io/api_client.dart';
+import '../../diagram/io/media_ref.dart';
 import '../../diagram/model/diagram_model.dart';
 import 'close_circle_button.dart';
 
@@ -809,22 +811,13 @@ class ProcessCard extends StatelessWidget {
 
   // ── Image helpers ───────────────────────────────────────────
 
-  Widget _buildImage(String path, BoxFit fit) {
-    if (imageIsAsset) {
-      return Image.asset(path, fit: fit,
-          errorBuilder: (_, _, _) => _placeholder());
-    }
-    final file = File(path);
-    if (file.existsSync()) {
-      return Image.file(file, fit: fit,
-          errorBuilder: (_, _, _) => _placeholder());
-    }
-    return _placeholder();
-  }
+  Widget _buildImage(String path, BoxFit fit) => _buildImageFromPath(path, fit);
 
   Widget _buildImageFromPath(String path, BoxFit fit) {
-    final isAsset = path.startsWith('assets/');
-    if (isAsset) {
+    if (MediaRef.isRemote(path)) {
+      return _RemoteImage(fileId: MediaRef.fileId(path), fit: fit);
+    }
+    if (path.startsWith('assets/')) {
       return Image.asset(path, fit: fit,
           errorBuilder: (_, _, _) => _placeholder());
     }
@@ -846,8 +839,46 @@ class ProcessCard extends StatelessWidget {
   }
 }
 
+/// Loads an image from the backend file store (`remote:<fileId>`), cached by
+/// [ApiClient]. Shows a spinner while loading and a placeholder on failure.
+class _RemoteImage extends StatelessWidget {
+  final String fileId;
+  final BoxFit fit;
+
+  const _RemoteImage({required this.fileId, required this.fit});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List?>(
+      future: ApiClient.instance.getFileBytes(fileId),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Center(
+                child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
+        final data = snap.data;
+        if (data == null) {
+          return Container(
+            color: Colors.grey[200],
+            child: Center(
+                child: Icon(Icons.broken_image_outlined,
+                    size: 40, color: Colors.grey[600])),
+          );
+        }
+        return Image.memory(data, fit: fit);
+      },
+    );
+  }
+}
+
 /// Plays a video in a loop, filling its parent.
-/// Supports both bundled assets and local file paths.
+/// Supports bundled assets, local file paths, and backend `remote:<fileId>`.
 class _AssetVideoPlayer extends StatefulWidget {
   final String videoPath;
   final Widget child;
@@ -865,9 +896,17 @@ class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    _vController = widget.videoPath.startsWith('/')
-        ? VideoPlayerController.file(File(widget.videoPath))
-        : VideoPlayerController.asset(widget.videoPath);
+    final path = widget.videoPath;
+    if (MediaRef.isRemote(path)) {
+      _vController = VideoPlayerController.networkUrl(
+        Uri.parse(ApiClient.instance.mediaUrl(MediaRef.fileId(path))),
+        httpHeaders: ApiClient.instance.mediaHeaders,
+      );
+    } else if (path.startsWith('/')) {
+      _vController = VideoPlayerController.file(File(path));
+    } else {
+      _vController = VideoPlayerController.asset(path);
+    }
     _vController
       ..setLooping(true)
       ..setVolume(0)
@@ -973,13 +1012,15 @@ class _ImageDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
-    final imageWidget = isAsset
-        ? Image.asset(imagePath, fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => const SizedBox.shrink())
-        : (File(imagePath).existsSync()
-            ? Image.file(File(imagePath), fit: BoxFit.contain,
+    final Widget imageWidget = MediaRef.isRemote(imagePath)
+        ? _RemoteImage(fileId: MediaRef.fileId(imagePath), fit: BoxFit.contain)
+        : isAsset
+            ? Image.asset(imagePath, fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const SizedBox.shrink())
-            : const SizedBox.shrink());
+            : (File(imagePath).existsSync()
+                ? Image.file(File(imagePath), fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink())
+                : const SizedBox.shrink());
 
     return Scaffold(
       backgroundColor: Colors.black,

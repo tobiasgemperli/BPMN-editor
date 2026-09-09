@@ -8,6 +8,7 @@ import '../render/diagram_rasterizer.dart';
 import 'api_client.dart';
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
+import 'media_ref.dart';
 
 /// Sync status for a diagram.
 enum SyncStatus { synced, syncing, failed }
@@ -138,6 +139,11 @@ class DiagramStorage {
       index.insert(0, meta);
     }
 
+    // Upload any new local media to the backend and rewrite the content paths
+    // to remote references, so the saved diagram carries the media (not just
+    // device-local paths). Best-effort — a failed upload keeps the local path.
+    await _uploadContentMedia(diagram);
+
     // Save locally.
     final xml = BpmnSerializer().serialize(diagram);
     await _diagramFile(dir, meta.id).writeAsString(xml);
@@ -189,6 +195,38 @@ class DiagramStorage {
       await _api.updateModel(remoteId, thumbnailFileId: fileId);
     } catch (e) {
       debugPrint('DiagramStorage: thumbnail sync failed: $e');
+    }
+  }
+
+  // ── Content media upload ───────────────────────────────────────
+  /// Upload any device-local images/videos/PDFs in [diagram] to the backend
+  /// file store and rewrite their content paths to `remote:<fileId>` in place,
+  /// so the saved diagram carries the media. Assets and already-remote paths
+  /// are left untouched, so this only uploads each new file once.
+  Future<void> _uploadContentMedia(DiagramModel diagram) async {
+    for (final node in diagram.nodes.values) {
+      final content = node.content;
+      if (content == null) continue;
+      await _uploadMediaList(content.imagePaths, 'image/jpeg');
+      await _uploadMediaList(content.videoPaths, 'video/mp4');
+      await _uploadMediaList(content.pdfPaths, 'application/pdf');
+    }
+  }
+
+  Future<void> _uploadMediaList(List<String> paths, String mime) async {
+    for (var i = 0; i < paths.length; i++) {
+      final path = paths[i];
+      if (!MediaRef.isLocalFile(path)) continue;
+      try {
+        final file = File(path);
+        if (!await file.exists()) continue;
+        final bytes = await file.readAsBytes();
+        final fileId = await _api.uploadFile(bytes,
+            filename: path.split('/').last, mime: mime);
+        paths[i] = MediaRef.encode(fileId);
+      } catch (e) {
+        debugPrint('DiagramStorage: media upload failed for $path: $e');
+      }
     }
   }
 
