@@ -323,7 +323,10 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, child) {
-        final dragging = widget.controller.hasPendingDrag ||
+        // Disable pan/zoom only during an ACTIVE drag or connection — not on a
+        // mere touch on a symbol — so pinch-zoom works even with a finger on a
+        // node.
+        final dragging = widget.controller.isDragging ||
             widget.controller.isConnecting;
         return InteractiveViewer(
           transformationController: widget.transformationController,
