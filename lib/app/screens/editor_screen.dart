@@ -656,7 +656,7 @@ class _ViewModeToggle extends StatelessWidget {
         final mode = controller.viewMode;
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF767680).withValues(alpha: 0.12),
+            color: const Color(0xFFE3E3E8),
             borderRadius: BorderRadius.circular(9),
           ),
           padding: const EdgeInsets.all(2),
