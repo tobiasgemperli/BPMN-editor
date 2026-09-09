@@ -637,37 +637,57 @@ String _formatNumber(int n) {
   return n.toString();
 }
 
-/// Card shown inside the creator profile sheet.
+/// Card shown inside the creator profile sheet. Renders from the stored
+/// thumbnail (metadata only) and fetches the diagram lazily when opened.
 class _ProfileDiagramCard extends StatelessWidget {
+  /// Backend model — renders from the stored thumbnail, diagram fetched lazily.
+  final ApiModelMeta? meta;
+  // Sample entry (hardcoded creators) — diagram provided eagerly.
   final String name;
-  final DiagramModel diagram;
-  final String subtitle;
+  final DiagramModel? diagram;
   final String? teaserImage;
+  final String subtitle;
   final SampleCreator? creator;
 
   const _ProfileDiagramCard({
-    required this.name,
-    required this.diagram,
-    this.subtitle = '',
+    this.meta,
+    this.name = '',
+    this.diagram,
     this.teaserImage,
+    this.subtitle = '',
     this.creator,
   });
+
+  String get _title => meta?.name ?? name;
+
+  Future<void> _open(BuildContext context) async {
+    var d = diagram;
+    if (d == null && meta != null) {
+      try {
+        d = (await DiagramStorage.instance.loadRemote(meta!.id)).diagram;
+      } catch (_) {
+        return;
+      }
+    }
+    final loaded = d;
+    if (loaded == null || !context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PresentationScreen(
+          diagram: loaded,
+          title: _title,
+          meta: meta,
+          creator: creator,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return _Pressable(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PresentationScreen(
-              diagram: diagram,
-              title: name,
-              creator: creator,
-            ),
-          ),
-        );
-      },
+      onTap: () => _open(context),
       child: Container(
         height: 80,
         decoration: BoxDecoration(
@@ -684,7 +704,7 @@ class _ProfileDiagramCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(name,
+                    Text(_title,
                         style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E)),
                         maxLines: 1,
@@ -710,31 +730,42 @@ class _ProfileDiagramCard extends StatelessWidget {
   }
 
   Widget _buildPreview() {
+    const radius = BorderRadius.horizontal(left: Radius.circular(12));
+    // Backend model → stored thumbnail (no diagram needed).
+    if (meta != null) {
+      return _TeaserPreview(
+        diagram: null,
+        thumbnailFileId: meta!.thumbnailFileId,
+        width: 90,
+        height: 80,
+        borderRadius: radius,
+      );
+    }
+    // Sample entry → teaser asset or the diagram mini-render.
     if (teaserImage != null && teaserImage!.startsWith('assets/')) {
       return ClipRRect(
-        borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-        child: Image.asset(
-          teaserImage!,
-          width: 90,
-          height: 80,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _diagramFallback(),
-        ),
+        borderRadius: radius,
+        child: Image.asset(teaserImage!,
+            width: 90,
+            height: 80,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _diagramFallback()),
       );
     }
     return _diagramFallback();
   }
 
   Widget _diagramFallback() {
+    final d = diagram;
     return Container(
       width: 90,
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
       ),
-      child: Center(
-        child: _DiagramThumbnail(diagram: diagram, width: 70, height: 60),
-      ),
+      child: d == null
+          ? null
+          : Center(child: _DiagramThumbnail(diagram: d, width: 70, height: 60)),
     );
   }
 }
@@ -1583,7 +1614,7 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
   late final int? _ownerId = int.tryParse(creator.id);
   bool get _isBackendCreator => _ownerId != null;
 
-  List<ApiModel> _remoteModels = [];
+  List<ApiModelMeta> _remoteModels = [];
   bool _loading = false;
 
   ApiUserProfile? _profile;
@@ -1601,9 +1632,9 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
   Future<void> _loadRemote(int ownerId) async {
     setState(() => _loading = true);
     try {
-      final models = await DiagramStorage.instance.listModelsByOwner(ownerId);
-      final renderable = models.where((m) => m.diagram != null).toList();
-      if (mounted) setState(() => _remoteModels = renderable);
+      // Metadata only — one request; diagrams load lazily when a card opens.
+      final models = await ApiClient.instance.listModelsByOwnerMeta(ownerId);
+      if (mounted) setState(() => _remoteModels = models);
     } catch (_) {
       // Server unavailable — leave the list empty.
     } finally {
@@ -1821,15 +1852,12 @@ class _CreatorProfileScreenState extends State<_CreatorProfileScreen> {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, i) {
-                    final model = _remoteModels[i];
-                    final diagram = model.diagram!;
+                    final meta = _remoteModels[i];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _ProfileDiagramCard(
-                        name: model.meta.name,
-                        diagram: diagram,
-                        subtitle: _subtitle(model.meta.name),
-                        teaserImage: _findTeaserImage(diagram),
+                        meta: meta,
+                        subtitle: _subtitle(meta.name),
                         creator: creator,
                       ),
                     );
