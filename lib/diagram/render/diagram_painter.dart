@@ -529,6 +529,12 @@ class DiagramPainter extends CustomPainter {
   /// play) in a bottom row, like the real card's Wrap of media thumbnails.
   void _drawMiniMediaRow(Canvas canvas, Rect box, List<ui.Image> imgs,
       ui.Image? vthumb, bool hasVideo) {
+    // Media exists but nothing has decoded yet → a single gray placeholder so
+    // the card isn't blank while images load.
+    if (imgs.isEmpty && !hasVideo) {
+      _drawMiniImage(canvas, box, null, anchorBottom: true);
+      return;
+    }
     final count = (imgs.length + (hasVideo ? 1 : 0)).clamp(1, 4);
     const gap = 2.0;
     final cellW = (box.width - gap * (count - 1)) / count;
