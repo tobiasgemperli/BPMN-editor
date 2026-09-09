@@ -21,6 +21,9 @@ class MiniProcessMap extends StatelessWidget {
   /// Use light colors for dark backgrounds.
   final bool darkMode;
 
+  /// Whether to draw the connection lines between steps.
+  final bool showEdges;
+
   const MiniProcessMap({
     super.key,
     required this.steps,
@@ -30,6 +33,7 @@ class MiniProcessMap extends StatelessWidget {
     this.backgroundColor = Colors.white,
     this.showShadow = true,
     this.darkMode = false,
+    this.showEdges = true,
   });
 
   @override
@@ -104,6 +108,7 @@ class MiniProcessMap extends StatelessWidget {
           padding: padding,
           horizontal: horizontal,
           darkMode: darkMode,
+          showEdges: showEdges,
         ),
       ),
     );
@@ -123,6 +128,7 @@ class _MiniFlowPainter extends CustomPainter {
   final double originX, originY, scale, padding;
   final bool horizontal;
   final bool darkMode;
+  final bool showEdges;
 
   _MiniFlowPainter({
     required this.steps,
@@ -134,6 +140,7 @@ class _MiniFlowPainter extends CustomPainter {
     required this.padding,
     required this.horizontal,
     required this.darkMode,
+    required this.showEdges,
   });
 
   Offset _toMapped(Offset diagramCenter) {
@@ -166,25 +173,27 @@ class _MiniFlowPainter extends CustomPainter {
 
     final stepIds = {for (final s in steps) s.id};
 
-    // Draw edges.
-    for (final edge in diagram.edges.values) {
-      if (!stepIds.contains(edge.sourceId) ||
-          !stepIds.contains(edge.targetId)) {
-        continue;
-      }
-      final srcNode = diagram.nodes[edge.sourceId];
-      final tgtNode = diagram.nodes[edge.targetId];
-      if (srcNode == null || tgtNode == null) continue;
+    // Draw edges (unless suppressed, e.g. in a single-symbol detail view).
+    if (showEdges) {
+      for (final edge in diagram.edges.values) {
+        if (!stepIds.contains(edge.sourceId) ||
+            !stepIds.contains(edge.targetId)) {
+          continue;
+        }
+        final srcNode = diagram.nodes[edge.sourceId];
+        final tgtNode = diagram.nodes[edge.targetId];
+        if (srcNode == null || tgtNode == null) continue;
 
-      final points = <Offset>[
-        _toMapped(srcNode.rect.center),
-        if (edge.waypoints.length >= 3)
-          for (int i = 1; i < edge.waypoints.length - 1; i++)
-            _mapWaypoint(edge.waypoints[i]),
-        _toMapped(tgtNode.rect.center),
-      ];
-      for (int i = 0; i < points.length - 1; i++) {
-        canvas.drawLine(points[i], points[i + 1], linePaint);
+        final points = <Offset>[
+          _toMapped(srcNode.rect.center),
+          if (edge.waypoints.length >= 3)
+            for (int i = 1; i < edge.waypoints.length - 1; i++)
+              _mapWaypoint(edge.waypoints[i]),
+          _toMapped(tgtNode.rect.center),
+        ];
+        for (int i = 0; i < points.length - 1; i++) {
+          canvas.drawLine(points[i], points[i + 1], linePaint);
+        }
       }
     }
 

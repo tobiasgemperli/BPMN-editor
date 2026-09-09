@@ -292,6 +292,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
                   steps: _allNodes,
                   diagram: widget.diagram,
                   currentNodeId: _path[safePage].id,
+                  showEdges: false,
                 ),
               ),
             ),
