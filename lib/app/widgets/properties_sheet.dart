@@ -86,7 +86,6 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   // Gateway outgoing edge label controllers.
   final Map<String, TextEditingController> _edgeLabelCtrls = {};
   late List<EdgeModel> _outgoingEdges;
-  late List<EdgeModel> _incomingEdges;
 
   bool get _isGateway => widget.node.type == NodeType.exclusiveGateway;
   bool get _hasContent =>
@@ -145,7 +144,6 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
 
     // Build edge label controllers for gateway nodes.
     _outgoingEdges = widget.controller.diagram.outgoingEdges(widget.node.id);
-    _incomingEdges = widget.controller.diagram.incomingEdges(widget.node.id);
     for (final edge in _outgoingEdges) {
       _edgeLabelCtrls[edge.id] = TextEditingController(text: edge.name);
     }
@@ -178,57 +176,6 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
       ctrl.dispose();
     }
     super.dispose();
-  }
-
-  Widget _buildConnectionRow(EdgeModel edge, {required bool isOutgoing}) {
-    final otherNode = isOutgoing
-        ? widget.controller.diagram.nodes[edge.targetId]
-        : widget.controller.diagram.nodes[edge.sourceId];
-    final otherName = otherNode?.name.isNotEmpty == true
-        ? otherNode!.name
-        : (otherNode?.id ?? '?');
-    final label = otherName;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
-              size: 16,
-              color: Colors.grey[500],
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF1C1C1E)),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                widget.controller.deleteEdge(edge.id);
-                setState(() {
-                  _outgoingEdges = widget.controller.diagram
-                      .outgoingEdges(widget.node.id);
-                  _incomingEdges = widget.controller.diagram
-                      .incomingEdges(widget.node.id);
-                });
-              },
-              child: Icon(Icons.close, size: 18, color: Colors.grey[400]),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildEdgeLabelField(EdgeModel edge, int index) {
@@ -408,17 +355,6 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                       color: Color(0xFF1C1C1E),
                     ),
                   ),
-
-                  // ── Connections ──
-                  if (_outgoingEdges.isNotEmpty || _incomingEdges.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    _SectionLabel(label: 'Connections'),
-                    const SizedBox(height: 8),
-                    for (final edge in _incomingEdges)
-                      _buildConnectionRow(edge, isOutgoing: false),
-                    for (final edge in _outgoingEdges)
-                      _buildConnectionRow(edge, isOutgoing: true),
-                  ],
 
                   // ── Gateway branch labels ──
                   if (_isGateway && _outgoingEdges.isNotEmpty) ...[
