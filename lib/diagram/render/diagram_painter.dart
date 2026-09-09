@@ -281,19 +281,22 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  /// Connection port on a screen [rect]: the centre of the edge (top, bottom,
-  /// left or right) that faces [toward], picked by the dominant direction.
+  /// Connection port on a screen [rect] facing [toward]. Biased toward the
+  /// top/bottom edges — the flow runs top-to-bottom, so screens should be
+  /// entered from the top and exited from the bottom. A side (left/right) port
+  /// is used only when the other node is roughly level with this one (little
+  /// vertical separation), e.g. two branches side by side.
   static Offset _screenPort(Rect rect, Offset toward) {
     final dx = toward.dx - rect.center.dx;
     final dy = toward.dy - rect.center.dy;
-    if (dx.abs() > dy.abs()) {
-      return dx >= 0
-          ? Offset(rect.right, rect.center.dy)
-          : Offset(rect.left, rect.center.dy);
+    if (dy.abs() >= rect.height * 0.4) {
+      return dy >= 0
+          ? Offset(rect.center.dx, rect.bottom)
+          : Offset(rect.center.dx, rect.top);
     }
-    return dy >= 0
-        ? Offset(rect.center.dx, rect.bottom)
-        : Offset(rect.center.dx, rect.top);
+    return dx >= 0
+        ? Offset(rect.right, rect.center.dy)
+        : Offset(rect.left, rect.center.dy);
   }
 
   // ── UI mode: edges (same paints/arrows as the diagram view) ──
