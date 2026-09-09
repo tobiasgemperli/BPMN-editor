@@ -25,40 +25,49 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('renders UI view with content replicas to a PNG for inspection', () async {
+    // Branching structure like the reported model: start → gateway → two tasks.
     final d = DiagramModel();
     d.nodes['s'] = NodeModel(
         id: 's',
         type: NodeType.startEvent,
         name: 'Intro',
-        rect: const Rect.fromLTWH(200, 80, 60, 40),
+        rect: const Rect.fromLTWH(371, 77, 48, 48),
         content: TaskContent(
-            text: 'Welcome to the session.',
             imagePaths: ['assets/x.png'],
-            displayMode: ContentDisplayMode.mixed));
+            displayMode: ContentDisplayMode.image));
+    d.nodes['g'] = NodeModel(
+        id: 'g',
+        type: NodeType.exclusiveGateway,
+        name: '',
+        rect: const Rect.fromLTWH(225, 288, 56, 56));
     d.nodes['a'] = NodeModel(
         id: 'a',
         type: NodeType.task,
         name: 'Warm up',
-        rect: const Rect.fromLTWH(190, 220, 140, 70),
+        rect: const Rect.fromLTWH(638, 626, 140, 70),
         content: TaskContent(
-            text: 'Do 5 minutes of light cardio and stretching to prepare.',
+            text: 'Do 5 minutes of light cardio to prepare.',
             imagePaths: ['assets/x.png'],
             displayMode: ContentDisplayMode.mixed));
     d.nodes['b'] = NodeModel(
         id: 'b',
         type: NodeType.task,
-        name: 'Squats demonstration video',
-        rect: const Rect.fromLTWH(190, 360, 140, 70),
+        name: 'Squats video',
+        rect: const Rect.fromLTWH(130, 507, 140, 70),
         content:
             TaskContent(videoPaths: ['v.mp4'], displayMode: ContentDisplayMode.video));
-    d.nodes['e'] = NodeModel(
-        id: 'e',
-        type: NodeType.endEvent,
-        name: 'Done',
-        rect: const Rect.fromLTWH(200, 500, 60, 40));
-    d.edges['e1'] = EdgeModel(id: 'e1', sourceId: 's', targetId: 'a');
-    d.edges['e2'] = EdgeModel(id: 'e2', sourceId: 'a', targetId: 'b');
-    d.edges['e3'] = EdgeModel(id: 'e3', sourceId: 'b', targetId: 'e');
+    d.nodes['c'] = NodeModel(
+        id: 'c',
+        type: NodeType.task,
+        name: 'Cooldown',
+        rect: const Rect.fromLTWH(130, 631, 140, 70),
+        content: TaskContent(
+            imagePaths: ['assets/x.png'],
+            displayMode: ContentDisplayMode.image));
+    d.edges['e1'] = EdgeModel(id: 'e1', sourceId: 's', targetId: 'g');
+    d.edges['e2'] = EdgeModel(id: 'e2', sourceId: 'g', targetId: 'a');
+    d.edges['e3'] = EdgeModel(id: 'e3', sourceId: 'g', targetId: 'b');
+    d.edges['e4'] = EdgeModel(id: 'e4', sourceId: 'b', targetId: 'c');
 
     final c = EditorController(diagram: d);
     c.viewMode = ViewMode.ui;
@@ -68,15 +77,15 @@ void main() {
     final portrait = await _solidImage(90, 160, const Color(0xFFFF6B6B)); // 9:16
     final images = {'a': landscape, 's': portrait};
 
-    const size = Size(560, 820);
+    const size = Size(820, 860);
     final rec = ui.PictureRecorder();
     final canvas = Canvas(rec);
     canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFFEFEFF4));
     // Fit: the painter offsets by (2000,2000) and spreads ~2.2x from the
-    // centroid (~245,317). Center that and zoom out so the frames fit.
+    // centroid. Center the spread content and zoom out so the frames fit.
     canvas.translate(size.width / 2, size.height / 2);
-    canvas.scale(0.5);
-    canvas.translate(-2245.0, -2317.0);
+    canvas.scale(0.44);
+    canvas.translate(-2578.0, -2296.0);
     DiagramPainter(c, screenImages: images).paint(canvas, size);
     final img =
         await rec.endRecording().toImage(size.width.toInt(), size.height.toInt());

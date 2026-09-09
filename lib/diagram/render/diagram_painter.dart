@@ -362,10 +362,17 @@ class DiagramPainter extends CustomPainter {
       } else if (node.type == NodeType.endEvent) {
         _drawEventPhoneFrame(canvas, node, displayRect, isSelected, isStart: false);
       } else {
-        // Gateway — keep diamond shape.
-        final fill = _nodePaint;
+        // Gateway — keep the diamond, but draw it at the spread display
+        // position (like the screens) so it lines up with the edges.
+        final vnode = NodeModel(
+          id: node.id,
+          type: node.type,
+          name: node.name,
+          rect: displayRect,
+          content: node.content,
+        );
         final stroke = isSelected ? _selectedStroke : null;
-        _drawGatewayNode(canvas, node, isSelected, fill, stroke);
+        _drawGatewayNode(canvas, vnode, isSelected, _nodePaint, stroke);
       }
     }
   }
