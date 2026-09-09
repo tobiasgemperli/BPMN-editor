@@ -4,8 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../diagram/edit/editor_controller.dart';
+import '../../diagram/io/api_client.dart';
 import '../../diagram/io/bpmn_serializer.dart';
 import '../../diagram/io/diagram_storage.dart';
+import '../../diagram/io/media_ref.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
@@ -127,13 +129,21 @@ class _EditorScreenState extends State<EditorScreen>
       final path = content.imagePath;
       if (path == null) continue;
       try {
-        final file = File(path);
-        if (await file.exists()) {
-          final bytes = await file.readAsBytes();
-          final codec = await ui.instantiateImageCodec(bytes);
-          final frame = await codec.getNextFrame();
-          images[node.id] = frame.image;
+        // Resolve the image bytes from the backend (remote:), a bundled asset,
+        // or a device-local file.
+        Uint8List? bytes;
+        if (MediaRef.isRemote(path)) {
+          bytes = await ApiClient.instance.getFileBytes(MediaRef.fileId(path));
+        } else if (path.startsWith('assets/')) {
+          bytes = (await rootBundle.load(path)).buffer.asUint8List();
+        } else {
+          final file = File(path);
+          if (await file.exists()) bytes = await file.readAsBytes();
         }
+        if (bytes == null) continue;
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        images[node.id] = frame.image;
       } catch (_) {
         // Skip failed image loads.
       }
