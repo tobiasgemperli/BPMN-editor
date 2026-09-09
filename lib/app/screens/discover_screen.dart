@@ -17,7 +17,8 @@ class DiscoverScreen extends StatefulWidget {
 }
 
 class _DiscoverScreenState extends State<DiscoverScreen> {
-  static const _categories = ['All', 'Tutorials', 'Technical', 'Certification', 'Templates', 'Recent'];
+  // Per Ondrej: only ALL and MY (dynamic categories are out of scope).
+  static const _categories = ['All', 'My'];
   String _selected = 'All';
   List<ApiModelMeta> _myModels = [];
   bool _myLoading = false;
@@ -116,7 +117,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         !technical.contains(s)).toList();
 
     final showFeatured = _selected == 'All' || _selected == 'Recent';
-    final showMyFlowcharts = _selected == 'All' || _selected == 'Recent';
+    final showMyFlowcharts = _selected == 'All' || _selected == 'My';
     final showTutorials = _selected == 'All' || _selected == 'Tutorials' || _selected == 'Recent';
     final showCertification = _selected == 'All' || _selected == 'Certification' || _selected == 'Recent';
     final showTechnical = _selected == 'All' || _selected == 'Technical' || _selected == 'Recent';
@@ -230,8 +231,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 ),
             ],
 
-            // ── Server Models section ────────────────────────────
-            if (_selected == 'All' || _selected == 'Recent') ...[
+            // ── Server Models section (hidden under the "My" filter) ──
+            if (_selected == 'All') ...[
               if (_remoteLoading)
                 SliverToBoxAdapter(
                   child: Padding(
