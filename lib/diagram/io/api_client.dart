@@ -1,17 +1,22 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' show MediaType;
+import 'package:path_provider/path_provider.dart';
 import 'bpmn_parser.dart';
 import 'bpmn_serializer.dart';
 import '../model/diagram_model.dart';
 
 const _baseUrl = 'https://odoules.pfn.cz/rest2';
-// QA test account (user id 22) — a clean account whose owned models make a
-// realistic "My Flowcharts". The legacy `test`/`j5K_fv3sg` account (id 14)
-// owns ~599 models and is a poor fit for that section.
-const _username = 'qa_1787670944';
-const _password = '8bkZwhLK';
+// Default account until the user logs in — the QA test account (user id 22),
+// a clean account whose owned models make a realistic "My Flowcharts".
+const _defaultUsername = 'qa_1787670944';
+const _defaultPassword = '8bkZwhLK';
+
+// Active credentials, overridden by login() and persisted across launches.
+String _username = _defaultUsername;
+String _password = _defaultPassword;
 
 String get _authHeader =>
     'Basic ${base64Encode(utf8.encode('$_username:$_password'))}';
@@ -154,6 +159,60 @@ class ApiClient {
   ApiClient.withClient(this._httpClient);
 
   http.Client? _httpClient;
+
+  // ── Auth ────────────────────────────────────────────────────────
+  /// The username of the active account.
+  String get currentUsername => _username;
+
+  Future<File> _credsFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/_auth.json');
+  }
+
+  /// Load persisted credentials into the client (call once at startup).
+  /// Returns true if a saved session was found (so login can be skipped).
+  Future<bool> loadSavedCredentials() async {
+    try {
+      final file = await _credsFile();
+      if (await file.exists()) {
+        final j = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        _username = (j['u'] as String?) ?? _username;
+        _password = (j['p'] as String?) ?? _password;
+        _cachedUserId = null;
+        return true;
+      }
+    } catch (_) {
+      // Corrupt/missing → keep defaults.
+    }
+    return false;
+  }
+
+  /// Clear the saved session (sign out).
+  Future<void> logout() async {
+    _username = _defaultUsername;
+    _password = _defaultPassword;
+    _cachedUserId = null;
+    try {
+      final file = await _credsFile();
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  /// Set and persist the active credentials, verifying them against the server.
+  /// Throws [ApiException] if the login is rejected.
+  Future<void> login(String username, String password) async {
+    _username = username;
+    _password = password;
+    _cachedUserId = null;
+    // Verify the credentials work before persisting.
+    await currentUserId();
+    try {
+      await (await _credsFile())
+          .writeAsString(jsonEncode({'u': username, 'p': password}));
+    } catch (_) {
+      // Persistence failure is non-fatal; the session stays logged in.
+    }
+  }
   http.Client get _client => _httpClient ?? http.Client();
 
   /// Cached id of the authenticated user (see [currentUserId]).

@@ -2,12 +2,16 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'app/screens/discover_screen.dart';
 import 'app/screens/embed_showcase_screen.dart';
+import 'app/screens/login_screen.dart';
 import 'app/screens/search_screen.dart';
 import 'app/screens/messages_screen.dart';
 import 'app/screens/account_screen.dart';
+import 'diagram/io/api_client.dart';
 
-void main() {
-  runApp(const StepChatApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final loggedIn = await ApiClient.instance.loadSavedCredentials();
+  runApp(StepChatApp(loggedIn: loggedIn));
 }
 
 ThemeData _buildLightTheme() {
@@ -29,7 +33,10 @@ ThemeData _buildLightTheme() {
 }
 
 class StepChatApp extends StatelessWidget {
-  const StepChatApp({super.key});
+  /// Whether a saved session exists — if so, skip the login screen.
+  final bool loggedIn;
+
+  const StepChatApp({super.key, this.loggedIn = false});
 
   @override
   Widget build(BuildContext context) {
@@ -42,8 +49,9 @@ class StepChatApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.dark,
       ),
-      initialRoute: kIsWeb ? '/embed' : '/',
+      initialRoute: kIsWeb ? '/embed' : (loggedIn ? '/' : '/login'),
       routes: {
+        '/login': (_) => const LoginScreen(),
         '/': (_) => const _MainTabShell(),
         '/embed': (_) => const EmbedShowcaseScreen(),
       },
