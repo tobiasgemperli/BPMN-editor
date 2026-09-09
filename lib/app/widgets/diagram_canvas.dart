@@ -13,12 +13,17 @@ class DiagramCanvas extends StatefulWidget {
   final bool readOnly;
   final Map<String, ui.Image>? screenImages;
 
+  /// Called in UI mode when a screen is tapped, with the node id — used to
+  /// open that screen's detail.
+  final void Function(String nodeId)? onScreenTap;
+
   const DiagramCanvas({
     super.key,
     required this.controller,
     required this.transformationController,
     this.readOnly = false,
     this.screenImages,
+    this.onScreenTap,
   });
 
   @override
@@ -33,6 +38,10 @@ class _DiagramCanvasState extends State<DiagramCanvas>
 
   bool _isDiagramDrag = false;
   int? _activePointer;
+
+  /// UI-mode: pointer-down location for detecting a tap (vs a pan) that opens
+  /// a screen's detail.
+  Offset? _uiTapStart;
 
   // Long-press detection.
   Timer? _longPressTimer;
@@ -155,6 +164,19 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     _longPressStart = null;
   }
 
+  /// UI mode: open the detail of the screen at [tapPoint], if any.
+  void _openUiScreen(Offset tapPoint) {
+    final onTap = widget.onScreenTap;
+    if (onTap == null) return;
+    final rects = DiagramPainter.uiDisplayRects(widget.controller.diagram);
+    for (final entry in rects.entries) {
+      if (entry.value.contains(tapPoint)) {
+        onTap(entry.key);
+        return;
+      }
+    }
+  }
+
   void _onLongPress() {
     final nodeId = _longPressNodeId;
     _cancelLongPress();
@@ -179,6 +201,13 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
+        // UI mode is view-only: no moving symbols or editing lines — only a
+        // tap opens a screen's detail. Pan/zoom is the InteractiveViewer's.
+        if (widget.controller.viewMode == ViewMode.ui) {
+          _activePointer = event.pointer;
+          _uiTapStart = event.localPosition - _canvasOffset;
+          return;
+        }
         if (widget.readOnly) return;
         final canvasPoint = event.localPosition - _canvasOffset;
         _activePointer = event.pointer;
@@ -210,6 +239,15 @@ class _DiagramCanvasState extends State<DiagramCanvas>
         }
       },
       onPointerMove: (event) {
+        if (widget.controller.viewMode == ViewMode.ui) {
+          // Movement means a pan/zoom, not a tap — cancel the pending open.
+          if (_uiTapStart != null &&
+              ((event.localPosition - _canvasOffset) - _uiTapStart!).distance >
+                  _longPressMoveThreshold) {
+            _uiTapStart = null;
+          }
+          return;
+        }
         if (_isDiagramDrag && event.pointer == _activePointer) {
           final canvasPoint = event.localPosition - _canvasOffset;
           // Cancel long-press if finger moved too far.
@@ -224,6 +262,14 @@ class _DiagramCanvasState extends State<DiagramCanvas>
       },
       onPointerUp: (event) {
         _cancelLongPress();
+        if (widget.controller.viewMode == ViewMode.ui) {
+          if (event.pointer == _activePointer && _uiTapStart != null) {
+            _openUiScreen(event.localPosition - _canvasOffset);
+          }
+          _uiTapStart = null;
+          _activePointer = null;
+          return;
+        }
         if (_isDiagramDrag && event.pointer == _activePointer) {
           final ctrl = widget.controller;
           // End lift animation (shrink back).
@@ -239,8 +285,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
                       : Offset.zero),
             );
           } else {
-            // No drag or connection started — clean up pending state
-            // and treat as a tap to select.
+            // No drag or connection started — treat as a tap to select.
             ctrl.cancelPendingDrag();
             ctrl.onTapDown(event.localPosition - _canvasOffset);
           }

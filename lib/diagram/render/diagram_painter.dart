@@ -132,16 +132,8 @@ class DiagramPainter extends CustomPainter {
 
   void _paintUiMode(Canvas canvas, Size size) {
     final diagram = controller.diagram;
-
-    // Compute spread positions so phone frames don't overlap.
-    final uiPositions = _computeUiPositions(diagram);
-
-    // Build display-rect map using the spread positions.
-    final displayRects = <String, Rect>{};
-    for (final node in diagram.nodes.values) {
-      final center = uiPositions[node.id] ?? node.center;
-      displayRects[node.id] = _uiDisplayRectAt(node, center);
-    }
+    // Spread phone-frame positions (shared with hit-testing).
+    final displayRects = uiDisplayRects(diagram);
     // Connections, drawn like the diagram view (under the frames).
     _drawUiEdges(canvas, diagram, displayRects);
     _drawUiNodes(canvas, diagram, displayRects);
@@ -149,7 +141,17 @@ class DiagramPainter extends CustomPainter {
 
   /// Compute spread-out positions for UI mode to prevent overlap.
   /// Scales the diagram layout from its centroid so bigger phone frames fit.
-  Map<String, Offset> _computeUiPositions(DiagramModel diagram) {
+  /// Display rects for every node in UI mode (spread phone-frame positions),
+  /// used both for painting and for hit-testing taps on the screens.
+  static Map<String, Rect> uiDisplayRects(DiagramModel diagram) {
+    final positions = _computeUiPositions(diagram);
+    return {
+      for (final node in diagram.nodes.values)
+        node.id: _uiDisplayRectAt(node, positions[node.id] ?? node.center),
+    };
+  }
+
+  static Map<String, Offset> _computeUiPositions(DiagramModel diagram) {
     if (diagram.nodes.isEmpty) return {};
 
     final nodes = diagram.nodes.values.toList();
@@ -225,7 +227,7 @@ class DiagramPainter extends CustomPainter {
   }
 
   /// Returns the UI display rect centered at a specific position.
-  Rect _uiDisplayRectAt(NodeModel node, Offset center) {
+  static Rect _uiDisplayRectAt(NodeModel node, Offset center) {
     switch (node.type) {
       case NodeType.task:
         return Rect.fromCenter(

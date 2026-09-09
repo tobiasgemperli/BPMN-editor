@@ -156,6 +156,20 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
+  /// Open the presentation detail for a single screen (tapped in UI mode).
+  void _openScreenDetail(String nodeId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PresentationScreen(
+          diagram: _controller.diagram,
+          role: DiagramRole.viewer,
+          initialNodeId: nodeId,
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveDiagram() async {
     final meta = await DiagramStorage.instance.save(
       _controller.diagram,
@@ -318,6 +332,7 @@ class _EditorScreenState extends State<EditorScreen>
             screenImages: _controller.viewMode == ViewMode.ui
                 ? _screenImages
                 : null,
+            onScreenTap: _openScreenDetail,
           ),
           // ── Right-side shape palette + action buttons (owner only) ──
           if (_isOwner)

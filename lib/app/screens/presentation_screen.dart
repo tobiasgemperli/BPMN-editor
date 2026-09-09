@@ -23,6 +23,10 @@ class PresentationScreen extends StatefulWidget {
   final String? savedId;
   final VoidCallback? onSaved;
 
+  /// When set, the flow starts at this node instead of the start event
+  /// (used to open a specific screen's detail from UI mode).
+  final String? initialNodeId;
+
   const PresentationScreen({
     super.key,
     required this.diagram,
@@ -33,6 +37,7 @@ class PresentationScreen extends StatefulWidget {
     this.meta,
     this.savedId,
     this.onSaved,
+    this.initialNodeId,
   });
 
   @override
@@ -54,7 +59,11 @@ class _PresentationScreenState extends State<PresentationScreen> {
   void initState() {
     super.initState();
     _allNodes = _collectAllNodes(widget.diagram);
-    final start = _findStart(widget.diagram);
+    // Start at the requested node (screen detail) if given, else the start event.
+    final entry = widget.initialNodeId != null
+        ? widget.diagram.nodes[widget.initialNodeId]
+        : null;
+    final start = entry ?? _findStart(widget.diagram);
     if (start != null) {
       _path.add(start);
       _extendPath(start);
