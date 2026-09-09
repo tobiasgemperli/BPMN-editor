@@ -15,8 +15,12 @@ void main() {
     d.nodes['s'] = NodeModel(
         id: 's',
         type: NodeType.startEvent,
-        name: 'Start',
-        rect: const Rect.fromLTWH(200, 80, 60, 40));
+        name: 'Intro',
+        rect: const Rect.fromLTWH(200, 80, 60, 40),
+        content: TaskContent(
+            text: 'Welcome to the session.',
+            imagePaths: ['assets/x.png'],
+            displayMode: ContentDisplayMode.mixed));
     d.nodes['a'] = NodeModel(
         id: 'a',
         type: NodeType.task,

@@ -142,7 +142,7 @@ class DiagramPainter extends CustomPainter {
       final center = uiPositions[node.id] ?? node.center;
       displayRects[node.id] = _uiDisplayRectAt(node, center);
     }
-    _drawUiEdges(canvas, diagram, displayRects);
+    // Connections are intentionally not drawn in UI (symbol detail) view.
     _drawUiNodes(canvas, diagram, displayRects);
   }
 
@@ -264,88 +264,11 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  /// Creates a virtual NodeModel with the UI display rect (for clipToNodeBorder).
-  /// Uses task type for start/end events so clipToNodeBorder uses rect clipping
-  /// instead of circle clipping (since they're phone frames in UI mode).
-  NodeModel _uiVirtualNode(NodeModel node, Rect displayRect) {
-    if (displayRect == node.rect) return node;
-    final virtualType = (node.type == NodeType.startEvent ||
-            node.type == NodeType.endEvent)
-        ? NodeType.task
-        : node.type;
-    return NodeModel(
-      id: node.id,
-      type: virtualType,
-      name: node.name,
-      rect: displayRect,
-      content: node.content,
-    );
-  }
-
   void _drawGrid(Canvas canvas, Size size) {
     const step = 20.0;
     for (double x = 0; x < size.width; x += step) {
       for (double y = 0; y < size.height; y += step) {
         canvas.drawCircle(Offset(x, y), 0.7, _gridPaint);
-      }
-    }
-  }
-
-  // ── UI mode: edges ──
-  void _drawUiEdges(Canvas canvas, DiagramModel diagram,
-      Map<String, Rect> displayRects) {
-    for (final edge in diagram.edges.values) {
-      final isSelected = edge.id == controller.selectedEdgeId;
-      final paint = isSelected ? _edgeSelectedPaint : _edgePaint;
-      final arrowFill = isSelected ? _arrowSelectedPaint : _arrowPaint;
-
-      final source = diagram.nodes[edge.sourceId];
-      final target = diagram.nodes[edge.targetId];
-      if (source == null || target == null) continue;
-
-      final sourceRect = displayRects[source.id] ?? source.rect;
-      final targetRect = displayRects[target.id] ?? target.rect;
-      final virtualSource = _uiVirtualNode(source, sourceRect);
-      final virtualTarget = _uiVirtualNode(target, targetRect);
-
-      // Simple direct connection: source center → target center, clipped.
-      final clippedStart = clipToNodeBorder(virtualSource, virtualTarget.center);
-      final clippedEnd = clipToNodeBorder(virtualTarget, virtualSource.center);
-
-      // Draw a simple L-shaped orthogonal edge.
-      final path = Path();
-      path.moveTo(clippedStart.dx, clippedStart.dy);
-
-      // Determine the dominant exit direction and route orthogonally.
-      final dx = clippedEnd.dx - clippedStart.dx;
-      final dy = clippedEnd.dy - clippedStart.dy;
-      final horizontal = dx.abs() > dy.abs();
-
-      if (horizontal) {
-        final midX = clippedStart.dx + dx / 2;
-        path.lineTo(midX, clippedStart.dy);
-        path.lineTo(midX, clippedEnd.dy);
-      } else {
-        final midY = clippedStart.dy + dy / 2;
-        path.lineTo(clippedStart.dx, midY);
-        path.lineTo(clippedEnd.dx, midY);
-      }
-      path.lineTo(clippedEnd.dx, clippedEnd.dy);
-      canvas.drawPath(path, paint);
-
-      // Arrowhead.
-      final prevPt = horizontal
-          ? Offset(clippedStart.dx + dx / 2, clippedEnd.dy)
-          : Offset(clippedEnd.dx, clippedStart.dy + dy / 2);
-      _drawArrow(canvas, prevPt, clippedEnd, arrowFill);
-
-      // Edge name label.
-      if (edge.name.isNotEmpty) {
-        final labelPos = Offset(
-          (clippedStart.dx + clippedEnd.dx) / 2,
-          (clippedStart.dy + clippedEnd.dy) / 2 - 12,
-        );
-        _drawText(canvas, edge.name, labelPos, fontSize: 11, background: true);
       }
     }
   }
@@ -606,16 +529,53 @@ class DiagramPainter extends CustomPainter {
     final screenRect = displayRect.deflate(bezelWidth);
     final screenRR = RRect.fromRectAndRadius(screenRect, screenRadius);
 
-    // Tinted gradient background.
-    final colors = isStart
-        ? [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)]
-        : [const Color(0xFFFFEBEE), const Color(0xFFFFCDD2)];
-    final gradient = ui.Gradient.linear(
-      screenRect.topCenter, screenRect.bottomCenter, colors,
-    );
-    canvas.drawRRect(screenRR, Paint()..shader = gradient);
+    final content = node.content;
+    if (content != null && !content.isEmpty) {
+      // Event carries content — render the same minified replica as a task.
+      canvas.drawRRect(screenRR, Paint()..color = const Color(0xFFFFFFFF));
+      canvas.save();
+      canvas.clipRRect(screenRR);
+      _drawScreenContent(canvas, screenRect, node);
+      canvas.restore();
+    } else {
+      // Empty event — tinted background with a play/stop icon and a label.
+      final colors = isStart
+          ? [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)]
+          : [const Color(0xFFFFEBEE), const Color(0xFFFFCDD2)];
+      canvas.drawRRect(
+        screenRR,
+        Paint()
+          ..shader = ui.Gradient.linear(
+              screenRect.topCenter, screenRect.bottomCenter, colors),
+      );
+      final c = node.center;
+      final iconColor =
+          isStart ? const Color(0xFF34C759) : const Color(0xFFFF3B30);
+      if (isStart) {
+        canvas.drawPath(
+          Path()
+            ..moveTo(c.dx - 8, c.dy - 10)
+            ..lineTo(c.dx + 10, c.dy)
+            ..lineTo(c.dx - 8, c.dy + 10)
+            ..close(),
+          Paint()..color = iconColor,
+        );
+      } else {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(center: c, width: 16, height: 16),
+            const Radius.circular(3),
+          ),
+          Paint()..color = iconColor,
+        );
+      }
+      final label =
+          node.name.isNotEmpty ? node.name : (isStart ? 'Launch' : 'Exit');
+      _drawText(canvas, label, Offset(c.dx, c.dy + 22),
+          fontSize: 9, maxWidth: screenRect.width - 10);
+    }
 
-    // Notch.
+    // Notch (drawn on top of the screen content).
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromCenter(
@@ -626,35 +586,6 @@ class DiagramPainter extends CustomPainter {
       ),
       _phoneNotchPaint,
     );
-
-    // Center icon: play triangle or stop square.
-    final c = node.center;
-    final iconColor = isStart
-        ? const Color(0xFF34C759)
-        : const Color(0xFFFF3B30);
-    if (isStart) {
-      final playPath = Path()
-        ..moveTo(c.dx - 8, c.dy - 10)
-        ..lineTo(c.dx + 10, c.dy)
-        ..lineTo(c.dx - 8, c.dy + 10)
-        ..close();
-      canvas.drawPath(playPath, Paint()..color = iconColor);
-    } else {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: c, width: 16, height: 16),
-          const Radius.circular(3),
-        ),
-        Paint()..color = iconColor,
-      );
-    }
-
-    // Label below icon.
-    final label = node.name.isNotEmpty
-        ? node.name
-        : (isStart ? 'Launch' : 'Exit');
-    _drawText(canvas, label,
-        Offset(c.dx, c.dy + 22), fontSize: 9, maxWidth: screenRect.width - 10);
 
     // Home indicator.
     canvas.drawRRect(
