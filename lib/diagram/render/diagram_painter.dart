@@ -265,24 +265,6 @@ class DiagramPainter extends CustomPainter {
     }
   }
 
-  /// Creates a virtual NodeModel with the UI display rect (for clipToNodeBorder).
-  /// Uses task type for start/end events so clipToNodeBorder uses rect clipping
-  /// instead of circle clipping (since they're phone frames in UI mode).
-  NodeModel _uiVirtualNode(NodeModel node, Rect displayRect) {
-    if (displayRect == node.rect) return node;
-    final virtualType = (node.type == NodeType.startEvent ||
-            node.type == NodeType.endEvent)
-        ? NodeType.task
-        : node.type;
-    return NodeModel(
-      id: node.id,
-      type: virtualType,
-      name: node.name,
-      rect: displayRect,
-      content: node.content,
-    );
-  }
-
   void _drawGrid(Canvas canvas, Size size) {
     const step = 20.0;
     for (double x = 0; x < size.width; x += step) {
@@ -290,6 +272,21 @@ class DiagramPainter extends CustomPainter {
         canvas.drawCircle(Offset(x, y), 0.7, _gridPaint);
       }
     }
+  }
+
+  /// Connection port on a screen [rect]: the centre of the edge (top, bottom,
+  /// left or right) that faces [toward], picked by the dominant direction.
+  static Offset _screenPort(Rect rect, Offset toward) {
+    final dx = toward.dx - rect.center.dx;
+    final dy = toward.dy - rect.center.dy;
+    if (dx.abs() > dy.abs()) {
+      return dx >= 0
+          ? Offset(rect.right, rect.center.dy)
+          : Offset(rect.left, rect.center.dy);
+    }
+    return dy >= 0
+        ? Offset(rect.center.dx, rect.bottom)
+        : Offset(rect.center.dx, rect.top);
   }
 
   // ── UI mode: edges (same paints/arrows as the diagram view) ──
@@ -306,12 +303,12 @@ class DiagramPainter extends CustomPainter {
 
       final sourceRect = displayRects[source.id] ?? source.rect;
       final targetRect = displayRects[target.id] ?? target.rect;
-      final virtualSource = _uiVirtualNode(source, sourceRect);
-      final virtualTarget = _uiVirtualNode(target, targetRect);
 
-      // Simple direct connection: source center → target center, clipped.
-      final clippedStart = clipToNodeBorder(virtualSource, virtualTarget.center);
-      final clippedEnd = clipToNodeBorder(virtualTarget, virtualSource.center);
+      // Ports for the screen rectangles: attach at the centre of the edge
+      // facing the other node. Screens are shaped differently than the diagram
+      // symbols, so the ports differ — but the L-shaped routing is unchanged.
+      final clippedStart = _screenPort(sourceRect, targetRect.center);
+      final clippedEnd = _screenPort(targetRect, sourceRect.center);
 
       // Draw a simple L-shaped orthogonal edge.
       final path = Path();
