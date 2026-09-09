@@ -386,26 +386,12 @@ class DiagramPainter extends CustomPainter {
     final screenRect = displayRect.deflate(bezelWidth);
     final screenRR = RRect.fromRectAndRadius(screenRect, screenRadius);
 
-    // Check for a screenshot image.
-    final img = screenImages?[node.id];
-    if (img != null) {
-      // Clip to screen shape and draw the image.
-      canvas.save();
-      canvas.clipRRect(screenRR);
-      final src = Rect.fromLTWH(
-          0, 0, img.width.toDouble(), img.height.toDouble());
-      canvas.drawImageRect(img, src, screenRect, Paint());
-      canvas.restore();
-    } else {
-      // Placeholder gradient screen.
-      final gradient = ui.Gradient.linear(
-        screenRect.topCenter,
-        screenRect.bottomCenter,
-        [const Color(0xFFF8F9FA), const Color(0xFFE9ECEF)],
-      );
-      canvas.drawRRect(
-          screenRR, Paint()..shader = gradient);
-    }
+    // White screen, then a minified replica of the step's content view.
+    canvas.drawRRect(screenRR, Paint()..color = const Color(0xFFFFFFFF));
+    canvas.save();
+    canvas.clipRRect(screenRR);
+    _drawScreenContent(canvas, screenRect, node);
+    canvas.restore();
 
     // Dynamic island / notch.
     final notchRR = RRect.fromRectAndRadius(
@@ -444,32 +430,6 @@ class DiagramPainter extends CustomPainter {
       Paint()..color = const Color(0xFF34C759),
     );
 
-    // Node name centered on screen (below notch).
-    final label = node.name.isNotEmpty ? node.name : 'Screen';
-    _drawText(canvas, label,
-        Offset(displayRect.center.dx, displayRect.center.dy - 10),
-        fontSize: 11, maxWidth: screenRect.width - 12);
-
-    // Content type hints.
-    final content = node.content;
-    if (content != null && !content.isEmpty) {
-      if (content.text != null) {
-        // Show text preview lines.
-        for (int i = 0; i < 3; i++) {
-          final y = displayRect.center.dy + 10 + i * 8.0;
-          final lineWidth = screenRect.width * (i < 2 ? 0.6 : 0.35);
-          canvas.drawLine(
-            Offset(displayRect.center.dx - lineWidth / 2, y),
-            Offset(displayRect.center.dx + lineWidth / 2, y),
-            Paint()
-              ..color = const Color(0xFFCCCCCC)
-              ..strokeWidth = 2
-              ..strokeCap = StrokeCap.round,
-          );
-        }
-      }
-    }
-
     // Home indicator bar at bottom.
     final homeBarRR = RRect.fromRectAndRadius(
       Rect.fromCenter(
@@ -489,6 +449,146 @@ class DiagramPainter extends CustomPainter {
         _selectedStroke,
       );
     }
+  }
+
+  /// Draws a minified wireframe replica of [node]'s content view inside the
+  /// phone [screen] rect — matching the real card layout (title, media, text,
+  /// link), keeping aspect ratios and paddings. Text too small to read is
+  /// drawn as a gray bar instead.
+  void _drawScreenContent(Canvas canvas, Rect screen, NodeModel node) {
+    final content = node.content;
+    // Content area: below the status bar, above the home indicator, padded.
+    final padX = screen.width * 0.08;
+    final area = Rect.fromLTRB(
+      screen.left + padX,
+      screen.top + screen.height * 0.11,
+      screen.right - padX,
+      screen.bottom - screen.height * 0.06,
+    );
+    if (area.width <= 1 || area.height <= 1) return;
+
+    final img = screenImages?[node.id];
+    final mode = content?.displayMode ?? ContentDisplayMode.mixed;
+    final hasImage = content?.imagePaths.isNotEmpty ?? false;
+    final hasVideo = content?.videoPaths.isNotEmpty ?? false;
+    final hasLink = (content?.linkUrl != null) ||
+        (content?.links.isNotEmpty ?? false) ||
+        (content?.pdfPaths.isNotEmpty ?? false);
+
+    // Full-bleed image / video modes fill the whole screen.
+    if (mode == ContentDisplayMode.image && hasImage) {
+      _drawMiniMedia(canvas, area, img, video: false);
+      return;
+    }
+    if (mode == ContentDisplayMode.video && hasVideo) {
+      _drawMiniMedia(canvas, area, img, video: true);
+      return;
+    }
+
+    // Mixed layout: title → media → text → link, stacked with padding.
+    var y = area.top;
+    if (node.name.isNotEmpty) {
+      y = _drawMiniTitle(canvas, area, y, node.name) + area.height * 0.05;
+    }
+    if (hasImage || hasVideo) {
+      final h = area.height * 0.40;
+      _drawMiniMedia(canvas, Rect.fromLTWH(area.left, y, area.width, h), img,
+          video: hasVideo && !hasImage);
+      y += h + area.height * 0.06;
+    }
+    if (content?.text?.trim().isNotEmpty ?? false) {
+      y = _drawMiniTextBars(canvas, area, y);
+    }
+    if (hasLink) _drawMiniLink(canvas, area);
+  }
+
+  void _drawMiniMedia(Canvas canvas, Rect rect, ui.Image? img,
+      {required bool video}) {
+    if (rect.height <= 1) return;
+    final rr = RRect.fromRectAndRadius(rect, const Radius.circular(3));
+    if (img != null) {
+      canvas.save();
+      canvas.clipRRect(rr);
+      // Cover-fit: crop the source to the destination aspect ratio.
+      final iw = img.width.toDouble(), ih = img.height.toDouble();
+      final srcAspect = iw / ih, dstAspect = rect.width / rect.height;
+      final Rect src;
+      if (srcAspect > dstAspect) {
+        final w = ih * dstAspect;
+        src = Rect.fromLTWH((iw - w) / 2, 0, w, ih);
+      } else {
+        final h = iw / dstAspect;
+        src = Rect.fromLTWH(0, (ih - h) / 2, iw, h);
+      }
+      canvas.drawImageRect(
+          img, src, rect, Paint()..filterQuality = FilterQuality.low);
+      canvas.restore();
+    } else {
+      canvas.drawRRect(rr, Paint()..color = const Color(0xFFD8DCE0));
+    }
+    if (video) {
+      final c = rect.center;
+      final r = (rect.shortestSide * 0.18).clamp(3.0, 10.0);
+      canvas.drawCircle(c, r, Paint()..color = const Color(0xCCFFFFFF));
+      final tri = Path()
+        ..moveTo(c.dx - r * 0.3, c.dy - r * 0.5)
+        ..lineTo(c.dx + r * 0.55, c.dy)
+        ..lineTo(c.dx - r * 0.3, c.dy + r * 0.5)
+        ..close();
+      canvas.drawPath(tri, Paint()..color = const Color(0xFF1C1C1E));
+    }
+  }
+
+  double _drawMiniTitle(Canvas canvas, Rect area, double y, String title) {
+    final fontSize = area.width * 0.11;
+    if (fontSize >= 6.0) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: title,
+          style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1C1C1E),
+              height: 1.1),
+        ),
+        maxLines: 2,
+        ellipsis: '…',
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: area.width);
+      tp.paint(canvas, Offset(area.left, y));
+      return y + tp.height;
+    }
+    // Too small to read → gray bar.
+    final barH = (area.height * 0.05).clamp(2.0, 5.0);
+    _bar(canvas, area.left, y, area.width * 0.7, barH, const Color(0xFF9AA0A6));
+    return y + barH;
+  }
+
+  double _drawMiniTextBars(Canvas canvas, Rect area, double y) {
+    final barH = (area.height * 0.028).clamp(1.5, 4.0);
+    final gap = barH * 1.5;
+    for (final w in const [1.0, 0.94, 0.97, 0.55]) {
+      if (y + barH > area.bottom) break;
+      _bar(canvas, area.left, y, area.width * w, barH, const Color(0xFFD3D7DB));
+      y += barH + gap;
+    }
+    return y;
+  }
+
+  void _drawMiniLink(Canvas canvas, Rect area) {
+    final h = (area.height * 0.055).clamp(3.0, 8.0);
+    _bar(canvas, area.left, area.bottom - h, area.width * 0.55, h,
+        const Color(0xFFE3E7EB),
+        radius: h / 2);
+  }
+
+  void _bar(Canvas canvas, double x, double y, double w, double h, Color color,
+      {double radius = 1.5}) {
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, y, w, h), Radius.circular(radius)),
+      Paint()..color = color,
+    );
   }
 
   /// Draws a phone frame for start/end events with distinctive screen content.
