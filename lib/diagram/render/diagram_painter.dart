@@ -1230,5 +1230,9 @@ class DiagramPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant DiagramPainter oldDelegate) => false;
+  bool shouldRepaint(covariant DiagramPainter oldDelegate) =>
+      // Repaint when the loaded media changes (it arrives async after the UI
+      // toggle); controller-driven repaints go through `repaint:` above.
+      !identical(oldDelegate.screenImages, screenImages) ||
+      !identical(oldDelegate.videoThumbs, videoThumbs);
 }

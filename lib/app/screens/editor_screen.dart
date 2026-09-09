@@ -205,18 +205,12 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  /// Open the presentation detail for a single screen (tapped in UI mode).
+  /// Open the editable details for a screen tapped in UI mode (same content
+  /// editor as the diagram view), so the user can edit it.
   void _openScreenDetail(String nodeId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PresentationScreen(
-          diagram: _controller.diagram,
-          role: DiagramRole.viewer,
-          initialNodeId: nodeId,
-        ),
-      ),
-    );
+    final node = _controller.diagram.nodes[nodeId];
+    if (node == null) return;
+    showNodeEditor(context, node, _controller);
   }
 
   Future<void> _saveDiagram() async {
