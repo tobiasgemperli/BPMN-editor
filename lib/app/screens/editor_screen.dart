@@ -656,8 +656,8 @@ class _ViewModeToggle extends StatelessWidget {
         final mode = controller.viewMode;
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF2F2F7),
-            borderRadius: BorderRadius.circular(8),
+            color: const Color(0xFF767680).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(9),
           ),
           padding: const EdgeInsets.all(2),
           child: Row(
@@ -682,7 +682,9 @@ class _ViewModeToggle extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        alignment: Alignment.center,
+        constraints: const BoxConstraints(minWidth: 78, minHeight: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 7),
         decoration: BoxDecoration(
           color: isActive ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
@@ -699,7 +701,7 @@ class _ViewModeToggle extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 15,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
             color: isActive
                 ? const Color(0xFF1C1C1E)
