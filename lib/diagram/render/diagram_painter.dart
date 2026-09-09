@@ -239,10 +239,9 @@ class DiagramPainter extends CustomPainter {
             width: _uiSmallScreenWidth,
             height: _uiSmallScreenHeight);
       case NodeType.exclusiveGateway:
+        // Gateways are shown as a minified decision screen, like tasks.
         return Rect.fromCenter(
-            center: center,
-            width: node.rect.width,
-            height: node.rect.height);
+            center: center, width: _uiScreenWidth, height: _uiScreenHeight);
     }
   }
 
@@ -364,17 +363,8 @@ class DiagramPainter extends CustomPainter {
       } else if (node.type == NodeType.endEvent) {
         _drawEventPhoneFrame(canvas, node, displayRect, isSelected, isStart: false);
       } else {
-        // Gateway — keep the diamond, but draw it at the spread display
-        // position (like the screens) so it lines up with the edges.
-        final vnode = NodeModel(
-          id: node.id,
-          type: node.type,
-          name: node.name,
-          rect: displayRect,
-          content: node.content,
-        );
-        final stroke = isSelected ? _selectedStroke : null;
-        _drawGatewayNode(canvas, vnode, isSelected, _nodePaint, stroke);
+        // Gateway — a minified decision screen (question + options), like tasks.
+        _drawPhoneFrame(canvas, node, displayRect, isSelected);
       }
     }
   }
@@ -474,6 +464,12 @@ class DiagramPainter extends CustomPainter {
     );
     if (area.width <= 1 || area.height <= 1) return;
 
+    // Gateway — a decision screen: question + option buttons.
+    if (node.type == NodeType.exclusiveGateway) {
+      _drawGatewayScreen(canvas, area, node);
+      return;
+    }
+
     final img = screenImages?[node.id];
     final mode = content?.displayMode ?? ContentDisplayMode.mixed;
     final hasImage = content?.imagePaths.isNotEmpty ?? false;
@@ -523,6 +519,49 @@ class DiagramPainter extends CustomPainter {
           _drawMiniVideo(canvas, box, img);
         }
       }
+    }
+  }
+
+  /// Minified decision screen for a gateway: centered question + a stack of
+  /// option "buttons" (one per outgoing edge, labelled when legible).
+  void _drawGatewayScreen(Canvas canvas, Rect area, NodeModel node) {
+    final question = node.name.isNotEmpty ? node.name : 'Decision';
+    var y = _drawMiniTitle(canvas, area, area.top, question) +
+        area.height * 0.06;
+
+    final options = controller.diagram.outgoingEdges(node.id);
+    final n = options.length > 4 ? 4 : options.length;
+    if (n == 0) return;
+    final pillH = ((area.bottom - y) / (n * 1.7)).clamp(6.0, 18.0);
+    for (var i = 0; i < n; i++) {
+      if (y + pillH > area.bottom) break;
+      final pill = Rect.fromLTWH(area.left, y, area.width, pillH);
+      final rr = RRect.fromRectAndRadius(pill, Radius.circular(pillH * 0.4));
+      canvas.drawRRect(rr, Paint()..color = const Color(0xFFF2F4F7));
+      canvas.drawRRect(
+          rr,
+          Paint()
+            ..color = Colors.black26
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1);
+      final label = options[i].name;
+      final fs = pillH * 0.5;
+      if (fs >= 5.5 && label.isNotEmpty) {
+        final tp = TextPainter(
+          text: TextSpan(
+              text: label,
+              style: TextStyle(fontSize: fs, color: const Color(0xFF1C1C1E))),
+          maxLines: 1,
+          ellipsis: '…',
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: area.width - 6);
+        tp.paint(canvas,
+            Offset(pill.center.dx - tp.width / 2, pill.center.dy - tp.height / 2));
+      } else {
+        _bar(canvas, pill.center.dx - area.width * 0.22, pill.center.dy - 1,
+            area.width * 0.44, 2, const Color(0xFF9AA0A6));
+      }
+      y += pillH + pillH * 0.7;
     }
   }
 
