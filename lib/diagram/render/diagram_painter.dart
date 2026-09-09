@@ -398,68 +398,110 @@ class DiagramPainter extends CustomPainter {
         (content?.links.isNotEmpty ?? false) ||
         (content?.pdfPaths.isNotEmpty ?? false);
 
-    // Full-bleed image / video modes fill the whole screen.
+    // Image mode: the whole screen shows the image contained (BoxFit.contain
+    // in _buildImageFull — the entire image, never cropped).
     if (mode == ContentDisplayMode.image && hasImage) {
-      _drawMiniMedia(canvas, area, img, video: false);
+      _drawMiniImage(canvas, area, img);
       return;
     }
+    // Video mode: full-screen video.
     if (mode == ContentDisplayMode.video && hasVideo) {
-      _drawMiniMedia(canvas, area, img, video: true);
+      _drawMiniVideo(canvas, area, img);
       return;
     }
 
-    // Mixed layout: title → media → text → link, stacked with padding.
-    var y = area.top;
+    // Mixed (_buildTopAligned): centered title + text flow from the top, with
+    // media then link pinned to the BOTTOM.
+    var top = area.top;
     if (node.name.isNotEmpty) {
-      y = _drawMiniTitle(canvas, area, y, node.name) + area.height * 0.05;
-    }
-    if (hasImage || hasVideo) {
-      final h = area.height * 0.40;
-      _drawMiniMedia(canvas, Rect.fromLTWH(area.left, y, area.width, h), img,
-          video: hasVideo && !hasImage);
-      y += h + area.height * 0.06;
+      top = _drawMiniTitle(canvas, area, top, node.name) + area.height * 0.045;
     }
     if (content?.text?.trim().isNotEmpty ?? false) {
-      y = _drawMiniTextBars(canvas, area, y);
+      _drawMiniTextBars(canvas, area, top);
     }
-    if (hasLink) _drawMiniLink(canvas, area);
+
+    var bottom = area.bottom;
+    if (hasLink) {
+      final h = (area.height * 0.05).clamp(3.0, 7.0);
+      _bar(canvas, area.left, bottom - h, area.width * 0.5, h,
+          const Color(0xFFE3E7EB),
+          radius: h / 2);
+      bottom -= h + area.height * 0.035;
+    }
+    if (hasImage || hasVideo) {
+      // The real card constrains media to maxHeight 150 (~30% of the card).
+      final boxH = (area.height * 0.30).clamp(0.0, bottom - top);
+      if (boxH > 4) {
+        final box = Rect.fromLTWH(area.left, bottom - boxH, area.width, boxH);
+        if (hasImage) {
+          _drawMiniImage(canvas, box, img, anchorBottom: true);
+        } else {
+          _drawMiniVideo(canvas, box, img);
+        }
+      }
+    }
   }
 
-  void _drawMiniMedia(Canvas canvas, Rect rect, ui.Image? img,
-      {required bool video}) {
-    if (rect.height <= 1) return;
-    final rr = RRect.fromRectAndRadius(rect, const Radius.circular(3));
+  /// Draws [img] contained (aspect-preserving, never cropped) within [box],
+  /// centered horizontally; anchored to the box bottom when [anchorBottom]
+  /// (mirrors the real card's bottom-pinned, scaleDown thumbnail).
+  void _drawMiniImage(Canvas canvas, Rect box, ui.Image? img,
+      {bool anchorBottom = false}) {
+    if (box.width <= 1 || box.height <= 1) return;
+    if (img == null) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(box, const Radius.circular(3)),
+        Paint()..color = const Color(0xFFD8DCE0),
+      );
+      return;
+    }
+    final iw = img.width.toDouble(), ih = img.height.toDouble();
+    final scale = (box.width / iw).clamp(0.0, box.height / ih);
+    final w = iw * scale, h = ih * scale;
+    final left = box.center.dx - w / 2;
+    final top = anchorBottom ? box.bottom - h : box.center.dy - h / 2;
+    final dst = Rect.fromLTWH(left, top, w, h);
+    canvas.save();
+    canvas.clipRRect(RRect.fromRectAndRadius(dst, const Radius.circular(3)));
+    canvas.drawImageRect(img, Rect.fromLTWH(0, 0, iw, ih), dst,
+        Paint()..filterQuality = FilterQuality.low);
+    canvas.restore();
+  }
+
+  void _drawMiniVideo(Canvas canvas, Rect box, ui.Image? img) {
+    if (box.width <= 1 || box.height <= 1) return;
+    final rr = RRect.fromRectAndRadius(box, const Radius.circular(3));
     if (img != null) {
       canvas.save();
       canvas.clipRRect(rr);
-      // Cover-fit: crop the source to the destination aspect ratio.
+      // Video fills (cover): crop the source to the destination aspect ratio.
       final iw = img.width.toDouble(), ih = img.height.toDouble();
-      final srcAspect = iw / ih, dstAspect = rect.width / rect.height;
+      final srcAspect = iw / ih, dstAspect = box.width / box.height;
       final Rect src;
       if (srcAspect > dstAspect) {
-        final w = ih * dstAspect;
-        src = Rect.fromLTWH((iw - w) / 2, 0, w, ih);
+        final sw = ih * dstAspect;
+        src = Rect.fromLTWH((iw - sw) / 2, 0, sw, ih);
       } else {
-        final h = iw / dstAspect;
-        src = Rect.fromLTWH(0, (ih - h) / 2, iw, h);
+        final sh = iw / dstAspect;
+        src = Rect.fromLTWH(0, (ih - sh) / 2, iw, sh);
       }
       canvas.drawImageRect(
-          img, src, rect, Paint()..filterQuality = FilterQuality.low);
+          img, src, box, Paint()..filterQuality = FilterQuality.low);
       canvas.restore();
     } else {
-      canvas.drawRRect(rr, Paint()..color = const Color(0xFFD8DCE0));
+      canvas.drawRRect(rr, Paint()..color = const Color(0xFFCED3D8));
     }
-    if (video) {
-      final c = rect.center;
-      final r = (rect.shortestSide * 0.18).clamp(3.0, 10.0);
-      canvas.drawCircle(c, r, Paint()..color = const Color(0xCCFFFFFF));
-      final tri = Path()
+    final c = box.center;
+    final r = (box.shortestSide * 0.16).clamp(3.0, 10.0);
+    canvas.drawCircle(c, r, Paint()..color = const Color(0xCCFFFFFF));
+    canvas.drawPath(
+      Path()
         ..moveTo(c.dx - r * 0.3, c.dy - r * 0.5)
         ..lineTo(c.dx + r * 0.55, c.dy)
         ..lineTo(c.dx - r * 0.3, c.dy + r * 0.5)
-        ..close();
-      canvas.drawPath(tri, Paint()..color = const Color(0xFF1C1C1E));
-    }
+        ..close(),
+      Paint()..color = const Color(0xFF1C1C1E),
+    );
   }
 
   double _drawMiniTitle(Canvas canvas, Rect area, double y, String title) {
@@ -470,20 +512,23 @@ class DiagramPainter extends CustomPainter {
           text: title,
           style: TextStyle(
               fontSize: fontSize,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: const Color(0xFF1C1C1E),
               height: 1.1),
         ),
-        maxLines: 2,
+        maxLines: 3,
         ellipsis: '…',
+        textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: area.width);
-      tp.paint(canvas, Offset(area.left, y));
+      // Centered, like the real card's title.
+      tp.paint(canvas, Offset(area.left + (area.width - tp.width) / 2, y));
       return y + tp.height;
     }
-    // Too small to read → gray bar.
+    // Too small to read → centered gray bar.
     final barH = (area.height * 0.05).clamp(2.0, 5.0);
-    _bar(canvas, area.left, y, area.width * 0.7, barH, const Color(0xFF9AA0A6));
+    final w = area.width * 0.7;
+    _bar(canvas, area.center.dx - w / 2, y, w, barH, const Color(0xFF9AA0A6));
     return y + barH;
   }
 
@@ -496,13 +541,6 @@ class DiagramPainter extends CustomPainter {
       y += barH + gap;
     }
     return y;
-  }
-
-  void _drawMiniLink(Canvas canvas, Rect area) {
-    final h = (area.height * 0.055).clamp(3.0, 8.0);
-    _bar(canvas, area.left, area.bottom - h, area.width * 0.55, h,
-        const Color(0xFFE3E7EB),
-        radius: h / 2);
   }
 
   void _bar(Canvas canvas, double x, double y, double w, double h, Color color,

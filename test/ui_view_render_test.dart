@@ -7,6 +7,20 @@ import 'package:bpmn_editor/diagram/model/diagram_model.dart';
 import 'package:bpmn_editor/diagram/edit/editor_controller.dart';
 import 'package:bpmn_editor/diagram/render/diagram_painter.dart';
 
+Future<ui.Image> _solidImage(int w, int h, Color color) async {
+  final rec = ui.PictureRecorder();
+  final canvas = Canvas(rec);
+  canvas.drawRect(
+      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), Paint()..color = color);
+  canvas.drawRect(
+      Rect.fromLTWH(1, 1, w - 2, h - 2),
+      Paint()
+        ..color = const Color(0xFF1C1C1E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4);
+  return rec.endRecording().toImage(w, h);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -49,6 +63,11 @@ void main() {
     final c = EditorController(diagram: d);
     c.viewMode = ViewMode.ui;
 
+    // Decoded content images with distinct aspect ratios to verify contain-fit.
+    final landscape = await _solidImage(160, 90, const Color(0xFF4C9AFF)); // 16:9
+    final portrait = await _solidImage(90, 160, const Color(0xFFFF6B6B)); // 9:16
+    final images = {'a': landscape, 's': portrait};
+
     const size = Size(560, 820);
     final rec = ui.PictureRecorder();
     final canvas = Canvas(rec);
@@ -58,7 +77,7 @@ void main() {
     canvas.translate(size.width / 2, size.height / 2);
     canvas.scale(0.5);
     canvas.translate(-2245.0, -2317.0);
-    DiagramPainter(c).paint(canvas, size);
+    DiagramPainter(c, screenImages: images).paint(canvas, size);
     final img =
         await rec.endRecording().toImage(size.width.toInt(), size.height.toInt());
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
