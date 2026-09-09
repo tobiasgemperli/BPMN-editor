@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/io/api_client.dart';
@@ -172,26 +173,31 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  /// Extract a poster frame from a video [path] (remote URL or local file).
+  /// Extract a poster frame from a video [path]. Remote videos are downloaded
+  /// to a temp file first — native thumbnailers are unreliable with authed
+  /// network URLs.
   Future<ui.Image?> _loadVideoThumb(String path) async {
     try {
-      String? source;
-      Map<String, String>? headers;
+      String? localPath;
       if (MediaRef.isRemote(path)) {
-        source = ApiClient.instance.mediaUrl(MediaRef.fileId(path));
-        headers = ApiClient.instance.mediaHeaders;
-      } else if (!path.startsWith('assets/')) {
-        if (await File(path).exists()) source = path;
+        final id = MediaRef.fileId(path);
+        final bytes = await ApiClient.instance.getFileBytes(id);
+        if (bytes == null) return null;
+        final tmp = await getTemporaryDirectory();
+        final file = File('${tmp.path}/vthumb_$id.mp4');
+        if (!await file.exists()) await file.writeAsBytes(bytes);
+        localPath = file.path;
+      } else if (!path.startsWith('assets/') && await File(path).exists()) {
+        localPath = path;
       }
-      if (source == null) return null;
+      if (localPath == null) return null;
       final data = await VideoThumbnail.thumbnailData(
-        video: source,
-        headers: headers,
+        video: localPath,
         imageFormat: ImageFormat.PNG,
-        maxWidth: 160,
-        quality: 60,
+        maxWidth: 200,
+        quality: 70,
       );
-      if (data == null) return null;
+      if (data == null || data.isEmpty) return null;
       final frame = await (await ui.instantiateImageCodec(data)).getNextFrame();
       return frame.image;
     } catch (_) {
