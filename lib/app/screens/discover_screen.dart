@@ -267,6 +267,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, i) => _RemoteModelCard(
                         meta: _remoteModels[i],
+                        onChanged: _loadRemote,
                       ),
                     ),
                   ),
@@ -429,7 +430,8 @@ void _openPresentation(BuildContext context, DiagramModel diagram,
     {String? title,
     SampleCreator? creator,
     SampleDiagramEntry? entry,
-    ApiModelMeta? meta}) {
+    ApiModelMeta? meta,
+    VoidCallback? onSaved}) {
   Navigator.push(
     context,
     _bottomToTopRoute(_ModalNavigatorShell(
@@ -439,6 +441,7 @@ void _openPresentation(BuildContext context, DiagramModel diagram,
       creator: creator,
       entry: entry,
       meta: meta,
+      onSaved: onSaved,
     )),
   );
 }
@@ -1270,7 +1273,10 @@ String _formatDate(DateTime dt) {
 class _RemoteModelCard extends StatelessWidget {
   final ApiModelMeta meta;
 
-  const _RemoteModelCard({required this.meta});
+  /// Called after the model is edited (e.g. thumbnail) so the list reloads.
+  final VoidCallback? onChanged;
+
+  const _RemoteModelCard({required this.meta, this.onChanged});
 
   Future<void> _openModel(BuildContext context) async {
     // Fetch the diagram lazily (the list is metadata-only for speed).
@@ -1289,6 +1295,7 @@ class _RemoteModelCard extends StatelessWidget {
     _openPresentation(context, diagram,
         title: meta.name,
         meta: meta,
+        onSaved: onChanged,
         creator: SampleCreator(
           id: meta.ownerId,
           name: ownerName,

@@ -274,7 +274,8 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 child: _InfoCircleButton(
                   onPressed: () {
                     if (widget.meta != null) {
-                      _showModelInfo(context, widget.meta!, widget.diagram);
+                      _showModelInfo(context, widget.meta!, widget.diagram,
+                          onChanged: widget.onSaved);
                     } else {
                       _showEntryInfo(context, widget.entry!);
                     }
@@ -676,13 +677,14 @@ class _EntryInfoSheet extends StatelessWidget {
 
 // ── Backend model info sheet ───────────────────────────────────
 
-void _showModelInfo(
-    BuildContext context, ApiModelMeta meta, DiagramModel diagram) {
+void _showModelInfo(BuildContext context, ApiModelMeta meta,
+    DiagramModel diagram, {VoidCallback? onChanged}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _ModelInfoSheet(meta: meta, diagram: diagram),
+    builder: (_) =>
+        _ModelInfoSheet(meta: meta, diagram: diagram, onChanged: onChanged),
   );
 }
 
@@ -690,7 +692,12 @@ class _ModelInfoSheet extends StatefulWidget {
   final ApiModelMeta meta;
   final DiagramModel diagram;
 
-  const _ModelInfoSheet({required this.meta, required this.diagram});
+  /// Called after the model's metadata/thumbnail is edited, so the underlying
+  /// list can reload and pick up the new thumbnail without an app restart.
+  final VoidCallback? onChanged;
+
+  const _ModelInfoSheet(
+      {required this.meta, required this.diagram, this.onChanged});
 
   @override
   State<_ModelInfoSheet> createState() => _ModelInfoSheetState();
@@ -720,7 +727,11 @@ class _ModelInfoSheetState extends State<_ModelInfoSheet> {
       backgroundColor: Colors.transparent,
       builder: (_) => _MetaEditSheet(meta: _meta),
     );
-    if (updated != null && mounted) setState(() => _meta = updated);
+    if (updated != null && mounted) {
+      setState(() => _meta = updated);
+      // Refresh the list behind us so the new thumbnail shows immediately.
+      widget.onChanged?.call();
+    }
   }
 
   @override
