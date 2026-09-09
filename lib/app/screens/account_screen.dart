@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../diagram/io/api_client.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import 'discover_screen.dart';
+import 'edit_profile_sheet.dart';
 
 /// Account tab — the signed-in user's profile plus Following / Followers.
 class AccountScreen extends StatefulWidget {
@@ -86,6 +87,12 @@ class _AccountScreenState extends State<AccountScreen> {
                                 color: const Color(0xFF1C1C1E),
                               ),
                     ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _openEditProfile,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Edit'),
+                    ),
                   ],
                 ),
               ),
@@ -125,6 +132,16 @@ class _AccountScreenState extends State<AccountScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openEditProfile() async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const EditProfileSheet(),
+    );
+    if (saved == true) _load(); // refresh name/avatar
   }
 
   Widget _profileHeader() {

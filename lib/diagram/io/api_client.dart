@@ -141,6 +141,38 @@ class ApiUserRef {
   }
 }
 
+/// The signed-in user's own editable settings (`/user/settings`, lowercase
+/// keys). `uname`/`role` are read-only.
+class ApiUserSettings {
+  final String id;
+  final String uname;
+  final String name;
+  final String surname;
+  final String email;
+  final String phone;
+  final String role;
+
+  ApiUserSettings({
+    required this.id,
+    required this.uname,
+    required this.name,
+    required this.surname,
+    required this.email,
+    required this.phone,
+    required this.role,
+  });
+
+  factory ApiUserSettings.fromJson(Map<String, dynamic> json) => ApiUserSettings(
+        id: json['id']?.toString() ?? '',
+        uname: (json['uname'] as String?) ?? '',
+        name: (json['name'] as String?) ?? '',
+        surname: (json['surname'] as String?) ?? '',
+        email: (json['email'] as String?) ?? '',
+        phone: (json['phone'] as String?) ?? '',
+        role: (json['role'] as String?) ?? '',
+      );
+}
+
 class ApiException implements Exception {
   final int statusCode;
   final String message;
@@ -274,6 +306,65 @@ class ApiClient {
     }
     return ApiUserProfile.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  /// The signed-in user's own editable settings (`GET /user/settings`).
+  Future<ApiUserSettings> getUserSettings() async {
+    final response = await _client.get(
+      Uri.parse('$_baseUrl/user/settings'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    return ApiUserSettings.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  /// Update the signed-in user's profile (`POST /user/settings`). Only the
+  /// provided fields are sent. [thumbnailBase64] is a base64-encoded avatar
+  /// image (send an empty string to clear).
+  Future<void> updateUserSettings({
+    String? name,
+    String? surname,
+    String? email,
+    String? phone,
+    String? thumbnailBase64,
+  }) async {
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (surname != null) body['surname'] = surname;
+    if (email != null) body['email'] = email;
+    if (phone != null) body['phone'] = phone;
+    if (thumbnailBase64 != null) body['thumbnail'] = thumbnailBase64;
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/user/settings'),
+      headers: _jsonHeaders,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    // Drop this user's cached avatar so the new one is refetched.
+    _thumbnailCache.remove(_cachedUserId);
+  }
+
+  /// Change the signed-in user's password (`POST /user/setpass`).
+  Future<void> setPassword(String newPassword) async {
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/user/setpass'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'pass': newPassword}),
+    );
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, response.body);
+    }
+    // Keep the active session valid with the new password.
+    _password = newPassword;
+    try {
+      await (await _credsFile())
+          .writeAsString(jsonEncode({'u': _username, 'p': newPassword}));
+    } catch (_) {}
   }
 
   /// Decoded avatar bytes for [userId] from `/user/thumbnail/{id}`, or null if
