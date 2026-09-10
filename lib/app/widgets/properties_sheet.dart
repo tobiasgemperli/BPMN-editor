@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
+import 'close_circle_button.dart';
 
 /// Copies a file from a temporary path to the app's documents directory
 /// so it persists across app restarts. Returns the permanent path.
@@ -316,18 +317,32 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Header with back chevron.
+          // Header: floating back button (same as the screen before) + title.
           Padding(
-            padding: EdgeInsets.fromLTRB(8, topPad + 8, 12, 0),
+            padding: EdgeInsets.fromLTRB(16, topPad + 8, 16, 0),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Color(0xFF1C1C1E)),
+                CloseCircleButton(
+                  isBack: true,
                   onPressed: () {
                     FocusScope.of(context).unfocus();
                     Navigator.pop(context);
                   },
                 ),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      _editTitle(widget.node.type),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                  ),
+                ),
+                // Balance the back button's width so the title stays centered.
+                const SizedBox(width: 44),
               ],
             ),
           ),
@@ -975,28 +990,16 @@ class _MiniScreenPreview extends StatelessWidget {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-Color _nodeTypeColor(NodeType type) {
+/// Screen title for the node editor, e.g. "Edit Step", "Edit Start".
+String _editTitle(NodeType type) {
   switch (type) {
-    case NodeType.startEvent:
-      return const Color(0xFF34C759);
-    case NodeType.endEvent:
-      return const Color(0xFFFF3B30);
     case NodeType.task:
-      return const Color(0xFF007AFF);
-    case NodeType.exclusiveGateway:
-      return const Color(0xFFFF9500);
-  }
-}
-
-String _nodeTypeLabel(NodeType type) {
-  switch (type) {
+      return 'Edit Step';
     case NodeType.startEvent:
-      return 'Start Event';
+      return 'Edit Start';
     case NodeType.endEvent:
-      return 'End Event';
-    case NodeType.task:
-      return 'Task';
+      return 'Edit End';
     case NodeType.exclusiveGateway:
-      return 'Gateway';
+      return 'Edit Decision';
   }
 }

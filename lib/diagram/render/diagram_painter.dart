@@ -19,9 +19,6 @@ class DiagramPainter extends CustomPainter {
   // UI mode node dimensions (portrait phone screen).
   static const double _uiScreenWidth = 100.0;
   static const double _uiScreenHeight = 178.0;
-  // Smaller phone frame for start/end events.
-  static const double _uiSmallScreenWidth = 80.0;
-  static const double _uiSmallScreenHeight = 142.0;
 
   // Merge bar constants.
   static const double _mergeBarThickness = 3.5;
@@ -174,9 +171,9 @@ class DiagramPainter extends CustomPainter {
 
     // Determine the scale factor needed.
     // Phone frames are taller: task 100×178 vs original 140×70.
-    // The height grew by ~2.5x, width is similar. Scale spacing by ~2.5.
-    // But also check for actual overlaps and adjust.
-    const scaleFactor = 2.2;
+    // Keep the spread modest so connected screens sit close together;
+    // the overlap pass below still guarantees they never collide.
+    const scaleFactor = 1.55;
 
     // Scale all positions outward from centroid.
     final positions = <String, Offset>{};
@@ -199,8 +196,9 @@ class DiagramPainter extends CustomPainter {
           final rectA = _uiDisplayRectAt(nodeA, posA);
           final rectB = _uiDisplayRectAt(nodeB, posB);
 
-          // Check overlap with padding.
-          const pad = 20.0;
+          // Check overlap with padding. This pad is also the minimum gap
+          // between adjacent screens, so keep it small for a tight layout.
+          const pad = 10.0;
           final inflatedA = rectA.inflate(pad);
           if (!inflatedA.overlaps(rectB)) continue;
 
@@ -233,43 +231,12 @@ class DiagramPainter extends CustomPainter {
   }
 
   /// Returns the UI display rect centered at a specific position.
+  ///
+  /// Every node renders as the same-size phone frame in Content view,
+  /// regardless of type (Step, Decision, Start, End).
   static Rect _uiDisplayRectAt(NodeModel node, Offset center) {
-    switch (node.type) {
-      case NodeType.task:
-        return Rect.fromCenter(
-            center: center, width: _uiScreenWidth, height: _uiScreenHeight);
-      case NodeType.startEvent:
-      case NodeType.endEvent:
-        return Rect.fromCenter(
-            center: center,
-            width: _uiSmallScreenWidth,
-            height: _uiSmallScreenHeight);
-      case NodeType.exclusiveGateway:
-        // Gateways are shown as a minified decision screen, like tasks.
-        return Rect.fromCenter(
-            center: center, width: _uiScreenWidth, height: _uiScreenHeight);
-    }
-  }
-
-  /// Returns the display rect for a node in UI mode.
-  Rect _uiDisplayRect(NodeModel node) {
-    switch (node.type) {
-      case NodeType.task:
-        return Rect.fromCenter(
-          center: node.center,
-          width: _uiScreenWidth,
-          height: _uiScreenHeight,
-        );
-      case NodeType.startEvent:
-      case NodeType.endEvent:
-        return Rect.fromCenter(
-          center: node.center,
-          width: _uiSmallScreenWidth,
-          height: _uiSmallScreenHeight,
-        );
-      case NodeType.exclusiveGateway:
-        return node.rect;
-    }
+    return Rect.fromCenter(
+        center: center, width: _uiScreenWidth, height: _uiScreenHeight);
   }
 
   void _drawGrid(Canvas canvas, Size size) {
@@ -320,31 +287,41 @@ class DiagramPainter extends CustomPainter {
       final clippedStart = _screenPort(sourceRect, targetRect.center);
       final clippedEnd = _screenPort(targetRect, sourceRect.center);
 
-      // Draw a simple L-shaped orthogonal edge.
-      final path = Path();
-      path.moveTo(clippedStart.dx, clippedStart.dy);
+      // Route orthogonally so each end meets its port perpendicular to that
+      // port's edge: a top/bottom port is always entered vertically, a
+      // left/right port horizontally. This stops arrows from sliding into a
+      // top port from the side.
+      final sx = clippedStart.dx, sy = clippedStart.dy;
+      final ex = clippedEnd.dx, ey = clippedEnd.dy;
+      final startVertical = sy <= sourceRect.top || sy >= sourceRect.bottom;
+      final endVertical = ey <= targetRect.top || ey >= targetRect.bottom;
 
-      // Determine the dominant exit direction and route orthogonally.
-      final dx = clippedEnd.dx - clippedStart.dx;
-      final dy = clippedEnd.dy - clippedStart.dy;
-      final horizontal = dx.abs() > dy.abs();
-
-      if (horizontal) {
-        final midX = clippedStart.dx + dx / 2;
-        path.lineTo(midX, clippedStart.dy);
-        path.lineTo(midX, clippedEnd.dy);
+      final path = Path()..moveTo(sx, sy);
+      Offset prevPt;
+      if (startVertical && endVertical) {
+        // vertical out, vertical in — Z with a horizontal mid segment.
+        final midY = (sy + ey) / 2;
+        path.lineTo(sx, midY);
+        path.lineTo(ex, midY);
+        prevPt = Offset(ex, midY);
+      } else if (!startVertical && !endVertical) {
+        // horizontal out, horizontal in — Z with a vertical mid segment.
+        final midX = (sx + ex) / 2;
+        path.lineTo(midX, sy);
+        path.lineTo(midX, ey);
+        prevPt = Offset(midX, ey);
+      } else if (startVertical) {
+        // vertical out of source, horizontal into target — single L bend.
+        path.lineTo(sx, ey);
+        prevPt = Offset(sx, ey);
       } else {
-        final midY = clippedStart.dy + dy / 2;
-        path.lineTo(clippedStart.dx, midY);
-        path.lineTo(clippedEnd.dx, midY);
+        // horizontal out of source, vertical into target — single L bend.
+        path.lineTo(ex, sy);
+        prevPt = Offset(ex, sy);
       }
-      path.lineTo(clippedEnd.dx, clippedEnd.dy);
+      path.lineTo(ex, ey);
       canvas.drawPath(path, paint);
 
-      // Arrowhead.
-      final prevPt = horizontal
-          ? Offset(clippedStart.dx + dx / 2, clippedEnd.dy)
-          : Offset(clippedEnd.dx, clippedStart.dy + dy / 2);
       _drawArrow(canvas, prevPt, clippedEnd, arrowFill);
 
       // Edge name label.
@@ -744,7 +721,9 @@ class DiagramPainter extends CustomPainter {
           ..shader = ui.Gradient.linear(
               screenRect.topCenter, screenRect.bottomCenter, colors),
       );
-      final c = node.center;
+      // Anchor to the frame's displayed (spread) centre, not node.center —
+      // otherwise the icon/label float away from the frame in Content view.
+      final c = displayRect.center;
       final iconColor =
           isStart ? const Color(0xFF34C759) : const Color(0xFFFF3B30);
       if (isStart) {

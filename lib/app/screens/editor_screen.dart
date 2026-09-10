@@ -381,7 +381,8 @@ class _EditorScreenState extends State<EditorScreen>
             onScreenTap: _openScreenDetail,
           ),
           // ── Right-side shape palette + action buttons (owner only) ──
-          if (_isOwner)
+          // Hidden in Content mode — editing chrome belongs to Structure view.
+          if (_isOwner && _controller.viewMode != ViewMode.ui)
             Positioned(
               right: 12,
               top: 0,
@@ -396,7 +397,8 @@ class _EditorScreenState extends State<EditorScreen>
               ),
             ),
           // ── Bottom action bar (owner only) ──
-          if (_isOwner)
+          // Hidden in Content mode — editing chrome belongs to Structure view.
+          if (_isOwner && _controller.viewMode != ViewMode.ui)
             Positioned(
               left: 0,
               right: 0,
@@ -433,14 +435,6 @@ class _EditorScreenState extends State<EditorScreen>
                                       ? _controller.deleteOrphans
                                       : _controller.deleteSelected,
                                 ),
-                                const SizedBox(width: 6),
-                                if (_controller.selectedNodeId != null)
-                                  _ActionButton(
-                                    icon: Icons.edit,
-                                    color: const Color(0xFF1C1C1E),
-                                    onPressed: () =>
-                                        showPropertiesSheet(context, _controller),
-                                  ),
                               ],
                             ),
                           ),
@@ -598,6 +592,9 @@ class _EditorScreenState extends State<EditorScreen>
                     _ViewModeToggle(
                       controller: _controller,
                       onModeChanged: (mode) {
+                        // Rebuild so mode-dependent chrome (toolbar, action
+                        // bar, canvas screen images) reflects the new mode.
+                        setState(() {});
                         if (mode == ViewMode.ui) {
                           _loadScreenImages();
                         }
@@ -641,7 +638,7 @@ class _EditorScreenState extends State<EditorScreen>
 
 }
 
-/// Segmented control to toggle between Diagram and UI view modes.
+/// Segmented control to toggle between Structure and Content view modes.
 class _ViewModeToggle extends StatelessWidget {
   final EditorController controller;
   final ValueChanged<ViewMode>? onModeChanged;
@@ -663,8 +660,8 @@ class _ViewModeToggle extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSegment('Diagram', ViewMode.diagram, mode),
-              _buildSegment('UI', ViewMode.ui, mode),
+              _buildSegment('Structure', ViewMode.diagram, mode),
+              _buildSegment('Content', ViewMode.ui, mode),
             ],
           ),
         );
@@ -703,9 +700,9 @@ class _ViewModeToggle extends StatelessWidget {
           style: TextStyle(
             fontSize: 15,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-            color: isActive
-                ? const Color(0xFF1C1C1E)
-                : const Color(0xFF8E8E93),
+            // Both active and inactive segments use black text; only the
+            // white pill + weight distinguishes the selected one.
+            color: const Color(0xFF1C1C1E),
           ),
         ),
       ),
