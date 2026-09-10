@@ -5,6 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../diagram/io/api_client.dart';
+import '../widgets/styled_field.dart';
+
+/// Present the profile editor as a modal sheet. Returns true if saved.
+Future<bool?> showEditProfileSheet(BuildContext context) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const EditProfileSheet(),
+  );
+}
 
 /// Bottom sheet for editing the signed-in user's profile: name, surname,
 /// email, phone, avatar, and password. Returns true if anything was saved.
@@ -191,10 +202,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                               fontWeight: FontWeight.w600,
                               color: Colors.grey[600])),
                       const SizedBox(height: 6),
-                      TextField(
+                      StyledField(
                         controller: _password,
                         obscureText: true,
-                        decoration: _decoration('New password (leave blank to keep)'),
+                        placeholder: 'New password (leave blank to keep)',
                       ),
                       if (_error != null) ...[
                         const SizedBox(height: 12),
@@ -260,10 +271,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1C1C1E))),
           const SizedBox(height: 6),
-          TextField(
+          StyledField(
             controller: c,
             keyboardType: keyboardType,
-            decoration: _decoration(null),
+            placeholder: '',
           ),
         ],
       ),
@@ -296,11 +307,4 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
         ),
       );
 
-  InputDecoration _decoration(String? hint) => InputDecoration(
-        hintText: hint,
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      );
 }

@@ -7,6 +7,7 @@ import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
 import 'presentation_screen.dart';
 import 'editor_screen.dart';
+import 'edit_profile_sheet.dart';
 
 /// YouTube-inspired discovery screen for browsing process content.
 class DiscoverScreen extends StatefulWidget {
@@ -623,7 +624,21 @@ class _CreatorRow extends StatelessWidget {
 
 // ── Creator profile sheet ───────────────────────────────────────
 
-void showCreatorProfile(BuildContext context, SampleCreator creator) {
+Future<void> showCreatorProfile(BuildContext context, SampleCreator creator) async {
+  // If this is the signed-in user's own profile, skip the read-only info
+  // screen and open the profile editor directly.
+  final ownerId = int.tryParse(creator.id);
+  if (ownerId != null) {
+    try {
+      if (ownerId == await ApiClient.instance.currentUserId()) {
+        if (context.mounted) await showEditProfileSheet(context);
+        return;
+      }
+    } catch (_) {
+      // Couldn't resolve the current user — fall through to the info screen.
+    }
+  }
+  if (!context.mounted) return;
   Navigator.push(
     context,
     MaterialPageRoute(

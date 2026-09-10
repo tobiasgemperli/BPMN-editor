@@ -16,6 +16,7 @@ import '../widgets/close_circle_button.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
+import '../widgets/styled_field.dart';
 import '../widgets/chat_sheet.dart';
 import 'discover_screen.dart' show showCreatorProfile;
 import 'presentation_screen.dart';
@@ -153,6 +154,41 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
+  /// Rebuild the screen replica for a single [nodeId] only (e.g. after editing
+  /// it), reusing already-decoded media for every other node. Avoids the full
+  /// serial re-decode — and re-extracting other nodes' video thumbnails — that
+  /// made returning from the detail editor slow.
+  Future<void> _reloadScreenImagesFor(String nodeId) async {
+    final content = _controller.diagram.nodes[nodeId]?.content;
+    final decoded = <ui.Image>[];
+    ui.Image? thumb;
+    if (content != null) {
+      for (final path in content.imagePaths) {
+        final img = await _decodeMedia(path);
+        if (img != null) decoded.add(img);
+      }
+      final vpath = content.videoPath;
+      if (vpath != null) thumb = await _loadVideoThumb(vpath);
+    }
+    if (!mounted) return;
+    setState(() {
+      final images = Map<String, List<ui.Image>>.from(_screenImages);
+      final videoThumbs = Map<String, ui.Image>.from(_videoThumbs);
+      if (decoded.isNotEmpty) {
+        images[nodeId] = decoded;
+      } else {
+        images.remove(nodeId);
+      }
+      if (thumb != null) {
+        videoThumbs[nodeId] = thumb;
+      } else {
+        videoThumbs.remove(nodeId);
+      }
+      _screenImages = images;
+      _videoThumbs = videoThumbs;
+    });
+  }
+
   /// Decode an image [path] (backend remote:, bundled asset, or local file).
   Future<ui.Image?> _decodeMedia(String path) async {
     try {
@@ -162,8 +198,8 @@ class _EditorScreenState extends State<EditorScreen>
       } else if (path.startsWith('assets/')) {
         bytes = (await rootBundle.load(path)).buffer.asUint8List();
       } else {
-        final file = File(path);
-        if (await file.exists()) bytes = await file.readAsBytes();
+        final local = await MediaRef.resolveLocalPath(path);
+        if (local != null) bytes = await File(local).readAsBytes();
       }
       if (bytes == null) return null;
       final frame = await (await ui.instantiateImageCodec(bytes)).getNextFrame();
@@ -187,8 +223,8 @@ class _EditorScreenState extends State<EditorScreen>
         final file = File('${tmp.path}/vthumb_$id.mp4');
         if (!await file.exists()) await file.writeAsBytes(bytes);
         localPath = file.path;
-      } else if (!path.startsWith('assets/') && await File(path).exists()) {
-        localPath = path;
+      } else if (!path.startsWith('assets/')) {
+        localPath = await MediaRef.resolveLocalPath(path);
       }
       if (localPath == null) return null;
       final data = await VideoThumbnail.thumbnailData(
@@ -207,10 +243,15 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// Open the editable details for a screen tapped in UI mode (same content
   /// editor as the diagram view), so the user can edit it.
-  void _openScreenDetail(String nodeId) {
+  Future<void> _openScreenDetail(String nodeId) async {
     final node = _controller.diagram.nodes[nodeId];
     if (node == null) return;
-    showNodeEditor(context, node, _controller);
+    await showNodeEditor(context, node, _controller);
+    // Rebuild only this screen's replica so edited content (new/changed
+    // images, video, text) is reflected without re-decoding every node.
+    if (mounted && _controller.viewMode == ViewMode.ui) {
+      await _reloadScreenImagesFor(nodeId);
+    }
   }
 
   Future<void> _saveDiagram() async {
@@ -251,10 +292,10 @@ class _EditorScreenState extends State<EditorScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Save Diagram'),
-        content: TextField(
+        content: StyledField(
           controller: textController,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Diagram name'),
+          placeholder: 'Diagram name',
           onSubmitted: (_) => Navigator.pop(context, textController.text),
         ),
         actions: [
@@ -277,10 +318,10 @@ class _EditorScreenState extends State<EditorScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename Diagram'),
-        content: TextField(
+        content: StyledField(
           controller: textController,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Diagram name'),
+          placeholder: 'Diagram name',
           onSubmitted: (_) => Navigator.pop(context, textController.text),
         ),
         actions: [

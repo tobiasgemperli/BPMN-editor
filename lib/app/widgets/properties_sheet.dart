@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
 import 'close_circle_button.dart';
+import 'process_card.dart';
+import 'styled_field.dart';
 
 /// Copies a file from a temporary path to the app's documents directory
 /// so it persists across app restarts. Returns the permanent path.
@@ -34,15 +36,18 @@ void showPropertiesSheet(BuildContext context, EditorController controller) {
 }
 
 /// Opens the node editor for a specific node (used by long-press).
-void showNodeEditor(
+///
+/// The returned future completes once the editor is dismissed and its edits
+/// have been saved, so callers can refresh anything derived from the content.
+Future<void> showNodeEditor(
     BuildContext context, NodeModel node, EditorController controller) {
   controller.selectedNodeId = node.id;
-  _openNodeEditor(context, node, controller);
+  return _openNodeEditor(context, node, controller);
 }
 
-void _openNodeEditor(
+Future<void> _openNodeEditor(
     BuildContext context, NodeModel node, EditorController controller) {
-  Navigator.of(context).push(
+  return Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (_) => _NodeEditorScreen(node: node, controller: controller),
     ),
@@ -182,7 +187,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   Widget _buildEdgeLabelField(EdgeModel edge, int index) {
     final targetNode = widget.controller.diagram.nodes[edge.targetId];
     final targetName = targetNode?.name ?? edge.targetId;
-    return _StyledField(
+    return StyledField(
       controller: _edgeLabelCtrls[edge.id]!,
       placeholder: 'Option ${index + 1}',
       prefixIcon: Icons.arrow_forward,
@@ -241,7 +246,64 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     }
   }
 
+  // Guards against saving twice (PopScope on the way out + dispose backstop),
+  // which would push duplicate undo commands.
+  bool _saved = false;
+
+  /// Builds a [TaskContent] from the current editor state, with no side
+  /// effects. Shared by save and the live preview.
+  TaskContent? _buildContent() {
+    if (!_hasContent) return null;
+    String? text;
+    List<String> images = [];
+    List<String> videos = [];
+    List<String> pdfs = [];
+    String? url;
+    String? urlLabel;
+    ContentDisplayMode mode;
+
+    switch (_displayType) {
+      case DisplayType.text:
+        mode = ContentDisplayMode.mixed;
+        text = _mixedTextCtrl.text.isNotEmpty ? _mixedTextCtrl.text : null;
+        images = _mixedImagePaths.where((p) => p.isNotEmpty).toList();
+        pdfs = _mixedPdfPaths.where((p) => p.isNotEmpty).toList();
+        url = _mixedUrlCtrl.text.isNotEmpty ? _mixedUrlCtrl.text : null;
+        urlLabel =
+            _mixedUrlLabelCtrl.text.isNotEmpty ? _mixedUrlLabelCtrl.text : null;
+        break;
+      case DisplayType.image:
+        mode = ContentDisplayMode.image;
+        images = _imageImagePaths.where((p) => p.isNotEmpty).toList();
+        pdfs = _imagePdfPaths.where((p) => p.isNotEmpty).toList();
+        url = _imageUrlCtrl.text.isNotEmpty ? _imageUrlCtrl.text : null;
+        urlLabel =
+            _imageUrlLabelCtrl.text.isNotEmpty ? _imageUrlLabelCtrl.text : null;
+        break;
+      case DisplayType.video:
+        mode = ContentDisplayMode.video;
+        videos = _videoVideoPaths.where((p) => p.isNotEmpty).toList();
+        pdfs = _videoPdfPaths.where((p) => p.isNotEmpty).toList();
+        url = _videoUrlCtrl.text.isNotEmpty ? _videoUrlCtrl.text : null;
+        urlLabel =
+            _videoUrlLabelCtrl.text.isNotEmpty ? _videoUrlLabelCtrl.text : null;
+        break;
+    }
+
+    return TaskContent(
+      text: text,
+      imagePaths: images,
+      videoPaths: videos,
+      pdfPaths: pdfs,
+      linkUrl: url,
+      linkLabel: urlLabel,
+      displayMode: mode,
+    );
+  }
+
   void _saveData() {
+    if (_saved) return;
+    _saved = true;
     widget.controller.renameNode(widget.node.id, _nameCtrl.text);
 
     // Save gateway edge labels.
@@ -253,67 +315,44 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     }
 
     if (_hasContent) {
-      String? text;
-      List<String> images = [];
-      List<String> videos = [];
-      List<String> pdfs = [];
-      String? url;
-      String? urlLabel;
-      ContentDisplayMode mode;
-
-      switch (_displayType) {
-        case DisplayType.text:
-          mode = ContentDisplayMode.mixed;
-          text = _mixedTextCtrl.text.isNotEmpty ? _mixedTextCtrl.text : null;
-          images = _mixedImagePaths.where((p) => p.isNotEmpty).toList();
-          pdfs = _mixedPdfPaths.where((p) => p.isNotEmpty).toList();
-          url = _mixedUrlCtrl.text.isNotEmpty ? _mixedUrlCtrl.text : null;
-          urlLabel = _mixedUrlLabelCtrl.text.isNotEmpty
-              ? _mixedUrlLabelCtrl.text
-              : null;
-          break;
-        case DisplayType.image:
-          mode = ContentDisplayMode.image;
-          images = _imageImagePaths.where((p) => p.isNotEmpty).toList();
-          pdfs = _imagePdfPaths.where((p) => p.isNotEmpty).toList();
-          url = _imageUrlCtrl.text.isNotEmpty ? _imageUrlCtrl.text : null;
-          urlLabel = _imageUrlLabelCtrl.text.isNotEmpty
-              ? _imageUrlLabelCtrl.text
-              : null;
-          break;
-        case DisplayType.video:
-          mode = ContentDisplayMode.video;
-          videos = _videoVideoPaths.where((p) => p.isNotEmpty).toList();
-          pdfs = _videoPdfPaths.where((p) => p.isNotEmpty).toList();
-          url = _videoUrlCtrl.text.isNotEmpty ? _videoUrlCtrl.text : null;
-          urlLabel = _videoUrlLabelCtrl.text.isNotEmpty
-              ? _videoUrlLabelCtrl.text
-              : null;
-          break;
-      }
-
-      final content = TaskContent(
-        text: text,
-        imagePaths: images,
-        videoPaths: videos,
-        pdfPaths: pdfs,
-        linkUrl: url,
-        linkLabel: urlLabel,
-        displayMode: mode,
-      );
-
+      final content = _buildContent();
       widget.controller.updateTaskContent(
         widget.node.id,
-        content.isEmpty ? null : content,
+        (content == null || content.isEmpty) ? null : content,
       );
     }
+  }
+
+  /// Show the presentation card for this step exactly as it will appear,
+  /// reflecting the current (unsaved) edits.
+  void _openPreview() {
+    // Dismiss the keyboard before showing the preview.
+    FocusManager.instance.primaryFocus?.unfocus();
+    final preview = widget.node.copy()
+      ..name = _nameCtrl.text
+      ..content = _buildContent();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _NodePreviewScreen(
+          node: preview,
+          diagram: widget.controller.diagram,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
+    return PopScope(
+      // Save synchronously as the editor pops (back button, swipe, or system
+      // back) so the caller's reload sees the updated content.
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) _saveData();
+      },
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
@@ -341,8 +380,16 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                     ),
                   ),
                 ),
-                // Balance the back button's width so the title stays centered.
-                const SizedBox(width: 44),
+                // Preview the step as it will appear in presentation mode.
+                TextButton(
+                  onPressed: _openPreview,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF1C1C1E),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(44, 44),
+                  ),
+                  child: const Text('Preview'),
+                ),
               ],
             ),
           ),
@@ -355,10 +402,10 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Node name ──
-                  _SectionLabel(label: 'Name'),
+                  // ── Node title ──
+                  _SectionLabel(label: 'Title'),
                   const SizedBox(height: 6),
-                  _StyledField(
+                  StyledField(
                     controller: _nameCtrl,
                     placeholder: widget.node.type == NodeType.exclusiveGateway
                         ? 'Question...'
@@ -400,7 +447,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                     if (_displayType == DisplayType.text) ...[
                       _SectionLabel(label: 'Content'),
                       const SizedBox(height: 8),
-                      _StyledField(
+                      StyledField(
                         controller: _mixedTextCtrl,
                         placeholder: 'Body text...',
                         maxLines: 6,
@@ -437,13 +484,13 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                       const SizedBox(height: 10),
                       _SectionLabel(label: 'Link'),
                       const SizedBox(height: 8),
-                      _StyledField(
+                      StyledField(
                         controller: _mixedUrlCtrl,
                         placeholder: 'Link URL',
                         prefixIcon: Icons.link,
                       ),
                       const SizedBox(height: 10),
-                      _StyledField(
+                      StyledField(
                         controller: _mixedUrlLabelCtrl,
                         placeholder: 'Link label',
                       ),
@@ -481,13 +528,13 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                       const SizedBox(height: 10),
                       _SectionLabel(label: 'Link'),
                       const SizedBox(height: 8),
-                      _StyledField(
+                      StyledField(
                         controller: _imageUrlCtrl,
                         placeholder: 'Link URL',
                         prefixIcon: Icons.link,
                       ),
                       const SizedBox(height: 10),
-                      _StyledField(
+                      StyledField(
                         controller: _imageUrlLabelCtrl,
                         placeholder: 'Link label',
                       ),
@@ -525,13 +572,13 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                       const SizedBox(height: 10),
                       _SectionLabel(label: 'Link'),
                       const SizedBox(height: 8),
-                      _StyledField(
+                      StyledField(
                         controller: _videoUrlCtrl,
                         placeholder: 'Link URL',
                         prefixIcon: Icons.link,
                       ),
                       const SizedBox(height: 10),
-                      _StyledField(
+                      StyledField(
                         controller: _videoUrlLabelCtrl,
                         placeholder: 'Link label',
                       ),
@@ -542,6 +589,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -562,79 +610,6 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w600,
         color: const Color(0xFF1C1C1E),
         letterSpacing: 0.8,
-      ),
-    );
-  }
-}
-
-// ── Styled text field ────────────────────────────────────────
-
-class _StyledField extends StatelessWidget {
-  final TextEditingController controller;
-  final String placeholder;
-  final int maxLines;
-  final int minLines;
-  final bool autofocus;
-  final TextStyle? style;
-  final IconData? prefixIcon;
-  final Widget? suffix;
-
-  const _StyledField({
-    required this.controller,
-    required this.placeholder,
-    this.maxLines = 1,
-    this.minLines = 1,
-    this.autofocus = false,
-    this.style,
-    this.prefixIcon,
-    this.suffix,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isSingleLine = maxLines == 1;
-    return TextField(
-      controller: controller,
-      autofocus: autofocus,
-      maxLines: maxLines,
-      minLines: minLines,
-      textInputAction:
-          isSingleLine ? TextInputAction.done : TextInputAction.newline,
-      onEditingComplete: isSingleLine
-          ? () => FocusScope.of(context).unfocus()
-          : null,
-      style: style ??
-          const TextStyle(fontSize: 15, color: Color(0xFF1C1C1E)),
-      decoration: InputDecoration(
-        hintText: placeholder,
-        hintStyle: TextStyle(color: Colors.grey[400]),
-        prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, size: 20, color: Colors.grey[500])
-            : null,
-        suffixIcon: suffix != null
-            ? Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: suffix,
-              )
-            : null,
-        suffixIconConstraints:
-            const BoxConstraints(minHeight: 0, minWidth: 0),
-        filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[200]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[200]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF007AFF)),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
     );
   }
@@ -1001,5 +976,39 @@ String _editTitle(NodeType type) {
       return 'Edit End';
     case NodeType.exclusiveGateway:
       return 'Edit Decision';
+  }
+}
+
+// ── Node preview ─────────────────────────────────────────────
+
+/// Full-screen preview of a single node's presentation card — the same card
+/// shown in presentation mode, so "Preview" reflects exactly what viewers see.
+class _NodePreviewScreen extends StatelessWidget {
+  final NodeModel node;
+  final DiagramModel diagram;
+
+  const _NodePreviewScreen({required this.node, required this.diagram});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Scaffold(
+      // Match presentation mode — the card renders dark text / contained media
+      // on a light background, so a black background hides it.
+      backgroundColor: Colors.white,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          ProcessCard.fromNode(node, diagram: diagram),
+          Positioned(
+            top: topPad + 8,
+            right: 16,
+            child: CloseCircleButton(
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

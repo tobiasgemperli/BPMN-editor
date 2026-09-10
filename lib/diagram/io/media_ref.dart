@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+
 /// Helpers for media (image/video/pdf) `src` paths stored in a node's content.
 ///
 /// A path is one of:
@@ -22,4 +25,21 @@ class MediaRef {
 
   /// The backend file id from a `remote:<fileId>` reference.
   static String fileId(String path) => path.substring(_prefix.length);
+
+  /// Resolve a device-local [path] to a file that actually exists on THIS
+  /// install, or null if it can't be found.
+  ///
+  /// iOS regenerates the app-container UUID in the absolute path on every
+  /// reinstall/update, so a path stored earlier
+  /// (`…/Application/<old-uuid>/Documents/media/foo.mp4`) can be stale even
+  /// though the file still lives under the *current* `Documents/media/`.
+  /// When the stored path is missing, re-anchor it by basename there.
+  static Future<String?> resolveLocalPath(String path) async {
+    if (!isLocalFile(path)) return path;
+    if (await File(path).exists()) return path;
+    final dir = await getApplicationDocumentsDirectory();
+    final repaired = '${dir.path}/media/${path.split('/').last}';
+    if (await File(repaired).exists()) return repaired;
+    return null;
+  }
 }

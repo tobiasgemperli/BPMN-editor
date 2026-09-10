@@ -88,10 +88,12 @@ class _AccountScreenState extends State<AccountScreen> {
                               ),
                     ),
                     const Spacer(),
-                    TextButton.icon(
+                    TextButton(
                       onPressed: _openEditProfile,
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Edit'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF1C1C1E),
+                      ),
+                      child: const Text('Edit'),
                     ),
                   ],
                 ),
@@ -135,12 +137,7 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Future<void> _openEditProfile() async {
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const EditProfileSheet(),
-    );
+    final saved = await showEditProfileSheet(context);
     if (saved == true) _load(); // refresh name/avatar
   }
 

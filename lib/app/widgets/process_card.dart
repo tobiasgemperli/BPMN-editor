@@ -890,57 +890,87 @@ class _AssetVideoPlayer extends StatefulWidget {
 }
 
 class _AssetVideoPlayerState extends State<_AssetVideoPlayer> {
-  late VideoPlayerController _vController;
+  VideoPlayerController? _vController;
   bool _initialized = false;
+  bool _error = false;
 
   @override
   void initState() {
     super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
     final path = widget.videoPath;
+    VideoPlayerController controller;
     if (MediaRef.isRemote(path)) {
-      _vController = VideoPlayerController.networkUrl(
+      controller = VideoPlayerController.networkUrl(
         Uri.parse(ApiClient.instance.mediaUrl(MediaRef.fileId(path))),
         httpHeaders: ApiClient.instance.mediaHeaders,
       );
     } else if (path.startsWith('/')) {
-      _vController = VideoPlayerController.file(File(path));
+      // Re-anchor stale absolute paths (iOS container UUID changes across
+      // reinstalls) so a file that still exists can play; give up cleanly
+      // if it's genuinely gone rather than spinning forever.
+      final local = await MediaRef.resolveLocalPath(path);
+      if (local == null) {
+        if (mounted) setState(() => _error = true);
+        return;
+      }
+      controller = VideoPlayerController.file(File(local));
     } else {
-      _vController = VideoPlayerController.asset(path);
+      controller = VideoPlayerController.asset(path);
     }
-    _vController
+    _vController = controller
       ..setLooping(true)
-      ..setVolume(0)
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _initialized = true);
-          _vController.play();
-        }
-      });
+      ..setVolume(0);
+    try {
+      await controller.initialize();
+      if (!mounted) return;
+      setState(() => _initialized = true);
+      controller.play();
+    } catch (_) {
+      if (mounted) setState(() => _error = true);
+    }
   }
 
   @override
   void dispose() {
-    _vController.dispose();
+    _vController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = _vController;
     return Stack(
       fit: StackFit.expand,
       children: [
         Container(color: Colors.black),
-        if (_initialized)
+        if (_initialized && controller != null)
           SizedBox.expand(
             child: FittedBox(
-              fit: _vController.value.size.height > _vController.value.size.width
+              fit: controller.value.size.height > controller.value.size.width
                   ? BoxFit.cover
                   : BoxFit.contain,
               child: SizedBox(
-                width: _vController.value.size.width,
-                height: _vController.value.size.height,
-                child: VideoPlayer(_vController),
+                width: controller.value.size.width,
+                height: controller.value.size.height,
+                child: VideoPlayer(controller),
               ),
+            ),
+          )
+        else if (_error)
+          const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.videocam_off_outlined,
+                    color: Colors.white54, size: 40),
+                SizedBox(height: 8),
+                Text('Video unavailable',
+                    style: TextStyle(color: Colors.white54, fontSize: 13)),
+              ],
             ),
           )
         else

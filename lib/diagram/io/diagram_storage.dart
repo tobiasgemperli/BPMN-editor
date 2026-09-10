@@ -218,11 +218,13 @@ class DiagramStorage {
       final path = paths[i];
       if (!MediaRef.isLocalFile(path)) continue;
       try {
-        final file = File(path);
-        if (!await file.exists()) continue;
-        final bytes = await file.readAsBytes();
+        // Re-anchor stale absolute paths (iOS container UUID changes) so a
+        // file that still exists under the current Documents/media uploads.
+        final local = await MediaRef.resolveLocalPath(path);
+        if (local == null) continue;
+        final bytes = await File(local).readAsBytes();
         final fileId = await _api.uploadFile(bytes,
-            filename: path.split('/').last, mime: mime);
+            filename: local.split('/').last, mime: mime);
         paths[i] = MediaRef.encode(fileId);
       } catch (e) {
         debugPrint('DiagramStorage: media upload failed for $path: $e');
