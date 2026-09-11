@@ -109,6 +109,11 @@ class ProcessCard extends StatelessWidget {
     // Events with content are rendered like tasks.
     if (isEvent && !_hasContent) return _buildEvent(context);
     if (isGateway) return _buildGateway(context);
+    // Text only → vertically centered title + text, no media.
+    if (displayMode == ContentDisplayMode.textOnly) {
+      return _buildCentered(
+          context, nodeName, text != null && text!.length > 200);
+    }
     // Mixed mode always uses content layout (title, text, thumbnails, links).
     if (displayMode == ContentDisplayMode.mixed) {
       return _buildContent(context);
@@ -485,13 +490,16 @@ class ProcessCard extends StatelessWidget {
     final hasLongText = text != null && text!.length > 200;
     final hasLink = linkUrl != null;
     final hasPdf = pdfPaths.isNotEmpty;
+    final hasText = text != null && text!.isNotEmpty;
 
-    // Heavy content (media, link, PDF) → top-aligned, fills screen.
-    if (hasImage || hasVideo || hasLink || hasPdf || _links.isNotEmpty) {
+    // Anything beyond a bare title (text, media, link, PDF) → top-aligned.
+    // (Text-only mode centers instead; it never reaches here.)
+    if (hasText || hasImage || hasVideo || hasLink || hasPdf ||
+        _links.isNotEmpty) {
       return _buildTopAligned(context, displayTitle, hasImage, hasLongText);
     }
 
-    // Light content (title only, title+text) → vertically centered.
+    // Bare title → vertically centered.
     return _buildCentered(context, displayTitle, hasLongText);
   }
 

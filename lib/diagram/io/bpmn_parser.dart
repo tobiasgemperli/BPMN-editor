@@ -169,6 +169,7 @@ class BpmnParser {
             final modeAttr = ext.getAttribute('display');
             if (modeAttr == 'image') displayMode = ContentDisplayMode.image;
             if (modeAttr == 'video') displayMode = ContentDisplayMode.video;
+            if (modeAttr == 'text') displayMode = ContentDisplayMode.textOnly;
             for (final item in ext.children.whereType<XmlElement>()) {
               switch (item.name.local) {
                 case 'title':

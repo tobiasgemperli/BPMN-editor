@@ -55,10 +55,15 @@ class _PresentationScreenState extends State<PresentationScreen> {
   int _currentPage = 0;
   bool _showSwipeHint = true;
 
+  /// Whether the signed-in user owns this diagram (backend models only).
+  /// When true, the info button jumps straight to the edit sheet.
+  bool _isOwner = false;
+
   @override
   void initState() {
     super.initState();
     _allNodes = _collectAllNodes(widget.diagram);
+    _checkOwnership();
     // Start at the requested node (screen detail) if given, else the start event.
     final entry = widget.initialNodeId != null
         ? widget.diagram.nodes[widget.initialNodeId]
@@ -167,6 +172,26 @@ class _PresentationScreenState extends State<PresentationScreen> {
         curve: Curves.easeInOut,
       );
     });
+  }
+
+  Future<void> _checkOwnership() async {
+    final meta = widget.meta;
+    if (meta == null) return;
+    try {
+      final myId = await ApiClient.instance.currentUserId();
+      if (mounted) setState(() => _isOwner = myId.toString() == meta.ownerId);
+    } catch (_) {}
+  }
+
+  /// Open the metadata edit sheet directly (used when the owner taps info).
+  Future<void> _openMetaEdit(ApiModelMeta meta) async {
+    final updated = await showModalBottomSheet<ApiModelMeta>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _MetaEditSheet(meta: meta),
+    );
+    if (updated != null) widget.onSaved?.call();
   }
 
   void _openEditor(BuildContext context) {
@@ -283,8 +308,13 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 child: _InfoCircleButton(
                   onPressed: () {
                     if (widget.meta != null) {
-                      _showModelInfo(context, widget.meta!, widget.diagram,
-                          onChanged: widget.onSaved);
+                      // Own diagram → skip the info detail sheet, edit directly.
+                      if (_isOwner) {
+                        _openMetaEdit(widget.meta!);
+                      } else {
+                        _showModelInfo(context, widget.meta!, widget.diagram,
+                            onChanged: widget.onSaved);
+                      }
                     } else {
                       _showEntryInfo(context, widget.entry!);
                     }

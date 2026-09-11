@@ -24,7 +24,9 @@ Future<String> _persistFile(String tempPath) async {
 }
 
 /// The display type determines how a task card renders in presentation mode.
-enum DisplayType { text, image, video }
+/// `text` is the Mixed layout (title + text + media, top-aligned); `textOnly`
+/// is centered title + text with no media.
+enum DisplayType { text, textOnly, image, video }
 
 /// Opens the node editor for the currently selected node.
 void showPropertiesSheet(BuildContext context, EditorController controller) {
@@ -70,6 +72,9 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   late DisplayType _displayType;
   final _picker = ImagePicker();
 
+  // ── Per-mode state: Text only ──
+  late final TextEditingController _textOnlyCtrl;
+
   // ── Per-mode state: Mixed ──
   late final TextEditingController _mixedTextCtrl;
   late final TextEditingController _mixedUrlCtrl;
@@ -107,6 +112,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     _displayType = _inferDisplayType(c);
 
     // Initialize all per-mode controllers with empty defaults.
+    _textOnlyCtrl = TextEditingController();
     _mixedTextCtrl = TextEditingController();
     _mixedUrlCtrl = TextEditingController();
     _mixedUrlLabelCtrl = TextEditingController();
@@ -126,6 +132,9 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     // Populate only the saved mode's fields from existing content.
     if (c != null) {
       switch (_displayType) {
+        case DisplayType.textOnly:
+          _textOnlyCtrl.text = c.text ?? '';
+          break;
         case DisplayType.text:
           _mixedTextCtrl.text = c.text ?? '';
           _mixedImagePaths = List<String>.from(c.imagePaths);
@@ -162,6 +171,8 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
         return DisplayType.image;
       case ContentDisplayMode.video:
         return DisplayType.video;
+      case ContentDisplayMode.textOnly:
+        return DisplayType.textOnly;
       case ContentDisplayMode.mixed:
         return DisplayType.text;
     }
@@ -171,6 +182,7 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   void dispose() {
     _saveData();
     _nameCtrl.dispose();
+    _textOnlyCtrl.dispose();
     _mixedTextCtrl.dispose();
     _mixedUrlCtrl.dispose();
     _mixedUrlLabelCtrl.dispose();
@@ -263,6 +275,10 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     ContentDisplayMode mode;
 
     switch (_displayType) {
+      case DisplayType.textOnly:
+        mode = ContentDisplayMode.textOnly;
+        text = _textOnlyCtrl.text.isNotEmpty ? _textOnlyCtrl.text : null;
+        break;
       case DisplayType.text:
         mode = ContentDisplayMode.mixed;
         text = _mixedTextCtrl.text.isNotEmpty ? _mixedTextCtrl.text : null;
@@ -442,6 +458,18 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
 
                     // ── Content fields per mode ──
                     const SizedBox(height: 20),
+
+                    // ── Text only mode (centered title + text) ──
+                    if (_displayType == DisplayType.textOnly) ...[
+                      _SectionLabel(label: 'Text'),
+                      const SizedBox(height: 8),
+                      StyledField(
+                        controller: _textOnlyCtrl,
+                        placeholder: 'Body text...',
+                        maxLines: 8,
+                        minLines: 3,
+                      ),
+                    ],
 
                     // ── Mixed mode ──
                     if (_displayType == DisplayType.text) ...[
@@ -783,7 +811,7 @@ class _DisplayTypePicker extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: EdgeInsets.only(
-                  right: type != DisplayType.video ? 8 : 0),
+                  right: type != DisplayType.values.last ? 6 : 0),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected
@@ -829,6 +857,8 @@ class _DisplayTypePicker extends StatelessWidget {
     switch (type) {
       case DisplayType.text:
         return 'Mixed';
+      case DisplayType.textOnly:
+        return 'Text';
       case DisplayType.image:
         return 'Image';
       case DisplayType.video:
@@ -871,11 +901,30 @@ class _MiniScreenPreview extends StatelessWidget {
     switch (type) {
       case DisplayType.text:
         return _buildMixed();
+      case DisplayType.textOnly:
+        return _buildTextOnly();
       case DisplayType.image:
         return _buildImage();
       case DisplayType.video:
         return _buildVideo();
     }
+  }
+
+  /// Text only: title + text lines centered vertically, no media.
+  Widget _buildTextOnly() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Center(child: _bar(widthFraction: 0.6, height: 4)),
+        const SizedBox(height: 5),
+        Center(child: _bar(widthFraction: 0.85, height: 3)),
+        const SizedBox(height: 3),
+        Center(child: _bar(widthFraction: 0.7, height: 3)),
+        const SizedBox(height: 3),
+        Center(child: _bar(widthFraction: 0.8, height: 3)),
+      ],
+    );
   }
 
   /// Mixed: title at top, text lines, image thumbnail, link at bottom.

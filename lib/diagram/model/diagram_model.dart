@@ -15,7 +15,7 @@ class DocLink {
 }
 
 /// Display mode for a node in presentation.
-enum ContentDisplayMode { mixed, image, video }
+enum ContentDisplayMode { mixed, image, video, textOnly }
 
 /// Content attached to a node (task, start event, or end event).
 class TaskContent {

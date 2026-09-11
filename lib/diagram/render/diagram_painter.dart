@@ -476,6 +476,24 @@ class DiagramPainter extends CustomPainter {
       return;
     }
 
+    // Text-only mode: title + text block, vertically centered.
+    if (mode == ContentDisplayMode.textOnly) {
+      final hasText = content?.text?.trim().isNotEmpty ?? false;
+      final titleH =
+          node.name.isNotEmpty ? _measureMiniTitleHeight(area, node.name) : 0.0;
+      final barH = (area.height * 0.028).clamp(1.5, 4.0);
+      final gap = barH * 1.5;
+      final textH = hasText ? barH * 4 + gap * 3 : 0.0;
+      final spacer = (titleH > 0 && hasText) ? area.height * 0.05 : 0.0;
+      final blockH = titleH + spacer + textH;
+      var y = area.top + ((area.height - blockH) / 2).clamp(0.0, area.height);
+      if (node.name.isNotEmpty) {
+        y = _drawMiniTitle(canvas, area, y, node.name) + spacer;
+      }
+      if (hasText) _drawMiniTextBars(canvas, area, y);
+      return;
+    }
+
     // Mixed (_buildTopAligned): centered title + text flow from the top, with
     // media then link pinned to the BOTTOM.
     var top = area.top;
@@ -637,6 +655,26 @@ class DiagramPainter extends CustomPainter {
         ..close(),
       Paint()..color = const Color(0xFF1C1C1E),
     );
+  }
+
+  /// Height the mini title will occupy, without drawing (for centering).
+  double _measureMiniTitleHeight(Rect area, String title) {
+    final fontSize = area.width * 0.11;
+    if (fontSize >= 6.0) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: title,
+          style: TextStyle(
+              fontSize: fontSize, fontWeight: FontWeight.w600, height: 1.1),
+        ),
+        maxLines: 3,
+        ellipsis: '…',
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: area.width);
+      return tp.height;
+    }
+    return (area.height * 0.05).clamp(2.0, 5.0);
   }
 
   double _drawMiniTitle(Canvas canvas, Rect area, double y, String title) {

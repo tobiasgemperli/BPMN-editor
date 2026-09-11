@@ -127,6 +127,8 @@ class BpmnSerializer {
         contentAttrs['display'] = 'image';
       } else if (content.displayMode == ContentDisplayMode.video) {
         contentAttrs['display'] = 'video';
+      } else if (content.displayMode == ContentDisplayMode.textOnly) {
+        contentAttrs['display'] = 'text';
       }
       builder.element('ed:content', attributes: contentAttrs, nest: () {
         for (final path in content.imagePaths) {
