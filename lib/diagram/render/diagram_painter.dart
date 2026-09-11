@@ -239,13 +239,30 @@ class DiagramPainter extends CustomPainter {
         center: center, width: _uiScreenWidth, height: _uiScreenHeight);
   }
 
+  static const double _gridStep = 20.0;
+
+  /// One grid cell rasterised once and reused, so the whole background grid is
+  /// a single tiled `drawRect` instead of ~160k `drawCircle` calls per frame
+  /// (the old loop over the full 8000×8000 canvas was the main pan-lag source
+  /// on low-end GPUs — the huge layer can't be raster-cached, so it repainted
+  /// every frame).
+  static ui.Image? _gridTile;
+
+  static ui.Image _buildGridTile() {
+    final rec = ui.PictureRecorder();
+    Canvas(rec).drawCircle(
+        const Offset(_gridStep / 2, _gridStep / 2), 0.7, _gridPaint);
+    return rec.endRecording().toImageSync(_gridStep.toInt(), _gridStep.toInt());
+  }
+
   void _drawGrid(Canvas canvas, Size size) {
-    const step = 20.0;
-    for (double x = 0; x < size.width; x += step) {
-      for (double y = 0; y < size.height; y += step) {
-        canvas.drawCircle(Offset(x, y), 0.7, _gridPaint);
-      }
-    }
+    final tile = _gridTile ??= _buildGridTile();
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = ui.ImageShader(tile, TileMode.repeated, TileMode.repeated,
+            Matrix4.identity().storage),
+    );
   }
 
   /// Connection port on a screen [rect] facing [toward]. Biased toward the

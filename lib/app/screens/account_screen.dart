@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../diagram/io/api_client.dart';
 import '../../diagram/samples/sample_diagrams.dart';
@@ -20,11 +21,22 @@ class _AccountScreenState extends State<AccountScreen> {
   List<ApiUserRef>? _following;
   List<ApiUserRef>? _followers;
   bool _loading = true;
+  String _version = '';
 
   @override
   void initState() {
     super.initState();
+    _loadVersion();
     _load();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() => _version = 'Version ${info.version} (${info.buildNumber})');
+      }
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -129,6 +141,16 @@ class _AccountScreenState extends State<AccountScreen> {
                         ],
                       ),
               ),
+              if (_version.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(
+                      top: 8,
+                      bottom: MediaQuery.of(context).padding.bottom + 8),
+                  child: Text(
+                    _version,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                ),
             ],
           ),
         ),
