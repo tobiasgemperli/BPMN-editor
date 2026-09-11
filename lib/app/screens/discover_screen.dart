@@ -18,8 +18,11 @@ class DiscoverScreen extends StatefulWidget {
 }
 
 class _DiscoverScreenState extends State<DiscoverScreen> {
-  // Per Ondrej: only ALL and MY (dynamic categories are out of scope).
-  static const _categories = ['All', 'My'];
+  // Per Ondrej the filter was ALL + MY only (dynamic categories out of scope).
+  // 'Germany' re-introduces a single fixed category for the imported German
+  // Verwaltungsprozesse (from the FIM Prozessbibliothek). Revisit with Ondrej —
+  // this intentionally reverses the earlier "no dynamic categories" decision.
+  static const _categories = ['All', 'My', 'Germany'];
   String _selected = 'All';
   List<ApiModelMeta> _myModels = [];
   bool _myLoading = false;
@@ -49,6 +52,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   void _onSyncChanged() => _loadMyModels();
+
+  /// Remote models tagged with the "Germany" category (imported German
+  /// Verwaltungsprozesse from the FIM Prozessbibliothek).
+  List<ApiModelMeta> get _germanyModels =>
+      _remoteModels.where((m) => m.categories.contains('Germany')).toList();
 
   Future<void> _refresh() async {
     await Future.wait([_loadMyModels(), _loadRemote()]);
@@ -268,6 +276,48 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, i) => _RemoteModelCard(
                         meta: _remoteModels[i],
+                        onChanged: _loadRemote,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+
+            // ── Germany section (remote models tagged "Germany") ──
+            if (_selected == 'Germany') ...[
+              if (_remoteLoading && _germanyModels.isEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+                    child: SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else if (_germanyModels.isEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(20, 40, 20, 12),
+                    child: Text(
+                      'No German processes yet.',
+                      style: TextStyle(color: Color(0xFF8E8E93)),
+                    ),
+                  ),
+                )
+              else ...[
+                _sectionHeader(context, 'Germany · Verwaltungsprozesse'),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 210,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: _germanyModels.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
+                      itemBuilder: (context, i) => _RemoteModelCard(
+                        meta: _germanyModels[i],
                         onChanged: _loadRemote,
                       ),
                     ),
