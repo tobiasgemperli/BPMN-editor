@@ -198,8 +198,28 @@ class _DiagramCanvasState extends State<DiagramCanvas>
     showNodeEditor(context, node, widget.controller);
   }
 
+  /// Size the canvas to the diagram content (plus room to pan) rather than a
+  /// fixed 8000×8000 surface. A giant fixed canvas is an enormous offscreen
+  /// raster that janks pan/zoom and can OOM on low-end devices (the reported
+  /// freeze-and-disappear). Content lives at diagram coords + [_canvasOffset],
+  /// so the extent is the content's bottom-right plus the offset and padding.
+  /// Quantized so the size only changes in steps — avoids resize churn (and
+  /// InteractiveViewer transform hitches) while dragging near the edge.
+  Size _computeCanvasSize() {
+    const pad = 800.0, minSize = 2600.0, quantum = 600.0;
+    double maxX = 0, maxY = 0;
+    for (final node in widget.controller.diagram.nodes.values) {
+      final r = node.rect;
+      if (r.right > maxX) maxX = r.right;
+      if (r.bottom > maxY) maxY = r.bottom;
+    }
+    double w = ((maxX + _canvasOffset.dx + pad) / quantum).ceilToDouble() * quantum;
+    double h = ((maxY + _canvasOffset.dy + pad) / quantum).ceilToDouble() * quantum;
+    return Size(w < minSize ? minSize : w, h < minSize ? minSize : h);
+  }
+
   Widget _buildCanvas() {
-    const canvasSize = Size(8000, 8000);
+    final canvasSize = _computeCanvasSize();
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
