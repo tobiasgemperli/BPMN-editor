@@ -109,20 +109,22 @@ class EditorToolbar extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        // Disable adding Step/Decision/End if selected non-gateway node
-        // already has an outgoing edge (only one connection allowed).
+        // Disable the palette when the selected node can't take a next step:
+        //  - an End event never has a next step; and
+        //  - a non-gateway step that already has an outgoing edge (only one
+        //    connection allowed).
         final sel = controller.selectedNodeId;
         final selNode = sel != null ? controller.diagram.nodes[sel] : null;
-        final hasOutgoing = sel != null &&
-            selNode != null &&
-            selNode.type != NodeType.exclusiveGateway &&
-            controller.diagram.outgoingEdges(sel).isNotEmpty;
+        final blockAdd = selNode != null &&
+            (selNode.type == NodeType.endEvent ||
+                (selNode.type != NodeType.exclusiveGateway &&
+                    controller.diagram.outgoingEdges(sel!).isNotEmpty));
 
         final buttons = [
               _ToolButton(
                 shape: _ShapeType.taskRect,
                 label: 'Step',
-                enabled: !hasOutgoing,
+                enabled: !blockAdd,
                 onPressed: () {
                   _addNodeAndZoom(NodeType.task);
                 },
@@ -130,7 +132,7 @@ class EditorToolbar extends StatelessWidget {
               _ToolButton(
                 shape: _ShapeType.diamond,
                 label: 'Decision',
-                enabled: !hasOutgoing,
+                enabled: !blockAdd,
                 onPressed: () {
                   _addNodeAndZoom(NodeType.exclusiveGateway);
                 },
@@ -138,7 +140,7 @@ class EditorToolbar extends StatelessWidget {
               _ToolButton(
                 shape: _ShapeType.endCircle,
                 label: 'End',
-                enabled: !hasOutgoing,
+                enabled: !blockAdd,
                 onPressed: () {
                   _addNodeAndZoom(NodeType.endEvent);
                 },
