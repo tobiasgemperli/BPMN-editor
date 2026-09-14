@@ -602,21 +602,24 @@ class ProcessCard extends StatelessWidget {
               ),
             ),
 
-          if (text != null) ...[
+          if (text != null && text!.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Flexible(
-              child: GestureDetector(
-                onTap: hasLongText
-                    ? () => _showTextModal(context, displayTitle, text!)
-                    : null,
-                child: Text(
-                  text!,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        height: 1.6,
-                        color: const Color(0xFF3A3A3C),
-                      ),
-                  overflow: TextOverflow.fade,
-                ),
+            // Natural height (capped) — must NOT be Flexible here, or the
+            // Spacer(flex:100) below starves it to zero height and the text
+            // disappears. Long text is truncated with a "read more" affordance.
+            GestureDetector(
+              onTap: hasLongText
+                  ? () => _showTextModal(context, displayTitle, text!)
+                  : null,
+              child: Text(
+                text!,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      height: 1.6,
+                      color: const Color(0xFF3A3A3C),
+                    ),
+                maxLines: hasLongText ? 8 : null,
+                overflow:
+                    hasLongText ? TextOverflow.ellipsis : TextOverflow.clip,
               ),
             ),
             if (hasLongText) ...[
@@ -696,6 +699,17 @@ class ProcessCard extends StatelessWidget {
             const SizedBox(height: 12),
           ],
 
+          // Attachment order: visual media (above) -> documents -> links.
+
+          // Documents (PDFs) as document tiles.
+          if (pdfPaths.isNotEmpty) ...[
+            for (final path in pdfPaths)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _PdfTile(path: path, onTap: () => _openFile(path)),
+              ),
+          ],
+
           // Link.
           if (linkUrl != null) ...[
             _DocLinkRow(
@@ -714,19 +728,6 @@ class ProcessCard extends StatelessWidget {
                   label: link.label,
                   subtitle: link.subtitle,
                   onTap: () => _openUrl(link.url),
-                ),
-              ),
-          ],
-
-          // PDF attachments.
-          if (pdfPaths.isNotEmpty) ...[
-            for (final path in pdfPaths)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _DocLinkRow(
-                  icon: Icons.picture_as_pdf,
-                  label: _pdfLabel(path),
-                  onTap: () => _openFile(path),
                 ),
               ),
           ],
@@ -1371,14 +1372,96 @@ class _OverlayAttachmentRowState extends State<_OverlayAttachmentRow> {
 }
 
 /// Plain text link row — icon before label, no box.
+/// A PDF attachment as a document tile — red PDF badge + filename — so it reads
+/// as a document, not a bare link row. Part of the unified media-tile system.
+/// Backend files (`remote:<id>`) carry no filename, so show a generic label.
+class _PdfTile extends StatelessWidget {
+  final String path;
+  final VoidCallback onTap;
+  const _PdfTile({required this.path, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = MediaRef.isRemote(path) ? 'PDF document' : path.split('/').last;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFE5E5EA)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDECEA),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Center(
+                child: Icon(Icons.picture_as_pdf,
+                    color: Color(0xFFE2453B), size: 22),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E)),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2453B),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('PDF',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5)),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Tap to open',
+                          style:
+                              TextStyle(color: Color(0xFF8E8E93), fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_outward, size: 18, color: Color(0xFF8E8E93)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DocLinkRow extends StatefulWidget {
-  final IconData icon;
   final String label;
   final String? subtitle;
   final VoidCallback onTap;
 
   const _DocLinkRow({
-    this.icon = Icons.link,
     required this.label,
     this.subtitle,
     required this.onTap,
@@ -1408,7 +1491,7 @@ class _DocLinkRowState extends State<_DocLinkRow> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon, size: 18, color: const Color(0xFF1C1C1E)),
+              const Icon(Icons.link, size: 18, color: Color(0xFF1C1C1E)),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
