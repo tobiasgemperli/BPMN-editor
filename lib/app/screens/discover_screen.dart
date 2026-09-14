@@ -19,10 +19,11 @@ class DiscoverScreen extends StatefulWidget {
 
 class _DiscoverScreenState extends State<DiscoverScreen> {
   // Per Ondrej the filter was ALL + MY only (dynamic categories out of scope).
-  // 'Germany' re-introduces a single fixed category for the imported German
-  // Verwaltungsprozesse (from the FIM Prozessbibliothek). Revisit with Ondrej —
-  // this intentionally reverses the earlier "no dynamic categories" decision.
-  static const _categories = ['All', 'My', 'Germany'];
+  // We reintroduce a few fixed category chips (e.g. 'Training', 'Switzerland').
+  // Revisit with Ondrej — this intentionally reverses the earlier "no dynamic
+  // categories" decision. Any chip beyond All/My is treated as a category tag
+  // and filters _remoteModels by it.
+  static const _categories = ['All', 'My', 'Training', 'Switzerland'];
   String _selected = 'All';
   List<ApiModelMeta> _myModels = [];
   bool _myLoading = false;
@@ -51,12 +52,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     super.dispose();
   }
 
-  void _onSyncChanged() => _loadMyModels();
+  // A save (and its follow-up thumbnail refresh) can affect a model shown in
+  // either section, so reload both so the updated mini-render/pic appears.
+  void _onSyncChanged() {
+    _loadMyModels();
+    _loadRemote();
+  }
 
-  /// Remote models tagged with the "Germany" category (imported German
-  /// Verwaltungsprozesse from the FIM Prozessbibliothek).
-  List<ApiModelMeta> get _germanyModels =>
-      _remoteModels.where((m) => m.categories.contains('Germany')).toList();
+  /// Remote models tagged with a given fixed category (e.g. 'Germany',
+  /// 'Switzerland') — the imported government process flows.
+  List<ApiModelMeta> _modelsInCategory(String cat) =>
+      _remoteModels.where((m) => m.categories.contains(cat)).toList();
 
   Future<void> _refresh() async {
     await Future.wait([_loadMyModels(), _loadRemote()]);
@@ -284,9 +290,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               ],
             ],
 
-            // ── Germany section (remote models tagged "Germany") ──
-            if (_selected == 'Germany') ...[
-              if (_remoteLoading && _germanyModels.isEmpty)
+            // ── Fixed category section (any chip beyond All/My) ──
+            if (_selected != 'All' && _selected != 'My') ...[
+              if (_remoteLoading && _modelsInCategory(_selected).isEmpty)
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
@@ -296,28 +302,28 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     ),
                   ),
                 )
-              else if (_germanyModels.isEmpty)
-                const SliverToBoxAdapter(
+              else if (_modelsInCategory(_selected).isEmpty)
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(20, 40, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 40, 20, 12),
                     child: Text(
-                      'No German processes yet.',
-                      style: TextStyle(color: Color(0xFF8E8E93)),
+                      'No $_selected processes yet.',
+                      style: const TextStyle(color: Color(0xFF8E8E93)),
                     ),
                   ),
                 )
               else ...[
-                _sectionHeader(context, 'Germany · Verwaltungsprozesse'),
+                _sectionHeader(context, '$_selected · Government processes'),
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: 210,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: _germanyModels.length,
+                      itemCount: _modelsInCategory(_selected).length,
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, i) => _RemoteModelCard(
-                        meta: _germanyModels[i],
+                        meta: _modelsInCategory(_selected)[i],
                         onChanged: _loadRemote,
                       ),
                     ),

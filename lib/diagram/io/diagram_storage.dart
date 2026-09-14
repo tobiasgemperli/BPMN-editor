@@ -176,7 +176,12 @@ class DiagramStorage {
       _setSyncStatus(meta.id, SyncStatus.synced);
       // Refresh the stored thumbnail so cards don't have to re-render the
       // diagram. Best-effort: a thumbnail failure must not fail the save.
-      await _syncThumbnail(meta.remoteId!, diagram);
+      final thumbnailUpdated = await _syncThumbnail(meta.remoteId!, diagram);
+      // The 'synced' notification above fired before the new thumbnail id was
+      // stored, so any list that reloaded then still shows the old pic. Notify
+      // again now that the thumbnail is updated so cards refetch and display
+      // the refreshed mini-render (re-announce synced via _setSyncStatus).
+      if (thumbnailUpdated) _setSyncStatus(meta.id, SyncStatus.synced);
     } catch (e) {
       debugPrint('DiagramStorage: server sync failed: $e');
       _setSyncStatus(meta.id, SyncStatus.failed);
@@ -185,16 +190,20 @@ class DiagramStorage {
 
   /// Rasterize [diagram], upload it, and set it as the model's thumbnail.
   /// Swallows all errors — this is a non-critical enhancement to the save.
-  Future<void> _syncThumbnail(String remoteId, DiagramModel diagram) async {
+  /// Returns true when a new thumbnail was stored (so callers can refresh the
+  /// UI), false when skipped (custom thumbnail) or on any failure.
+  Future<bool> _syncThumbnail(String remoteId, DiagramModel diagram) async {
     try {
       // Never overwrite a user-set custom thumbnail with an auto-render.
-      if (await isCustomThumbnail(remoteId)) return;
+      if (await isCustomThumbnail(remoteId)) return false;
       final png = await rasterizeDiagramPng(diagram);
-      if (png == null) return;
+      if (png == null) return false;
       final fileId = await _api.uploadFile(png);
       await _api.updateModel(remoteId, thumbnailFileId: fileId);
+      return true;
     } catch (e) {
       debugPrint('DiagramStorage: thumbnail sync failed: $e');
+      return false;
     }
   }
 

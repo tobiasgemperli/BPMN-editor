@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import '../../diagram/io/api_client.dart';
@@ -17,8 +18,30 @@ void _openUrl(String url) async {
 }
 
 void _openFile(String path) async {
+  // Backend files are stored as `remote:<fileId>` — OpenFilex can't open that
+  // string directly, so download the bytes to a temp file first, then open.
+  if (MediaRef.isRemote(path)) {
+    final fileId = MediaRef.fileId(path);
+    final bytes = await ApiClient.instance.getFileBytes(fileId);
+    if (bytes == null) return;
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$fileId.pdf');
+    await file.writeAsBytes(bytes);
+    await OpenFilex.open(file.path);
+    return;
+  }
+  if (MediaRef.isLocalFile(path)) {
+    final local = await MediaRef.resolveLocalPath(path);
+    if (local != null) await OpenFilex.open(local);
+    return;
+  }
   await OpenFilex.open(path);
 }
+
+/// Chip label for a PDF attachment. Backend refs (`remote:<id>`) have no
+/// human name, so show a generic label; local/asset paths use the filename.
+String _pdfLabel(String path) =>
+    MediaRef.isRemote(path) ? 'Open document (PDF)' : path.split('/').last;
 
 /// A full-screen step in a process. No Card/shadow — clean flat design.
 ///
@@ -702,7 +725,7 @@ class ProcessCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _DocLinkRow(
                   icon: Icons.picture_as_pdf,
-                  label: path.split('/').last,
+                  label: _pdfLabel(path),
                   onTap: () => _openFile(path),
                 ),
               ),
@@ -1274,7 +1297,7 @@ class _OverlayAttachmentList extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: _OverlayAttachmentRow(
               icon: Icons.picture_as_pdf,
-              label: path.split('/').last,
+              label: _pdfLabel(path),
               light: light,
               onTap: () => _openFile(path),
             ),
