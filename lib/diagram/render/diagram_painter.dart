@@ -1235,21 +1235,36 @@ class DiagramPainter extends CustomPainter {
   static const _labelPadV = 2.0;
   static const _labelRadius = Radius.circular(4);
 
-  void _drawText(Canvas canvas, String text, Offset center,
-      {double fontSize = 13, double? maxWidth, bool background = false, bool alignRight = false}) {
+  // Laid-out labels are cached across repaints so adding a step (which triggers
+  // a full repaint) doesn't re-shape every existing label. TextPainter.layout()
+  // is the expensive part; the same (text, size, width) reuses one instance.
+  // Static because the painter is recreated on every rebuild. FIFO-capped.
+  static final Map<String, TextPainter> _textCache = {};
+  static const int _textCacheMax = 400;
+
+  static TextPainter _layoutLabel(String text, double fontSize, double maxWidth) {
+    final key = '$fontSize $maxWidth $text';
+    final cached = _textCache[key];
+    if (cached != null) return cached;
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(
-          color: Colors.black87,
-          fontSize: fontSize,
-        ),
+        style: TextStyle(color: Colors.black87, fontSize: fontSize),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 2,
       ellipsis: '...',
-    );
-    tp.layout(maxWidth: maxWidth ?? 200);
+    )..layout(maxWidth: maxWidth);
+    if (_textCache.length >= _textCacheMax) {
+      _textCache.remove(_textCache.keys.first);
+    }
+    _textCache[key] = tp;
+    return tp;
+  }
+
+  void _drawText(Canvas canvas, String text, Offset center,
+      {double fontSize = 13, double? maxWidth, bool background = false, bool alignRight = false}) {
+    final tp = _layoutLabel(text, fontSize, maxWidth ?? 200);
 
     // alignRight: right edge of text aligns to center.dx
     final topLeft = alignRight
