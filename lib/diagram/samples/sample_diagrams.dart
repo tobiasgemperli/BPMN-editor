@@ -2352,6 +2352,133 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// A showcase diagram exercising every content type and node kind: text-only,
+  /// image, image gallery, video, full-screen image/video display modes, single
+  /// and multiple PDFs, a link, a link list, an everything-mixed card, a gateway
+  /// with branches, and start/end events.
+  static DiagramModel allItems() {
+    const img = 'assets/sample_image.jpg';
+    const img2 = 'assets/sample_image_2.jpg';
+    const video = 'assets/sample_video_1.mp4';
+    const video2 = 'assets/sample_video_2.mp4';
+    final left = _cx - _branchX;
+    final right = _cx + _branchX;
+
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Start', rect: _event(_cx, _row(0))),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Text only', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            displayMode: ContentDisplayMode.textOnly,
+            text: 'A step with just a title and body text — no media. '
+                'Good for instructions, warnings, or context.',
+          )),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Image + text', rect: _task(_cx, _row(2)),
+          content: TaskContent(text: 'A single image above explanatory text.',
+              imagePath: img)),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Image gallery', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+              text: 'Several images in one step.',
+              imagePaths: [img, img2, img])),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Video + text', rect: _task(_cx, _row(4)),
+          content: TaskContent(text: 'A video with a caption.', videoPath: video)),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Full-screen image', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+              displayMode: ContentDisplayMode.image, imagePath: img2)),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Full-screen video', rect: _task(_cx, _row(6)),
+          content: TaskContent(
+              displayMode: ContentDisplayMode.video, videoPath: video2)),
+
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Single PDF', rect: _task(_cx, _row(7)),
+          content: TaskContent(
+              text: 'Attach a document to a step.',
+              pdfPaths: ['assets/manual.pdf'])),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.task,
+          name: 'Multiple PDFs', rect: _task(_cx, _row(8)),
+          content: TaskContent(
+              text: 'Several documents in one step.',
+              pdfPaths: ['assets/form-a.pdf', 'assets/form-b.pdf', 'assets/form-c.pdf'])),
+
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Link', rect: _task(_cx, _row(9)),
+          content: TaskContent(
+              text: 'A single external link.',
+              linkUrl: 'https://example.com',
+              linkLabel: 'Open the reference')),
+
+      'n11': NodeModel(id: 'n11', type: NodeType.task,
+          name: 'Link list', rect: _task(_cx, _row(10)),
+          content: TaskContent(text: 'A list of related links.', links: const [
+            DocLink(url: 'https://example.com/a', label: 'Regulations', subtitle: 'PDF · gov.uk'),
+            DocLink(url: 'https://example.com/b', label: 'Fee schedule'),
+            DocLink(url: 'https://example.com/c', label: 'Contact the office'),
+          ])),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.task,
+          name: 'Everything', rect: _task(_cx, _row(11)),
+          content: TaskContent(
+              text: 'Text, image, video, a document and a link in one card.',
+              imagePath: img,
+              videoPath: video,
+              pdfPaths: ['assets/summary.pdf'],
+              linkUrl: 'https://example.com',
+              linkLabel: 'Learn more')),
+
+      'n13': NodeModel(id: 'n13', type: NodeType.exclusiveGateway,
+          name: 'Which path?', rect: _gw(_cx, _row(12))),
+
+      'n14': NodeModel(id: 'n14', type: NodeType.task,
+          name: 'Path A', rect: _task(left, _row(13)),
+          content: TaskContent(text: 'The first branch.', imagePath: img2)),
+
+      'n15': NodeModel(id: 'n15', type: NodeType.task,
+          name: 'Path B', rect: _task(right, _row(13)),
+          content: TaskContent(text: 'The second branch.', videoPath: video2)),
+
+      'n16': NodeModel(id: 'n16', type: NodeType.endEvent,
+          name: 'Done', rect: _event(_cx, _row(14))),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n9', targetId: 'n10'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n10', targetId: 'n11'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n11', targetId: 'n12'),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n12', targetId: 'n13'),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n13', targetId: 'n14', name: 'A',
+          waypoints: _hv(_cx, _row(12), left, _row(13))),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n13', targetId: 'n15', name: 'B',
+          waypoints: _hv(_cx, _row(12), right, _row(13))),
+      'e15': EdgeModel(id: 'e15', sourceId: 'n14', targetId: 'n16',
+          waypoints: _vh(left, _row(13), _cx, _row(14))),
+      'e16': EdgeModel(id: 'e16', sourceId: 'n15', targetId: 'n16',
+          waypoints: _vh(right, _row(13), _cx, _row(14))),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
     SampleDiagramEntry(

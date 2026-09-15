@@ -76,6 +76,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     setState(() => _myLoading = true);
     try {
       final models = await DiagramStorage.instance.listMyModelsMeta();
+      // Newest first (highest backend id), so freshly created flowcharts lead.
+      models.sort((a, b) =>
+          (int.tryParse(b.id) ?? 0).compareTo(int.tryParse(a.id) ?? 0));
       if (mounted) setState(() => _myModels = models);
     } catch (_) {
       // Server unavailable — keep whatever we had.
