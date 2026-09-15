@@ -1,0 +1,62 @@
+import '../../diagram/model/diagram_model.dart';
+import '../../steps/adapter/task_content_adapter.dart';
+import '../../steps/model/step_block.dart';
+import '../../steps/model/step_view.dart';
+import '../../steps/registry/packs/workout_pack.dart';
+import '../../steps/registry/step_registry.dart';
+import '../../steps/render/skins/classic_skin.dart';
+import '../../steps/render/skins/immersive_skin.dart';
+import 'app_media_view.dart';
+
+/// The app's shared skin registry: the render-layer skins/packs plus real media
+/// wired in over the placeholders. One instance is reused everywhere (previews
+/// and the live presentation).
+final StepRegistry appStepRegistry = _build();
+
+StepRegistry _build() {
+  final r = StepRegistry();
+  installClassic(r);
+  installImmersive(r);
+  r.install(const WorkoutPack());
+  // Override the placeholder media view with the real loader.
+  r.registerBlock<MediaBlock>(const AppMediaView());
+  return r;
+}
+
+/// Skins offered to the user in the picker.
+const List<({String id, String label})> selectableSkins = [
+  (id: 'classic', label: 'Classic'),
+  (id: 'immersive', label: 'Immersive'),
+];
+
+/// Adapt a diagram node into a [StepView] for the skin system. A gateway's
+/// outgoing edges become a [ChoiceBlock]; content maps via the existing adapter.
+StepView nodeToStepView(
+  NodeModel node,
+  DiagramModel diagram, {
+  int? index,
+  int? total,
+  bool linear = true,
+  String? eyebrow,
+}) {
+  final blocks = <StepBlock>[...blocksFromTaskContent(node.content)];
+
+  if (node.type == NodeType.exclusiveGateway) {
+    final outgoing = diagram.outgoingEdges(node.id);
+    if (outgoing.isNotEmpty) {
+      blocks.add(ChoiceBlock([
+        for (final e in outgoing)
+          Choice(e.name.isNotEmpty ? e.name : 'Option', e.targetId),
+      ]));
+    }
+  }
+
+  return StepView(
+    title: node.name,
+    eyebrow: eyebrow,
+    progress: index != null
+        ? ProgressInfo(index: index + 1, total: total, linear: linear)
+        : const ProgressInfo.none(),
+    blocks: blocks,
+  );
+}

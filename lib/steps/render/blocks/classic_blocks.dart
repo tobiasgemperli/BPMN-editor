@@ -30,6 +30,32 @@ class ClassicMediaView implements BlockView<MediaBlock> {
   const ClassicMediaView();
   @override
   Widget build(BuildContext c, MediaBlock b, SkinContext ctx) {
+    // Immersive hero: a full-bleed placeholder (real media comes from the app's
+    // AppMediaView, which overrides this view).
+    if (ctx.immersive) {
+      if (b.kind == MediaKind.video) {
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF20232F), Color(0xFF5A4030)]),
+          ),
+          child: const Center(
+              child: SkinDetail(
+                  size: 56,
+                  child: Icon(Icons.play_circle_fill, size: 56, color: Colors.white))),
+        );
+      }
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFA9C3E4), Color(0xFFECC9A6)]),
+        ),
+      );
+    }
     if (b.kind == MediaKind.video) {
       return Padding(
         padding: const EdgeInsets.only(top: 12),

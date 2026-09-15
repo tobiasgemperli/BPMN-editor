@@ -4,6 +4,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../diagram/io/api_client.dart';
 import '../../diagram/samples/sample_diagrams.dart';
+import '../skins/app_skins.dart';
+import '../skins/skin_controller.dart';
 import 'discover_screen.dart';
 import 'edit_profile_sheet.dart';
 
@@ -141,6 +143,7 @@ class _AccountScreenState extends State<AccountScreen> {
                         ],
                       ),
               ),
+              const _SkinPicker(),
               if (_version.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.only(
@@ -341,6 +344,45 @@ class _UserRow extends StatelessWidget {
             Icon(Icons.chevron_right, size: 20, color: Colors.grey[400]),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Lets the user choose how step cards are presented. 'Classic' keeps today's
+/// card; other skins render through the skin system.
+class _SkinPicker extends StatelessWidget {
+  const _SkinPicker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Presentation skin',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                  color: Colors.grey[600])),
+          const SizedBox(height: 8),
+          ValueListenableBuilder<String>(
+            valueListenable: SkinController.instance,
+            builder: (context, current, _) => Wrap(
+              spacing: 8,
+              children: [
+                for (final s in selectableSkins)
+                  ChoiceChip(
+                    label: Text(s.label),
+                    selected: current == s.id,
+                    onSelected: (_) => SkinController.instance.setSkin(s.id),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -6,11 +6,13 @@ import 'app/screens/login_screen.dart';
 import 'app/screens/search_screen.dart';
 import 'app/screens/messages_screen.dart';
 import 'app/screens/account_screen.dart';
+import 'app/skins/skin_controller.dart';
 import 'diagram/io/api_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final loggedIn = await ApiClient.instance.loadSavedCredentials();
+  await SkinController.instance.load();
   runApp(StepChatApp(loggedIn: loggedIn));
 }
 

@@ -63,7 +63,7 @@ class ImmersiveSkin implements StepSkin {
       fit: StackFit.expand,
       children: [
         if (media != null)
-          _mediaBg(media)
+          renderBlock(context, media, const SkinContext('immersive', immersive: true))
         else if (heroDoc != null)
           _docBg(),
         _segments(step),
@@ -73,32 +73,7 @@ class ImmersiveSkin implements StepSkin {
     );
   }
 
-  // ── backgrounds (placeholders until wired to real loaders) ──
-  Widget _mediaBg(MediaBlock m) {
-    if (m.kind == MediaKind.video) {
-      return Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF20232F), Color(0xFF5A4030)]),
-        ),
-        child: const Center(
-            child: SkinDetail(
-                size: 56,
-                child: Icon(Icons.play_circle_fill, size: 56, color: Colors.white))),
-      );
-    }
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFA9C3E4), Color(0xFFECC9A6)]),
-      ),
-    );
-  }
-
+  // ── doc hero background (placeholder) ──
   Widget _docBg() => Container(
         color: _surface,
         alignment: Alignment.center,

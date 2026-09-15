@@ -5,6 +5,8 @@ import '../../diagram/io/api_client.dart';
 import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
+import '../skins/app_skins.dart';
+import '../skins/skin_controller.dart';
 import '../widgets/close_circle_button.dart';
 import '../widgets/mini_process_map.dart';
 import '../widgets/process_card.dart';
@@ -283,6 +285,25 @@ class _PresentationScreenState extends State<PresentationScreen> {
               },
               itemBuilder: (context, index) {
                 final node = _path[index];
+                // Non-classic skins render task pages through the skin system;
+                // gateways and events stay on the polished ProcessCard.
+                final skin = SkinController.instance.value;
+                if (skin != SkinController.defaultSkin &&
+                    node.type == NodeType.task) {
+                  final hasGateway = widget.diagram.nodes.values
+                      .any((n) => n.type == NodeType.exclusiveGateway);
+                  return appStepRegistry.renderStep(
+                    context,
+                    skin,
+                    nodeToStepView(
+                      node,
+                      widget.diagram,
+                      index: index,
+                      total: hasGateway ? null : _allNodes.length,
+                      linear: !hasGateway,
+                    ),
+                  );
+                }
                 return ProcessCard.fromNode(
                   node,
                   diagram: widget.diagram,
