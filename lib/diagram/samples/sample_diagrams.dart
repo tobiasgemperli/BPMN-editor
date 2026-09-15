@@ -2509,6 +2509,68 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// A text-only workout — no media, so the Immersive skin renders each step as
+  /// a coloured gradient card (backdrop derived from the title).
+  static DiagramModel demoGradientWorkout() {
+    NodeModel step(String id, int row, String name, String cue) =>
+        NodeModel(id: id, type: NodeType.task, name: name, rect: _task(_cx, _row(row)),
+            content: TaskContent(
+                displayMode: ContentDisplayMode.textOnly, text: cue));
+
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Ready?', rect: _event(_cx, _row(0))),
+      'n2': step('n2', 1, 'Jumping jacks',
+          '60 seconds. Loose and light — just get the blood moving.'),
+      'n3': step('n3', 2, 'Bodyweight squats',
+          '20 reps. Chest up, sit back, full depth if it feels good.'),
+      'n4': step('n4', 3, 'Push-ups',
+          '15 reps. Hands under shoulders, straight line head to heels.'),
+      'n5': step('n5', 4, 'Plank',
+          '45 seconds. Squeeze glutes, breathe, don\'t let the hips sag.'),
+      'n6': step('n6', 5, 'Mountain climbers',
+          '40 seconds. Fast knees, flat back, steady rhythm.'),
+      'n7': step('n7', 6, 'Stretch',
+          'Two minutes. Slow breaths, ease into each hold.'),
+      'n8': NodeModel(id: 'n8', type: NodeType.endEvent,
+          name: 'Done', rect: _event(_cx, _row(7))),
+    };
+    final edges = <String, EdgeModel>{
+      for (var i = 1; i <= 7; i++)
+        'e$i': EdgeModel(id: 'e$i', sourceId: 'n$i', targetId: 'n${i + 1}'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// An image-first demo: portrait photos (on the backend file store) with short
+  /// captions — shows the Immersive skin's full-bleed image hero.
+  static DiagramModel demoImages() {
+    const shots = [
+      ('First look', 'f_oSVPAq', 'Start wide to establish the scene.'),
+      ('Find the light', 'f_CecIxA', 'Let the brightest area anchor the frame.'),
+      ('Get closer', 'f_K4LGXS', 'A detail shot adds texture and rhythm.'),
+      ('Change the angle', 'f_QJKp5i', 'Shoot from above or below to break the pattern.'),
+      ('Golden hour', 'f_nP8aJo', 'Warm, low light flatters almost anything.'),
+      ('The closer', 'f_wV4AdN', 'End on your strongest, simplest frame.'),
+    ];
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Photo walk', rect: _event(_cx, _row(0))),
+      for (var i = 0; i < shots.length; i++)
+        'n${i + 2}': NodeModel(id: 'n${i + 2}', type: NodeType.task,
+            name: shots[i].$1, rect: _task(_cx, _row(i + 1)),
+            content: TaskContent(
+                text: shots[i].$3, imagePath: 'remote:${shots[i].$2}')),
+      'n${shots.length + 2}': NodeModel(id: 'n${shots.length + 2}',
+          type: NodeType.endEvent, name: 'Done', rect: _event(_cx, _row(shots.length + 1))),
+    };
+    final edges = <String, EdgeModel>{
+      for (var i = 1; i <= shots.length + 1; i++)
+        'e$i': EdgeModel(id: 'e$i', sourceId: 'n$i', targetId: 'n${i + 1}'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
     SampleDiagramEntry(

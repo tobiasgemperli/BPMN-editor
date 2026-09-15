@@ -228,12 +228,27 @@ class ImmersiveSkin implements StepSkin {
                 color: onDark ? Colors.white : _ink2)),
       );
 
+  // A soft, deterministic pastel gradient derived from the title, so text-only
+  // steps get a distinct colourful backdrop instead of flat gray. Kept light so
+  // the dark ink text stays readable.
+  static LinearGradient _titleGradient(String title) {
+    final base = (title.hashCode % 360).abs().toDouble();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        HSLColor.fromAHSL(1, base, 0.55, 0.90).toColor(),
+        HSLColor.fromAHSL(1, (base + 38) % 360, 0.55, 0.82).toColor(),
+      ],
+    );
+  }
+
   // ── typographic slide (no hero medium) ──
   Widget _typoSlide(BuildContext context, StepView step, TextBlock? text,
           ChoiceBlock? choice, List<LinkBlock> links, List<StepBlock> extras,
           RenderBlock renderBlock) =>
       Container(
-        color: _surface,
+        decoration: BoxDecoration(gradient: _titleGradient(step.title)),
         padding: const EdgeInsets.all(22),
         alignment: Alignment.center,
         child: Column(
