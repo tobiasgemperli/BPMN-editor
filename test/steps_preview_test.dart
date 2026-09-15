@@ -25,7 +25,10 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.byKey(const ValueKey('mini_0')));
-    await tester.pumpAndSettle();
+    // Not pumpAndSettle: the workout sample streams a remote video whose loading
+    // spinner never settles in tests. Pump enough for the sheet to animate in.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.textContaining('Zoom levels'), findsOneWidget);
     expect(find.byType(Slider), findsOneWidget);

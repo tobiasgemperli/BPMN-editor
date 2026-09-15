@@ -3,7 +3,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/edit/hit_test.dart';
+import '../../diagram/model/diagram_model.dart';
 import '../../diagram/render/diagram_painter.dart';
+import '../skins/app_skins.dart';
+import '../skins/editor_miniature.dart';
+import '../skins/skin_controller.dart';
 import 'properties_sheet.dart';
 
 /// The interactive diagram canvas with pan/zoom support.
@@ -13,6 +17,10 @@ class DiagramCanvas extends StatefulWidget {
   final bool readOnly;
   final Map<String, List<ui.Image>>? screenImages;
   final Map<String, ui.Image>? videoThumbs;
+
+  /// When true (Content view), render each task screen with the real skin
+  /// miniature (overlaid widgets) instead of the painter's hand-drawn replica.
+  final bool skinMiniatures;
 
   /// Called in UI mode when a screen is tapped, with the node id — used to
   /// open that screen's detail.
@@ -25,6 +33,7 @@ class DiagramCanvas extends StatefulWidget {
     this.readOnly = false,
     this.screenImages,
     this.videoThumbs,
+    this.skinMiniatures = false,
     this.onScreenTap,
   });
 
@@ -329,16 +338,65 @@ class _DiagramCanvasState extends State<DiagramCanvas>
       child: SizedBox(
         width: canvasSize.width,
         height: canvasSize.height,
-        child: RepaintBoundary(
-          child: CustomPaint(
-            painter: DiagramPainter(widget.controller,
-                screenImages: widget.screenImages,
-                videoThumbs: widget.videoThumbs),
-            size: canvasSize,
-          ),
+        child: Stack(
+          children: [
+            RepaintBoundary(
+              child: CustomPaint(
+                painter: DiagramPainter(widget.controller,
+                    screenImages: widget.screenImages,
+                    videoThumbs: widget.videoThumbs,
+                    hostTaskMiniatures: _useSkinMiniatures),
+                size: canvasSize,
+              ),
+            ),
+            if (_useSkinMiniatures) ..._miniatureOverlays(),
+          ],
         ),
       ),
     );
+  }
+
+  bool get _useSkinMiniatures =>
+      widget.skinMiniatures && widget.controller.viewMode == ViewMode.ui;
+
+  /// Overlay the real skin miniature onto each task phone-frame's screen area.
+  /// Positioned in the same (offset) space the painter draws in, so they pan and
+  /// zoom with the canvas. Non-interactive — taps fall through to the Listener.
+  List<Widget> _miniatureOverlays() {
+    const bezel = 4.0, radius = 11.0;
+    final diagram = widget.controller.diagram;
+    final rects = DiagramPainter.uiDisplayRects(diagram);
+    final skin = SkinController.instance.value;
+    final overlays = <Widget>[];
+    rects.forEach((id, rect) {
+      final node = diagram.nodes[id];
+      if (node == null ||
+          (node.type != NodeType.task &&
+              node.type != NodeType.exclusiveGateway)) {
+        return;
+      }
+      final screen = rect.deflate(bezel).shift(_canvasOffset);
+      overlays.add(Positioned(
+        left: screen.left,
+        top: screen.top,
+        width: screen.width,
+        height: screen.height,
+        child: IgnorePointer(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: EditorMedia(
+              images: widget.screenImages?[id] ?? const [],
+              videoThumb: widget.videoThumbs?[id],
+              child: Builder(
+                builder: (c) => editorStepRegistry.renderMiniature(
+                    c, skin, nodeToStepView(node, diagram)),
+              ),
+            ),
+          ),
+        ),
+      ));
+    });
+    return overlays;
   }
 
   @override

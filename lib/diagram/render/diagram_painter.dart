@@ -16,6 +16,10 @@ class DiagramPainter extends CustomPainter {
   /// Decoded video poster/thumbnail per node, for the UI-view replicas.
   final Map<String, ui.Image>? videoThumbs;
 
+  /// When true, task phone-frames are drawn empty (bezel + white screen + notch)
+  /// because live skin-miniature widgets are overlaid on top of them.
+  final bool hostTaskMiniatures;
+
   // UI mode node dimensions (portrait phone screen).
   static const double _uiScreenWidth = 100.0;
   static const double _uiScreenHeight = 178.0;
@@ -100,7 +104,8 @@ class DiagramPainter extends CustomPainter {
     ..color = const Color(0xFF333333)
     ..style = PaintingStyle.fill;
 
-  DiagramPainter(this.controller, {this.screenImages, this.videoThumbs})
+  DiagramPainter(this.controller,
+      {this.screenImages, this.videoThumbs, this.hostTaskMiniatures = false})
       : super(repaint: controller);
 
   /// Offset that shifts diagram coordinates into the widget's local space.
@@ -360,20 +365,22 @@ class DiagramPainter extends CustomPainter {
       final displayRect = displayRects[node.id] ?? node.rect;
 
       if (node.type == NodeType.task) {
-        _drawPhoneFrame(canvas, node, displayRect, isSelected);
+        _drawPhoneFrame(canvas, node, displayRect, isSelected,
+            drawContent: !hostTaskMiniatures);
       } else if (node.type == NodeType.startEvent) {
         _drawEventPhoneFrame(canvas, node, displayRect, isSelected, isStart: true);
       } else if (node.type == NodeType.endEvent) {
         _drawEventPhoneFrame(canvas, node, displayRect, isSelected, isStart: false);
       } else {
         // Gateway — a minified decision screen (question + options), like tasks.
-        _drawPhoneFrame(canvas, node, displayRect, isSelected);
+        _drawPhoneFrame(canvas, node, displayRect, isSelected,
+            drawContent: !hostTaskMiniatures);
       }
     }
   }
 
   void _drawPhoneFrame(Canvas canvas, NodeModel node, Rect displayRect,
-      bool selected) {
+      bool selected, {bool drawContent = true}) {
     final bezelRadius = Radius.circular(14);
     final screenRadius = Radius.circular(11);
     const bezelWidth = 4.0;
@@ -386,12 +393,15 @@ class DiagramPainter extends CustomPainter {
     final screenRect = displayRect.deflate(bezelWidth);
     final screenRR = RRect.fromRectAndRadius(screenRect, screenRadius);
 
-    // White screen, then a minified replica of the step's content view.
+    // White screen, then a minified replica of the step's content view — unless
+    // a skin-miniature widget is overlaid on top (then leave the screen empty).
     canvas.drawRRect(screenRR, Paint()..color = const Color(0xFFFFFFFF));
-    canvas.save();
-    canvas.clipRRect(screenRR);
-    _drawScreenContent(canvas, screenRect, node);
-    canvas.restore();
+    if (drawContent) {
+      canvas.save();
+      canvas.clipRRect(screenRR);
+      _drawScreenContent(canvas, screenRect, node);
+      canvas.restore();
+    }
 
     // Dynamic island / notch.
     final notchRR = RRect.fromRectAndRadius(
@@ -1292,5 +1302,6 @@ class DiagramPainter extends CustomPainter {
       // Repaint when the loaded media changes (it arrives async after the UI
       // toggle); controller-driven repaints go through `repaint:` above.
       !identical(oldDelegate.screenImages, screenImages) ||
-      !identical(oldDelegate.videoThumbs, videoThumbs);
+      !identical(oldDelegate.videoThumbs, videoThumbs) ||
+      oldDelegate.hostTaskMiniatures != hostTaskMiniatures;
 }

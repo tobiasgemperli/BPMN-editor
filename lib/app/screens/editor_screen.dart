@@ -419,6 +419,7 @@ class _EditorScreenState extends State<EditorScreen>
             videoThumbs: _controller.viewMode == ViewMode.ui
                 ? _videoThumbs
                 : null,
+            skinMiniatures: true,
             onScreenTap: _openScreenDetail,
           ),
           // ── Right-side shape palette + action buttons (owner only) ──
