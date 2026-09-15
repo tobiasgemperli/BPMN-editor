@@ -52,4 +52,25 @@ void main() {
     ));
     expect(find.text('ELIGIBILITY · STEP 9'), findsOneWidget);
   });
+
+  testWidgets('Classic miniature renders the title', (tester) async {
+    final registry = StepRegistry();
+    installClassic(registry);
+    const view = StepView(title: 'Insert the dowels', blocks: [
+      DocBlock([DocRef('remote:x', name: 'Form')]),
+    ]);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 160,
+            height: 200,
+            child: Builder(
+                builder: (c) => registry.renderMiniature(c, 'classic', view)),
+          ),
+        ),
+      ),
+    ));
+    expect(find.text('Insert the dowels'), findsOneWidget);
+  });
 }

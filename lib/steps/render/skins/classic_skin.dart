@@ -7,7 +7,9 @@ import '../step_skin.dart';
 import '../blocks/classic_blocks.dart';
 
 const _ink = Color(0xFF1C1C1E);
+const _ink3 = Color(0xFF8E8E93);
 const _accent = Color(0xFF007AFF);
+const _hair = Color(0xFFE5E5EA);
 
 /// The document-style card (today's look): flush-left eyebrow + title, then the
 /// blocks stacked in order. Progress: "X / N" on linear flows, "Step X" on
@@ -46,6 +48,53 @@ class ClassicSkin implements StepSkin {
                   fontWeight: FontWeight.w700,
                   color: _ink)),
           for (final block in step.blocks) renderBlock(context, block, ctx),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget buildMiniature(BuildContext context, StepView step) {
+    // Small doc-style card: title + a row of content-type icons.
+    final icons = <IconData>[];
+    for (final b in step.blocks) {
+      if (b is MediaBlock) {
+        icons.add(b.kind == MediaKind.video
+            ? Icons.play_circle_outline
+            : Icons.image_outlined);
+      } else if (b is DocBlock) {
+        icons.add(Icons.picture_as_pdf);
+      } else if (b is LinkBlock) {
+        icons.add(Icons.link);
+      } else if (b is ChoiceBlock) {
+        icons.add(Icons.call_split);
+      }
+    }
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _hair),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(step.title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 12, height: 1.15, fontWeight: FontWeight.w700, color: _ink)),
+          const Spacer(),
+          Row(
+            children: [
+              for (final i in icons.take(3))
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(i, size: 14, color: _ink3),
+                ),
+            ],
+          ),
         ],
       ),
     );

@@ -42,8 +42,18 @@ class StepRegistry {
   /// Render a whole step with the given skin (falls back to the first skin).
   /// The skin supplies each block's [SkinContext] when it calls the renderer.
   Widget renderStep(BuildContext context, String skinId, StepView step) {
-    final skin = _skins[skinId] ?? (_skins.isEmpty ? null : _skins.values.first);
+    final skin = _skinOr(skinId);
     if (skin == null) return const SizedBox.shrink();
     return skin.buildStep(context, step, (c, b, cx) => renderBlock(c, b, cx));
   }
+
+  /// Render the compact miniature of a step in the given skin's style.
+  Widget renderMiniature(BuildContext context, String skinId, StepView step) {
+    final skin = _skinOr(skinId);
+    if (skin == null) return const SizedBox.shrink();
+    return skin.buildMiniature(context, step);
+  }
+
+  StepSkin? _skinOr(String id) =>
+      _skins[id] ?? (_skins.isEmpty ? null : _skins.values.first);
 }

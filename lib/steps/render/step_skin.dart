@@ -14,5 +14,13 @@ typedef RenderBlock = Widget Function(
 abstract interface class StepSkin {
   String get id;
   String get label;
+
+  /// The full step card.
   Widget buildStep(BuildContext context, StepView step, RenderBlock renderBlock);
+
+  /// A compact, non-interactive preview of the step in this skin's style — for
+  /// list thumbnails and mini process maps. Fills the constraints it's given,
+  /// so wrap it in a sized box. Designed alongside [buildStep] so the card and
+  /// its miniature always match.
+  Widget buildMiniature(BuildContext context, StepView step);
 }
