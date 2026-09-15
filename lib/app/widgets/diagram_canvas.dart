@@ -349,7 +349,21 @@ class _DiagramCanvasState extends State<DiagramCanvas>
                 size: canvasSize,
               ),
             ),
-            if (_useSkinMiniatures) ..._miniatureOverlays(),
+            if (_useSkinMiniatures)
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: widget.transformationController,
+                  builder: (context, _) {
+                    // Feed the canvas zoom into the miniatures' legibility scale
+                    // (quantized to avoid churn) so bars resolve to text as you
+                    // zoom in — the layout/position is unaffected.
+                    final z = widget.transformationController.value
+                        .getMaxScaleOnAxis();
+                    final zoom = (z * 4).roundToDouble() / 4;
+                    return Stack(children: _miniatureOverlays(zoom));
+                  },
+                ),
+              ),
           ],
         ),
       ),
@@ -362,7 +376,7 @@ class _DiagramCanvasState extends State<DiagramCanvas>
   /// Overlay the real skin miniature onto each task phone-frame's screen area.
   /// Positioned in the same (offset) space the painter draws in, so they pan and
   /// zoom with the canvas. Non-interactive — taps fall through to the Listener.
-  List<Widget> _miniatureOverlays() {
+  List<Widget> _miniatureOverlays(double zoom) {
     const bezel = 4.0, radius = 11.0;
     final diagram = widget.controller.diagram;
     final rects = DiagramPainter.uiDisplayRects(diagram);
@@ -389,7 +403,8 @@ class _DiagramCanvasState extends State<DiagramCanvas>
               videoThumb: widget.videoThumbs?[id],
               child: Builder(
                 builder: (c) => editorStepRegistry.renderMiniature(
-                    c, skin, nodeToStepView(node, diagram)),
+                    c, skin, nodeToStepView(node, diagram),
+                    degradeZoom: zoom),
               ),
             ),
           ),

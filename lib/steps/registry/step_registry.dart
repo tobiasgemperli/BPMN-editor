@@ -58,7 +58,12 @@ class StepRegistry {
   /// width and scaled down to fit. [SkinText] inside degrades to gray bars once
   /// a run of text becomes too small to read, so tiny thumbnails show boxes
   /// while larger ones keep the big text legible.
-  Widget renderMiniature(BuildContext context, String skinId, StepView step) {
+  ///
+  /// [degradeZoom] multiplies the legibility scale WITHOUT changing the layout —
+  /// pass the canvas zoom when the miniature lives inside a Transform (e.g. the
+  /// editor), so text resolves from bars as the user zooms in.
+  Widget renderMiniature(BuildContext context, String skinId, StepView step,
+      {double degradeZoom = 1.0}) {
     final skin = _skinOr(skinId);
     if (skin == null) return const SizedBox.shrink();
     return LayoutBuilder(
@@ -72,7 +77,7 @@ class StepRegistry {
         final scale = boxWidth / _miniatureDesignWidth;
         final designHeight = boxHeight / scale;
         return SkinScale(
-          scale: scale,
+          scale: scale * degradeZoom,
           child: ClipRect(
             child: FittedBox(
               fit: BoxFit.fill,

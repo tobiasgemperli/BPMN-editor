@@ -202,7 +202,12 @@ class _EditorScreenState extends State<EditorScreen>
         if (local != null) bytes = await File(local).readAsBytes();
       }
       if (bytes == null) return null;
-      final frame = await (await ui.instantiateImageCodec(bytes)).getNextFrame();
+      // Editor miniatures are small (phone-frame screens, even when zoomed), so
+      // decode at a capped width instead of full resolution — a 4K photo would
+      // otherwise sit in memory per node. One downscaled size is plenty here;
+      // the full-res original is only decoded in the fullscreen presentation.
+      final frame = await (await ui.instantiateImageCodec(bytes, targetWidth: 640))
+          .getNextFrame();
       return frame.image;
     } catch (_) {
       return null;
