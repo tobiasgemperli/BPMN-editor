@@ -66,7 +66,6 @@ class ImmersiveSkin implements StepSkin {
           renderBlock(context, media, const SkinContext('immersive', immersive: true))
         else if (heroDoc != null)
           _docBg(),
-        _segments(step),
         _scrim(context, step, text, choice, links, extraDocs, extras, renderBlock,
             onDark: media != null),
       ],
@@ -98,35 +97,6 @@ class ImmersiveSkin implements StepSkin {
           ),
         ),
       );
-
-  // ── segmented progress (linear only; branched has no fixed total) ──
-  Widget _segments(StepView step) {
-    final p = step.progress;
-    if (!(p.linear && p.total != null && p.total! > 0)) {
-      return const SizedBox.shrink();
-    }
-    final onIndex = (p.index ?? 1) - 1;
-    return Positioned(
-      top: 12,
-      left: 14,
-      right: 14,
-      child: Row(
-        children: [
-          for (int i = 0; i < p.total!; i++)
-            Expanded(
-              child: Container(
-                height: 3,
-                margin: EdgeInsets.only(right: i == p.total! - 1 ? 0 : 4),
-                decoration: BoxDecoration(
-                  color: i <= onIndex ? Colors.white : Colors.white38,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   // ── bottom scrim overlay over media/doc ──
   Widget _scrim(BuildContext context, StepView step, TextBlock? text,

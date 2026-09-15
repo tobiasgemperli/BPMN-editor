@@ -500,16 +500,17 @@ String? _findTeaserImage(DiagramModel diagram) {
 }
 
 void _openOwnedEditor(BuildContext context, DiagramModel diagram,
-    {String? title, String? savedId, VoidCallback? onSaved, ApiModelMeta? meta}) {
+    {String? title, String? savedId, VoidCallback? onSaved}) {
+  // Own flowcharts open straight in the editor (not the stepper).
   Navigator.push(
     context,
-    _bottomToTopRoute(_ModalNavigatorShell(
-      diagram: diagram,
+    _bottomToTopRoute(EditorScreen(
+      initialDiagram: diagram,
       title: title,
       role: DiagramRole.owner,
       savedId: savedId,
       onSaved: onSaved,
-      meta: meta,
+      showCloseButton: true,
     )),
   );
 }
@@ -544,7 +545,6 @@ class _ModalNavigatorShell extends StatelessWidget {
   final SampleCreator? creator;
   final SampleDiagramEntry? entry;
   final ApiModelMeta? meta;
-  final String? savedId;
   final VoidCallback? onSaved;
 
   const _ModalNavigatorShell({
@@ -554,7 +554,6 @@ class _ModalNavigatorShell extends StatelessWidget {
     this.creator,
     this.entry,
     this.meta,
-    this.savedId,
     this.onSaved,
   });
 
@@ -569,7 +568,6 @@ class _ModalNavigatorShell extends StatelessWidget {
           creator: creator,
           entry: entry,
           meta: meta,
-          savedId: savedId,
           onSaved: onSaved,
         ),
       ),
@@ -1284,7 +1282,6 @@ class _MyModelCard extends StatelessWidget {
       title: meta.name,
       savedId: _localId,
       onSaved: onChanged,
-      meta: meta,
     );
   }
 
