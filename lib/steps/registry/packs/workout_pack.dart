@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../model/step_block.dart';
 import '../../render/block_view.dart';
+import '../../render/skin_text.dart';
 import '../category_pack.dart';
 import '../step_registry.dart';
 
@@ -39,11 +40,11 @@ class RepsView implements BlockView<RepsBlock> {
             decoration: BoxDecoration(
                 color: _surface, borderRadius: BorderRadius.circular(12)),
             child: Column(children: [
-              Text(n,
+              SkinText(n,
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w700, color: _ink)),
               const SizedBox(height: 2),
-              Text(u,
+              SkinText(u,
                   style: const TextStyle(
                       fontSize: 9, letterSpacing: 0.8, color: _ink3)),
             ]),
@@ -79,13 +80,12 @@ class MusicView implements BlockView<MusicBlock> {
             ),
             const SizedBox(width: 9),
             Expanded(
-                child: Text(b.title,
+                child: SkinText(b.title,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600, color: _ink))),
             if (b.bpm != null)
-              Text('${b.bpm} BPM',
+              SkinText('${b.bpm} BPM',
                   style: const TextStyle(fontSize: 10, color: _ink3)),
           ]),
         ),

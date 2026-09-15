@@ -96,12 +96,13 @@ class SkinText extends StatelessWidget {
     );
   }
 
-  /// A neutral bar tuned to the text's own tone: light text (over a dark hero)
-  /// gets a translucent white bar; dark text gets an iOS-gray bar.
+  /// The bar keeps the text's own colour, softened so it reads as a skeleton
+  /// line rather than a solid block: a blue eyebrow degrades to a faint blue
+  /// bar, the red "PDF" badge to a red bar, dark body copy to a light gray.
+  /// Translucency keeps it legible on both light cards and dark heroes.
   static Color _barColor(Color? color) {
     final base = color ?? const Color(0xFF1C1C1E);
-    return base.computeLuminance() > 0.6
-        ? Colors.white.withValues(alpha: 0.6)
-        : const Color(0xFFCED0D6);
+    final alpha = base.computeLuminance() > 0.6 ? 0.6 : 0.5;
+    return base.withValues(alpha: alpha);
   }
 }

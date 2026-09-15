@@ -117,7 +117,7 @@ class ClassicDocView implements BlockView<DocBlock> {
                           const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                           color: _pdf, borderRadius: BorderRadius.circular(4)),
-                      child: const Text('PDF',
+                      child: const SkinText('PDF',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 9,
