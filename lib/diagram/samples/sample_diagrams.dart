@@ -2542,20 +2542,19 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
-  /// An image-first demo: portrait photos (on the backend file store) with short
-  /// captions — shows the Immersive skin's full-bleed image hero.
+  /// An image-first demo: portrait exercise photos (on the backend file store)
+  /// with form cues — shows the Immersive skin's full-bleed image hero.
   static DiagramModel demoImages() {
     const shots = [
-      ('First look', 'f_oSVPAq', 'Start wide to establish the scene.'),
-      ('Find the light', 'f_CecIxA', 'Let the brightest area anchor the frame.'),
-      ('Get closer', 'f_K4LGXS', 'A detail shot adds texture and rhythm.'),
-      ('Change the angle', 'f_QJKp5i', 'Shoot from above or below to break the pattern.'),
-      ('Golden hour', 'f_nP8aJo', 'Warm, low light flatters almost anything.'),
-      ('The closer', 'f_wV4AdN', 'End on your strongest, simplest frame.'),
+      ('Barbell back squat', 'f_VlbhOG', 'Brace your core, sit back, drive through the heels.'),
+      ('Kettlebell swing', 'f_F9WYWn', 'Hinge at the hips and snap — power from the glutes.'),
+      ('Deadlift', 'f_7apey9', 'Flat back, bar close to the shins, stand tall.'),
+      ('Hip thrust', 'f_qZNNh2', 'Squeeze at the top, chin tucked, ribs down.'),
+      ('Overhead press', 'f_Gveo0G', 'Tight glutes, press straight up, finish by the ears.'),
     ];
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
-          name: 'Photo walk', rect: _event(_cx, _row(0))),
+          name: 'Warm up', rect: _event(_cx, _row(0))),
       for (var i = 0; i < shots.length; i++)
         'n${i + 2}': NodeModel(id: 'n${i + 2}', type: NodeType.task,
             name: shots[i].$1, rect: _task(_cx, _row(i + 1)),

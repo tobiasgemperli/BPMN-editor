@@ -233,12 +233,14 @@ class ImmersiveSkin implements StepSkin {
   // the dark ink text stays readable.
   static LinearGradient _titleGradient(String title) {
     final base = (title.hashCode % 360).abs().toDouble();
+    // Two clearly distinct hues (~85° apart) with a real lightness drop, so the
+    // gradient reads as a gradient — but kept light enough for dark ink text.
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        HSLColor.fromAHSL(1, base, 0.55, 0.90).toColor(),
-        HSLColor.fromAHSL(1, (base + 38) % 360, 0.55, 0.82).toColor(),
+        HSLColor.fromAHSL(1, base, 0.78, 0.86).toColor(),
+        HSLColor.fromAHSL(1, (base + 85) % 360, 0.72, 0.66).toColor(),
       ],
     );
   }
