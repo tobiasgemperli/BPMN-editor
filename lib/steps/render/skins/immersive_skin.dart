@@ -84,7 +84,9 @@ class ImmersiveSkin implements StepSkin {
               colors: [Color(0xFF20232F), Color(0xFF5A4030)]),
         ),
         child: const Center(
-            child: Icon(Icons.play_circle_fill, size: 56, color: Colors.white)),
+            child: SkinDetail(
+                size: 56,
+                child: Icon(Icons.play_circle_fill, size: 56, color: Colors.white))),
       );
     }
     return Container(
@@ -115,7 +117,8 @@ class ImmersiveSkin implements StepSkin {
             alignment: Alignment.topLeft,
             child: Padding(
               padding: EdgeInsets.all(12),
-              child: Icon(Icons.picture_as_pdf, color: _pdf, size: 28),
+              child: SkinDetail(
+                  size: 28, child: Icon(Icons.picture_as_pdf, color: _pdf, size: 28)),
             ),
           ),
         ),
@@ -229,8 +232,10 @@ class ImmersiveSkin implements StepSkin {
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: onDark ? Colors.white : _ink))),
-            Icon(Icons.arrow_forward,
-                size: 16, color: onDark ? Colors.white : _accent),
+            SkinDetail(
+                size: 16,
+                child: Icon(Icons.arrow_forward,
+                    size: 16, color: onDark ? Colors.white : _accent)),
           ]),
         ),
       );

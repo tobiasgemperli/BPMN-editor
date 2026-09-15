@@ -40,8 +40,10 @@ class ClassicMediaView implements BlockView<MediaBlock> {
                 color: const Color(0xFF191919),
                 borderRadius: BorderRadius.circular(12)),
             child: const Center(
-                child: Icon(Icons.play_circle_outline,
-                    color: Colors.white70, size: 40)),
+                child: SkinDetail(
+                    size: 40,
+                    child: Icon(Icons.play_circle_outline,
+                        color: Colors.white70, size: 40))),
           ),
         ),
       );
@@ -59,7 +61,9 @@ class ClassicMediaView implements BlockView<MediaBlock> {
                   width: 120,
                   height: 90,
                   color: _hair,
-                  child: const Icon(Icons.image_outlined, color: _ink3)),
+                  child: const SkinDetail(
+                      size: 24,
+                      child: Icon(Icons.image_outlined, color: _ink3))),
             ),
         ],
       ),
@@ -98,7 +102,9 @@ class ClassicDocView implements BlockView<DocBlock> {
               decoration: BoxDecoration(
                   color: _pdfSoft, borderRadius: BorderRadius.circular(6)),
               child: const Center(
-                  child: Icon(Icons.picture_as_pdf, color: _pdf, size: 22)),
+                  child: SkinDetail(
+                      size: 22,
+                      child: Icon(Icons.picture_as_pdf, color: _pdf, size: 22))),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -134,7 +140,8 @@ class ClassicDocView implements BlockView<DocBlock> {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_outward, size: 18, color: _ink3),
+            const SkinDetail(
+                size: 18, child: Icon(Icons.arrow_outward, size: 18, color: _ink3)),
           ],
         ),
       );
@@ -148,7 +155,8 @@ class ClassicLinkView implements BlockView<LinkBlock> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.link, size: 18, color: _ink),
+            const SkinDetail(
+                size: 18, child: Icon(Icons.link, size: 18, color: _ink)),
             const SizedBox(width: 6),
             Flexible(
               child: SkinText(b.label,
@@ -183,7 +191,9 @@ class ClassicChoiceView implements BlockView<ChoiceBlock> {
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: _ink))),
-                    const Icon(Icons.arrow_forward, size: 18, color: _accent),
+                    const SkinDetail(
+                        size: 18,
+                        child: Icon(Icons.arrow_forward, size: 18, color: _accent)),
                   ]),
                 ),
               ),

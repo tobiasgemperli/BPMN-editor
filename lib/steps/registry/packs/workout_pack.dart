@@ -72,11 +72,15 @@ class MusicView implements BlockView<MusicBlock> {
           decoration: BoxDecoration(
               color: _surface, borderRadius: BorderRadius.circular(12)),
           child: Row(children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(color: _accent, shape: BoxShape.circle),
-              child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+            SkinDetail(
+              size: 28,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration:
+                    const BoxDecoration(color: _accent, shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+              ),
             ),
             const SizedBox(width: 9),
             Expanded(

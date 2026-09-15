@@ -18,6 +18,30 @@ class SkinScale extends InheritedWidget {
   bool updateShouldNotify(SkinScale oldWidget) => oldWidget.scale != scale;
 }
 
+/// Wraps a small detail — a play button, an arrow, a glyph icon — that carries
+/// little meaning once the card is shrunk. Below the point where the detail
+/// would render smaller than [minPx] on screen it collapses to nothing, so a
+/// tiny miniature is left with just its boxes and bars instead of illegible
+/// specks. [size] is the detail's on-card size (e.g. the icon's `size`).
+class SkinDetail extends StatelessWidget {
+  final double size;
+  final double minPx;
+  final Widget child;
+  const SkinDetail({
+    super.key,
+    required this.size,
+    required this.child,
+    this.minPx = 13.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = SkinScale.of(context);
+    if (size * scale < minPx) return const SizedBox.shrink();
+    return child;
+  }
+}
+
 /// Drop-in for [Text] inside skins. At full size (or whenever the text is still
 /// large enough to read) it renders normally. When the card is scaled down far
 /// enough that this text would be sub-legible, it renders gray placeholder bars
