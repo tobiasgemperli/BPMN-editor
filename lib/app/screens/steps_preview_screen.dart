@@ -5,6 +5,7 @@ import '../../steps/registry/step_registry.dart';
 import '../../steps/registry/packs/workout_pack.dart';
 import '../../steps/render/skins/classic_skin.dart';
 import '../../steps/render/skins/immersive_skin.dart';
+import 'zoom_levels_view.dart';
 
 /// Dev preview: renders sample steps through the skin system so the skins and
 /// their miniatures can be tried live, without wiring them into the real
@@ -74,6 +75,17 @@ class _StepsPreviewScreenState extends State<StepsPreviewScreen> {
     _registry.install(const WorkoutPack());
   }
 
+  void _openZoomLevels(StepView view) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => ZoomLevelsView(
+          registry: _registry,
+          skinId: _skin,
+          view: view,
+        ),
+      );
+
   Widget _frame(Widget child, double radius) => Container(
         width: double.infinity,
         height: double.infinity,
@@ -135,6 +147,12 @@ class _StepsPreviewScreenState extends State<StepsPreviewScreen> {
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.6,
                         color: Colors.grey[600])),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text('tap to see zoom levels',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                ),
               ],
             ),
           ),
@@ -147,10 +165,15 @@ class _StepsPreviewScreenState extends State<StepsPreviewScreen> {
               separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (c, i) => AspectRatio(
                 aspectRatio: 3 / 4,
-                child: _frame(
-                  Builder(
-                      builder: (cc) => _registry.renderMiniature(cc, _skin, _samples[i])),
-                  12,
+                child: GestureDetector(
+                  key: ValueKey('mini_$i'),
+                  onTap: () => _openZoomLevels(_samples[i]),
+                  child: _frame(
+                    Builder(
+                        builder: (cc) =>
+                            _registry.renderMiniature(cc, _skin, _samples[i])),
+                    12,
+                  ),
                 ),
               ),
             ),
