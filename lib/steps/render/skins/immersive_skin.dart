@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../model/step_block.dart';
 import '../../model/step_view.dart';
 import '../../registry/step_registry.dart';
+import '../block_view.dart';
 import '../step_skin.dart';
 
 const _accent = Color(0xFF007AFF);
@@ -30,6 +31,7 @@ class ImmersiveSkin implements StepSkin {
     ChoiceBlock? choice;
     final links = <LinkBlock>[];
     final extraDocs = <DocBlock>[];
+    final extras = <StepBlock>[]; // category blocks (reps, music, …)
 
     for (final b in step.blocks) {
       if (b is MediaBlock && media == null) {
@@ -46,12 +48,14 @@ class ImmersiveSkin implements StepSkin {
         }
       } else if (b is LinkBlock) {
         links.add(b);
+      } else if (b is! MediaBlock && b is! TextBlock && b is! ChoiceBlock) {
+        extras.add(b); // unknown/category block → render via its registered view
       }
     }
 
     final hasHero = media != null || heroDoc != null;
     if (!hasHero) {
-      return _typoSlide(step, text, choice, links);
+      return _typoSlide(context, step, text, choice, links, extras, renderBlock);
     }
 
     return Stack(
@@ -62,7 +66,8 @@ class ImmersiveSkin implements StepSkin {
         else if (heroDoc != null)
           _docBg(),
         _segments(step),
-        _scrim(step, text, choice, links, extraDocs, onDark: media != null),
+        _scrim(context, step, text, choice, links, extraDocs, extras, renderBlock,
+            onDark: media != null),
       ],
     );
   }
@@ -145,8 +150,9 @@ class ImmersiveSkin implements StepSkin {
   }
 
   // ── bottom scrim overlay over media/doc ──
-  Widget _scrim(StepView step, TextBlock? text, ChoiceBlock? choice,
-      List<LinkBlock> links, List<DocBlock> extraDocs,
+  Widget _scrim(BuildContext context, StepView step, TextBlock? text,
+      ChoiceBlock? choice, List<LinkBlock> links, List<DocBlock> extraDocs,
+      List<StepBlock> extras, RenderBlock renderBlock,
       {required bool onDark}) {
     final fg = onDark ? Colors.white : _ink;
     return Align(
@@ -190,6 +196,8 @@ class ImmersiveSkin implements StepSkin {
             ],
             if (choice != null)
               for (final o in choice.options) _optionPill(o.label, onDark),
+            for (final e in extras)
+              renderBlock(context, e, SkinContext(id, immersive: onDark)),
             if (links.isNotEmpty || extraDocs.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -241,8 +249,9 @@ class ImmersiveSkin implements StepSkin {
       );
 
   // ── typographic slide (no hero medium) ──
-  Widget _typoSlide(StepView step, TextBlock? text, ChoiceBlock? choice,
-          List<LinkBlock> links) =>
+  Widget _typoSlide(BuildContext context, StepView step, TextBlock? text,
+          ChoiceBlock? choice, List<LinkBlock> links, List<StepBlock> extras,
+          RenderBlock renderBlock) =>
       Container(
         color: _surface,
         padding: const EdgeInsets.all(22),
@@ -269,6 +278,8 @@ class ImmersiveSkin implements StepSkin {
             ],
             if (choice != null)
               for (final o in choice.options) _optionPill(o.label, false),
+            for (final e in extras)
+              renderBlock(context, e, const SkinContext('immersive')),
             for (final l in links) _optionPill('↗ ${l.label}', false),
           ],
         ),
