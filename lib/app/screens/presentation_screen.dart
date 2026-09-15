@@ -50,8 +50,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
   /// The path the user has taken — grows dynamically as they swipe.
   final List<NodeModel> _path = [];
 
-  /// All diagram nodes, for the mini-map.
-  late final List<NodeModel> _allNodes;
+  /// All diagram nodes, for the mini-map. Recomputed after editing so the
+  /// corner mini-map reflects added/removed/edited steps.
+  late List<NodeModel> _allNodes;
 
   late final PageController _pageController;
   int _currentPage = 0;
@@ -143,13 +144,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
         widget.diagram.outgoingEdges(_path[index].id).isNotEmpty;
   }
 
-  /// True if the current page is the last node in the path with no
-  /// outgoing edges (end event or dead end).
-  bool _isLastStep(int index) {
-    if (index < 0 || index >= _path.length) return false;
-    return widget.diagram.outgoingEdges(_path[index].id).isEmpty;
-  }
-
   void _jumpToGatewayTarget(NodeModel gatewayNode, int optionIndex) {
     final outgoing = widget.diagram.outgoingEdges(gatewayNode.id);
     if (optionIndex >= outgoing.length) return;
@@ -196,9 +190,9 @@ class _PresentationScreenState extends State<PresentationScreen> {
     if (updated != null) widget.onSaved?.call();
   }
 
-  void _openEditor(BuildContext context) {
+  Future<void> _openEditor(BuildContext context) async {
     // Push inside the nested navigator (right-to-left).
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EditorScreen(
           initialDiagram: widget.diagram,
@@ -211,6 +205,19 @@ class _PresentationScreenState extends State<PresentationScreen> {
         ),
       ),
     );
+    // The editor mutates widget.diagram in place; refresh the mini-map and the
+    // current cards to reflect any added/removed/edited steps.
+    if (!mounted) return;
+    setState(() {
+      _allNodes = _collectAllNodes(widget.diagram);
+      // Drop any path entries whose nodes were deleted while editing.
+      _path.removeWhere((n) => !widget.diagram.nodes.containsKey(n.id));
+      if (_path.isEmpty) {
+        final start = _findStart(widget.diagram);
+        if (start != null) _path.add(start);
+      }
+      _currentPage = _currentPage.clamp(0, _path.length - 1);
+    });
   }
 
   /// Dismiss the entire modal (pop the outer navigator).
@@ -379,31 +386,6 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 right: 0,
                 child: const _ChooseOptionHint(),
               ),
-            // // Close button on last step.
-            // if (_isLastStep(safePage))
-            //   Positioned(
-            //     bottom: bottomPad + 32,
-            //     left: 0,
-            //     right: 0,
-            //     child: Center(
-            //       child: SizedBox(
-            //         width: 140,
-            //         height: 48,
-            //         child: ElevatedButton(
-            //           onPressed: () => _dismissModal(context),
-            //           style: ElevatedButton.styleFrom(
-            //             backgroundColor: Colors.black,
-            //             foregroundColor: Colors.white,
-            //             shape: RoundedRectangleBorder(
-            //               borderRadius: BorderRadius.circular(24),
-            //             ),
-            //           ),
-            //           child: const Text('Close',
-            //               style: TextStyle(fontSize: 16)),
-            //         ),
-            //       ),
-            //     ),
-            //   ),
           ],
         ),
       ),

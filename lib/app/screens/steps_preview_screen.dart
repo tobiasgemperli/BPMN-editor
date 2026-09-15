@@ -65,6 +65,88 @@ class _StepsPreviewScreenState extends State<StepsPreviewScreen> {
       progress: ProgressInfo(index: 4, total: 9),
       blocks: [TextBlock('Check the cable, seat the guard, clear the work area.')],
     ),
+    // ── more combinations ──
+    StepView(
+      title: 'Compare the three finishes',
+      eyebrow: 'Gallery',
+      progress: ProgressInfo(index: 2, total: 8),
+      blocks: [
+        TextBlock('Hold each sample to the light before deciding.'),
+        MediaBlock(MediaKind.image, [
+          MediaRef('assets/sample_image.jpg'),
+          MediaRef('assets/sample_image_2.jpg'),
+          MediaRef('assets/sample_image.jpg'),
+        ]),
+      ],
+    ),
+    StepView(
+      title: 'Watch the full technique',
+      eyebrow: 'Tutorial',
+      progress: ProgressInfo(index: 3, total: 12),
+      blocks: [
+        MediaBlock(MediaKind.video, [MediaRef('assets/sample_video_1.mp4')]),
+        TextBlock('Follow along, then try it once slowly yourself.'),
+        LinkBlock('https://example.com/guide', 'Full written guide'),
+      ],
+    ),
+    StepView(
+      title: 'Gather the required documents',
+      eyebrow: 'Application',
+      progress: ProgressInfo(index: 1, total: 5),
+      blocks: [
+        TextBlock('Bring all three forms, completed and signed.'),
+        DocBlock([
+          DocRef('remote:a', name: 'Antrag.pdf', pages: 4),
+          DocRef('remote:b', name: 'Nachweis.pdf', pages: 2),
+          DocRef('remote:c', name: 'Vollmacht.pdf', pages: 1),
+        ]),
+      ],
+    ),
+    StepView(
+      title: 'Which surface are you working on?',
+      eyebrow: 'Prep',
+      progress: ProgressInfo(index: 6, linear: false),
+      blocks: [
+        MediaBlock(MediaKind.image, [MediaRef('assets/sample_image_2.jpg')]),
+        TextBlock('The primer differs by surface.'),
+        ChoiceBlock([
+          Choice('Bare wood', 'a'),
+          Choice('Painted / sealed', 'b'),
+          Choice('Metal', 'c'),
+        ]),
+      ],
+    ),
+    StepView(
+      title: 'Helpful resources',
+      eyebrow: 'Reference',
+      progress: ProgressInfo(index: 8, total: 8),
+      blocks: [
+        TextBlock('Everything you may need for this step.'),
+        DocBlock([DocRef('remote:d', name: 'Checklist.pdf', pages: 1)]),
+        LinkBlock('https://example.com/rules', 'Official rules'),
+        LinkBlock('https://example.com/faq', 'FAQ'),
+      ],
+    ),
+    StepView(
+      title: 'Warm-up set',
+      eyebrow: 'Mobility',
+      progress: ProgressInfo(index: 1, total: 6),
+      blocks: [
+        RepsBlock(sets: 2, reps: 15),
+        TextBlock('Keep it light — this is just to loosen up.'),
+      ],
+    ),
+    StepView(
+      title: 'Read this before you begin',
+      eyebrow: 'Overview',
+      progress: ProgressInfo(index: 1, total: 10),
+      blocks: [
+        TextBlock('This guide walks you through the entire process from '
+            'start to finish. Set aside about twenty minutes, work somewhere '
+            'well lit, and keep the parts tray within reach. You can pause at '
+            'any step and pick up again later.'),
+      ],
+    ),
   ];
 
   @override
