@@ -1188,7 +1188,9 @@ class _PinchToZoomViewState extends State<_PinchToZoomView>
       fit: StackFit.expand,
       children: [
         Container(
-          color: Colors.black,
+          // White letterbox (not black) so white manual pages / documents sit
+          // seamlessly — a document-centric app reads better on white.
+          color: Colors.white,
           child: InteractiveViewer(
             transformationController: _controller,
             onInteractionStart: _onInteractionStart,
