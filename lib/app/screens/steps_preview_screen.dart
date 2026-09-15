@@ -3,8 +3,7 @@ import '../../steps/model/step_block.dart';
 import '../../steps/model/step_view.dart';
 import '../../steps/registry/step_registry.dart';
 import '../../steps/registry/packs/workout_pack.dart';
-import '../../steps/render/skins/classic_skin.dart';
-import '../../steps/render/skins/immersive_skin.dart';
+import '../skins/app_skins.dart';
 import 'zoom_levels_view.dart';
 
 /// Dev preview: renders sample steps through the skin system so the skins and
@@ -18,7 +17,9 @@ class StepsPreviewScreen extends StatefulWidget {
 }
 
 class _StepsPreviewScreenState extends State<StepsPreviewScreen> {
-  final StepRegistry _registry = StepRegistry();
+  // Shared app registry so the preview shows the same real media as the
+  // live presentation (not placeholders).
+  final StepRegistry _registry = appStepRegistry;
   String _skin = 'classic';
 
   static const List<StepView> _samples = [
@@ -148,14 +149,6 @@ class _StepsPreviewScreenState extends State<StepsPreviewScreen> {
       ],
     ),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    installClassic(_registry);
-    installImmersive(_registry);
-    _registry.install(const WorkoutPack());
-  }
 
   void _openZoomLevels(StepView view) => showModalBottomSheet<void>(
         context: context,

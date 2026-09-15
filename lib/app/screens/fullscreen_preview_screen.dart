@@ -3,8 +3,7 @@ import '../../steps/model/step_block.dart';
 import '../../steps/model/step_view.dart';
 import '../../steps/registry/step_registry.dart';
 import '../../steps/registry/packs/workout_pack.dart';
-import '../../steps/render/skins/classic_skin.dart';
-import '../../steps/render/skins/immersive_skin.dart';
+import '../skins/app_skins.dart';
 
 /// One page in the fullscreen preview: a sample step rendered through a skin.
 class _Preview {
@@ -28,7 +27,7 @@ class FullscreenPreviewScreen extends StatefulWidget {
 }
 
 class _FullscreenPreviewScreenState extends State<FullscreenPreviewScreen> {
-  final StepRegistry _registry = StepRegistry();
+  final StepRegistry _registry = appStepRegistry;
   final PageController _controller = PageController();
   int _index = 0;
 
@@ -96,14 +95,6 @@ class _FullscreenPreviewScreenState extends State<FullscreenPreviewScreen> {
       ),
     ),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    installClassic(_registry);
-    installImmersive(_registry);
-    _registry.install(const WorkoutPack());
-  }
 
   @override
   void dispose() {
