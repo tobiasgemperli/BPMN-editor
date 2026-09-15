@@ -33,13 +33,15 @@ class _StepsPreviewScreenState extends State<StepsPreviewScreen> {
       ],
     ),
     StepView(
-      title: 'Goblet squats',
+      title: 'Barbell back squat',
       eyebrow: 'Strength',
       progress: ProgressInfo(index: 4, total: 9),
       blocks: [
+        // Portrait squat clip on the backend file store (YMove, free for
+        // commercial use); see exerciseClipIds in app_skins.dart.
+        MediaBlock(MediaKind.video, [MediaRef('remote:f_c9LJjW')]),
         RepsBlock(sets: 3, reps: 12, rest: Duration(seconds: 60)),
         MusicBlock('Uptown Funk', bpm: 128),
-        MediaBlock(MediaKind.video, [MediaRef('assets/sample_video_1.mp4')]),
       ],
     ),
     StepView(

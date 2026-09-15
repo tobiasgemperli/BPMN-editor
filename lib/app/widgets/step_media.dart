@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import '../../diagram/io/api_client.dart';
 import '../../diagram/io/media_ref.dart';
@@ -79,10 +80,20 @@ class _StepVideoState extends State<StepVideo> {
     final src = widget.src;
     VideoPlayerController controller;
     if (MediaRef.isRemote(src)) {
-      controller = VideoPlayerController.networkUrl(
-        Uri.parse(ApiClient.instance.mediaUrl(MediaRef.fileId(src))),
-        httpHeaders: ApiClient.instance.mediaHeaders,
-      );
+      // AVPlayer doesn't reliably send auth headers, and the file store is
+      // auth-gated — so download the (cached) bytes to a temp file and play that.
+      final id = MediaRef.fileId(src);
+      final bytes = await ApiClient.instance.getFileBytes(id);
+      if (bytes == null) {
+        if (mounted) setState(() => _error = true);
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/vid_$id.mp4');
+      if (!await file.exists() || await file.length() != bytes.length) {
+        await file.writeAsBytes(bytes, flush: true);
+      }
+      controller = VideoPlayerController.file(file);
     } else if (MediaRef.isAsset(src)) {
       controller = VideoPlayerController.asset(src);
     } else {

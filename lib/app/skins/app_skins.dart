@@ -23,6 +23,17 @@ StepRegistry _build() {
   return r;
 }
 
+/// Portrait exercise clips (YMove, free for commercial use) uploaded to the
+/// backend file store. Reference as `remote:<id>` in content. Uploaded by
+/// test/upload_exercise_media (qa); files are served globally by id.
+const Map<String, String> exerciseClipIds = {
+  'squat': 'f_c9LJjW',
+  'kettlebell_swing': 'f_HjOUiH',
+  'deadlift': 'f_80sgeL',
+  'hip_thrust': 'f_avCGHU',
+  'overhead_press': 'f_xxVqL3',
+};
+
 /// Skins offered to the user in the picker.
 const List<({String id, String label})> selectableSkins = [
   (id: 'classic', label: 'Classic'),
