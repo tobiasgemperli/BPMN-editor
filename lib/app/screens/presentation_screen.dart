@@ -895,6 +895,18 @@ class _ModelInfoSheetState extends State<_ModelInfoSheet> {
   }
 }
 
+/// Open the "Edit Info" sheet for a model's metadata. Returns true if saved.
+/// Shared by the presentation and the editor (My Flowcharts).
+Future<bool> showEditInfoSheet(BuildContext context, ApiModelMeta meta) async {
+  final updated = await showModalBottomSheet<ApiModelMeta>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _MetaEditSheet(meta: meta),
+  );
+  return updated != null;
+}
+
 /// Edit sheet for the model metadata fields that persist server-side
 /// (Name, Description, Keywords, Sources, Categories/Relations).
 class _MetaEditSheet extends StatefulWidget {

@@ -35,6 +35,9 @@ class EditorScreen extends StatefulWidget {
   final String? savedId;
   final VoidCallback? onSaved;
 
+  /// Backend model metadata — when set, a top-left Info button opens Edit Info.
+  final ApiModelMeta? meta;
+
   const EditorScreen({
     super.key,
     this.initialDiagram,
@@ -45,6 +48,7 @@ class EditorScreen extends StatefulWidget {
     this.showBackButton = false,
     this.savedId,
     this.onSaved,
+    this.meta,
   });
 
   @override
@@ -120,6 +124,14 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _saveIfDirty() async {
     if (!_dirty) return;
     await _saveDiagram();
+  }
+
+  /// Open the model's Edit Info sheet (metadata), then refresh the list on save.
+  Future<void> _openEditInfo() async {
+    final meta = widget.meta;
+    if (meta == null) return;
+    final saved = await showEditInfoSheet(context, meta);
+    if (saved) widget.onSaved?.call();
   }
 
   /// Load screenshot images from node content for UI view mode.
@@ -591,6 +603,13 @@ class _EditorScreenState extends State<EditorScreen>
                 onPressed: _handleClose,
               ),
             ),
+          // Info button (top-left) — opens Edit Info for an owned backend model.
+          if (widget.meta != null && !widget.showBackButton)
+            Positioned(
+              top: topPad + 8,
+              left: 16,
+              child: _InfoCircleButton(onPressed: _openEditInfo),
+            ),
           if (_isOwner)
             Positioned(
               top: topPad + 12,
@@ -976,6 +995,36 @@ class _ActionButton extends StatelessWidget {
           ),
           child: Icon(icon, size: 22, color: color),
         ),
+      ),
+    );
+  }
+}
+
+/// Floating circle button (white with shadow) showing an info glyph — opens the
+/// Edit Info sheet from the editor's top-left.
+class _InfoCircleButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _InfoCircleButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.9),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.info_outline, size: 24, color: Colors.black54),
       ),
     );
   }

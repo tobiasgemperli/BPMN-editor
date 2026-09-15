@@ -59,6 +59,15 @@ class ImmersiveSkin implements StepSkin {
       return _typoSlide(context, step, text, choice, links, extras, renderBlock);
     }
 
+    // Nothing to overlay (no title, text, options, links, docs or extras) →
+    // show just the image, with no scrim/gradient.
+    final hasOverlay = step.title.trim().isNotEmpty ||
+        text != null ||
+        choice != null ||
+        links.isNotEmpty ||
+        extraDocs.isNotEmpty ||
+        extras.isNotEmpty;
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -66,8 +75,9 @@ class ImmersiveSkin implements StepSkin {
           renderBlock(context, media, const SkinContext('immersive', immersive: true))
         else if (heroDoc != null)
           _docBg(),
-        _scrim(context, step, text, choice, links, extraDocs, extras, renderBlock,
-            onDark: media != null),
+        if (hasOverlay)
+          _scrim(context, step, text, choice, links, extraDocs, extras, renderBlock,
+              onDark: media != null),
       ],
     );
   }

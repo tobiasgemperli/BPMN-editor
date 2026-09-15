@@ -500,8 +500,9 @@ String? _findTeaserImage(DiagramModel diagram) {
 }
 
 void _openOwnedEditor(BuildContext context, DiagramModel diagram,
-    {String? title, String? savedId, VoidCallback? onSaved}) {
-  // Own flowcharts open straight in the editor (not the stepper).
+    {String? title, String? savedId, VoidCallback? onSaved, ApiModelMeta? meta}) {
+  // Own flowcharts open straight in the editor (not the stepper); the meta
+  // powers the top-left Info button (Edit Info).
   Navigator.push(
     context,
     _bottomToTopRoute(EditorScreen(
@@ -510,6 +511,7 @@ void _openOwnedEditor(BuildContext context, DiagramModel diagram,
       role: DiagramRole.owner,
       savedId: savedId,
       onSaved: onSaved,
+      meta: meta,
       showCloseButton: true,
     )),
   );
@@ -1282,6 +1284,7 @@ class _MyModelCard extends StatelessWidget {
       title: meta.name,
       savedId: _localId,
       onSaved: onChanged,
+      meta: meta,
     );
   }
 
