@@ -51,13 +51,23 @@ class RepsView implements BlockView<RepsBlock> {
           ),
         );
     final rest = b.rest;
+    final count = rest == null ? 2 : 3;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: Row(children: [
-        metric('${b.sets}', 'SETS'),
-        metric('${b.reps}', 'REPS', last: rest == null),
-        if (rest != null) metric('${rest.inSeconds}s', 'REST', last: true),
-      ]),
+      // When the metric tiles get too cramped to read, merge them into one box.
+      child: SkinMerge(
+        itemExtent: 280 / count, // ~one tile's width on the card
+        merged: Container(
+          height: 46,
+          decoration: BoxDecoration(
+              color: _surface, borderRadius: BorderRadius.circular(12)),
+        ),
+        detailed: Row(children: [
+          metric('${b.sets}', 'SETS'),
+          metric('${b.reps}', 'REPS', last: rest == null),
+          if (rest != null) metric('${rest.inSeconds}s', 'REST', last: true),
+        ]),
+      ),
     );
   }
 }

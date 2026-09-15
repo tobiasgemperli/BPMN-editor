@@ -42,6 +42,32 @@ class SkinDetail extends StatelessWidget {
   }
 }
 
+/// Collapses a cluster of small sibling boxes into a single merged box once
+/// they would be packed too tightly to read as separate things. [itemExtent] is
+/// the on-card size of one item along the cluster's axis; below the point where
+/// that would render smaller than [minItemPx] on screen, [merged] is shown
+/// instead of [detailed]. The general counterpart to [SkinDetail]: where that
+/// hides a lone detail, this combines a group.
+class SkinMerge extends StatelessWidget {
+  final double itemExtent;
+  final double minItemPx;
+  final Widget detailed;
+  final Widget merged;
+  const SkinMerge({
+    super.key,
+    required this.itemExtent,
+    required this.detailed,
+    required this.merged,
+    this.minItemPx = 26.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = SkinScale.of(context);
+    return itemExtent * scale < minItemPx ? merged : detailed;
+  }
+}
+
 /// Drop-in for [Text] inside skins. At full size (or whenever the text is still
 /// large enough to read) it renders normally. When the card is scaled down far
 /// enough that this text would be sub-legible, it renders gray placeholder bars

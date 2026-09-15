@@ -74,18 +74,28 @@ class ClassicMediaView implements BlockView<MediaBlock> {
 class ClassicDocView implements BlockView<DocBlock> {
   const ClassicDocView();
   @override
-  Widget build(BuildContext c, DocBlock b, SkinContext ctx) => Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Column(
-          children: [
-            for (final d in b.docs)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _docTile(d),
-              ),
-          ],
-        ),
-      );
+  Widget build(BuildContext c, DocBlock b, SkinContext ctx) {
+    final stack = Column(
+      children: [
+        for (final d in b.docs)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _docTile(d),
+          ),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      // A stack of PDFs collapses to a single tile once they'd be too small.
+      child: b.docs.length < 2
+          ? stack
+          : SkinMerge(
+              itemExtent: 66, // one doc tile's height
+              detailed: stack,
+              merged: _docTile(b.docs.first),
+            ),
+    );
+  }
 
   Widget _docTile(DocRef d) => Container(
         decoration: BoxDecoration(
