@@ -2479,6 +2479,36 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// A fitness demo: portrait exercise clips (YMove, on the backend file store)
+  /// shown as a linear workout — great for the Immersive skin.
+  static DiagramModel demoFitness() {
+    NodeModel ex(String id, int row, String name, String fileId, String cue) =>
+        NodeModel(id: id, type: NodeType.task, name: name, rect: _task(_cx, _row(row)),
+            content: TaskContent(text: cue, videoPath: 'remote:$fileId'));
+
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Warm up', rect: _event(_cx, _row(0))),
+      'n2': ex('n2', 1, 'Barbell back squat', 'f_c9LJjW',
+          'Brace your core, sit back, drive through the heels. 3×12.'),
+      'n3': ex('n3', 2, 'Kettlebell swing', 'f_HjOUiH',
+          'Hinge at the hips and snap — power comes from the glutes. 3×15.'),
+      'n4': ex('n4', 3, 'Deadlift', 'f_80sgeL',
+          'Flat back, bar close to the shins, stand tall. 3×8.'),
+      'n5': ex('n5', 4, 'Hip thrust', 'f_avCGHU',
+          'Squeeze at the top, chin tucked, ribs down. 3×12.'),
+      'n6': ex('n6', 5, 'Overhead press', 'f_xxVqL3',
+          'Tight glutes, press straight up, finish with the biceps by the ears. 3×10.'),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent,
+          name: 'Cool down', rect: _event(_cx, _row(6))),
+    };
+    final edges = <String, EdgeModel>{
+      for (var i = 1; i <= 6; i++)
+        'e$i': EdgeModel(id: 'e$i', sourceId: 'n$i', targetId: 'n${i + 1}'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// All sample diagrams with display names and creator info.
   static final List<SampleDiagramEntry> all = [
     SampleDiagramEntry(

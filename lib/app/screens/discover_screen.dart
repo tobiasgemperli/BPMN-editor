@@ -25,7 +25,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   // Revisit with Ondrej — this intentionally reverses the earlier "no dynamic
   // categories" decision. Any chip beyond All/My is treated as a category tag
   // and filters _remoteModels by it.
-  static const _categories = ['All', 'My', 'Training', 'Switzerland'];
+  static const _categories = ['All', 'My', 'Demos', 'Training', 'Switzerland'];
   String _selected = 'All';
   List<ApiModelMeta> _myModels = [];
   bool _myLoading = false;
@@ -340,7 +340,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   ),
                 )
               else ...[
-                _sectionHeader(context, '$_selected · Government processes'),
+                _sectionHeader(
+                    context,
+                    _selected == 'Demos'
+                        ? 'Demo flowcharts'
+                        : '$_selected · Government processes'),
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: 210,
