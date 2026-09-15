@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../model/step_block.dart';
 import '../block_view.dart';
+import '../skin_text.dart';
 
 // iOS-clean palette (matches the current card look).
 const _ink = Color(0xFF1C1C1E);
@@ -17,7 +18,7 @@ class ClassicTextView implements BlockView<TextBlock> {
   @override
   Widget build(BuildContext c, TextBlock b, SkinContext ctx) => Padding(
         padding: const EdgeInsets.only(top: 12),
-        child: Text(b.text,
+        child: SkinText(b.text,
             style: const TextStyle(fontSize: 16, height: 1.5, color: _ink2)),
       );
 }
@@ -105,9 +106,8 @@ class ClassicDocView implements BlockView<DocBlock> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(d.name ?? 'PDF document',
+                  SkinText(d.name ?? 'PDF document',
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.w600, color: _ink)),
                   const SizedBox(height: 4),
@@ -124,8 +124,12 @@ class ClassicDocView implements BlockView<DocBlock> {
                               fontWeight: FontWeight.w800)),
                     ),
                     const SizedBox(width: 8),
-                    Text(d.pages != null ? '${d.pages} pages' : 'Tap to open',
-                        style: const TextStyle(color: _ink3, fontSize: 12)),
+                    Flexible(
+                      child: SkinText(
+                          d.pages != null ? '${d.pages} pages' : 'Tap to open',
+                          maxLines: 1,
+                          style: const TextStyle(color: _ink3, fontSize: 12)),
+                    ),
                   ]),
                 ],
               ),
@@ -147,7 +151,7 @@ class ClassicLinkView implements BlockView<LinkBlock> {
             const Icon(Icons.link, size: 18, color: _ink),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(b.label,
+              child: SkinText(b.label,
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w500, color: _ink)),
             ),
@@ -174,7 +178,7 @@ class ClassicChoiceView implements BlockView<ChoiceBlock> {
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   child: Row(children: [
                     Expanded(
-                        child: Text(o.label,
+                        child: SkinText(o.label,
                             style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,

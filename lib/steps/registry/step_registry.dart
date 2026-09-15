@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import '../model/step_block.dart';
 import '../model/step_view.dart';
 import '../render/block_view.dart';
+import '../render/skin_text.dart';
 import '../render/step_skin.dart';
 import 'category_pack.dart';
 
@@ -47,11 +48,45 @@ class StepRegistry {
     return skin.buildStep(context, step, (c, b, cx) => renderBlock(c, b, cx));
   }
 
-  /// Render the compact miniature of a step in the given skin's style.
+  /// Design-space width the miniature lays the card out at before scaling. The
+  /// card is built once at this width, then uniformly shrunk to the thumbnail —
+  /// so the miniature has the *same layout and element positions* as the card,
+  /// just smaller.
+  static const double _miniatureDesignWidth = 300.0;
+
+  /// Render the miniature: the real [buildStep] card, laid out at a fixed design
+  /// width and scaled down to fit. [SkinText] inside degrades to gray bars once
+  /// a run of text becomes too small to read, so tiny thumbnails show boxes
+  /// while larger ones keep the big text legible.
   Widget renderMiniature(BuildContext context, String skinId, StepView step) {
     final skin = _skinOr(skinId);
     if (skin == null) return const SizedBox.shrink();
-    return skin.buildMiniature(context, step);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : _miniatureDesignWidth;
+        final boxHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : boxWidth * 4 / 3;
+        final scale = boxWidth / _miniatureDesignWidth;
+        final designHeight = boxHeight / scale;
+        return SkinScale(
+          scale: scale,
+          child: ClipRect(
+            child: FittedBox(
+              fit: BoxFit.fill,
+              child: SizedBox(
+                width: _miniatureDesignWidth,
+                height: designHeight,
+                child: skin.buildStep(
+                    context, step, (c, b, cx) => renderBlock(c, b, cx)),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   StepSkin? _skinOr(String id) =>

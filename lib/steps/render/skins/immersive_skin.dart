@@ -3,6 +3,7 @@ import '../../model/step_block.dart';
 import '../../model/step_view.dart';
 import '../../registry/step_registry.dart';
 import '../block_view.dart';
+import '../skin_text.dart';
 import '../step_skin.dart';
 
 const _accent = Color(0xFF007AFF);
@@ -174,21 +175,20 @@ class ImmersiveSkin implements StepSkin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_eyebrow(step) != null)
-              Text(_eyebrow(step)!,
+              SkinText(_eyebrow(step)!,
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
                       color: onDark ? Colors.white70 : _accent)),
             const SizedBox(height: 4),
-            Text(step.title,
+            SkinText(step.title,
                 style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w700, color: fg)),
             if (text != null) ...[
               const SizedBox(height: 6),
-              Text(text.text,
+              SkinText(text.text,
                   maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 13,
                       height: 1.4,
@@ -224,7 +224,7 @@ class ImmersiveSkin implements StepSkin {
           ),
           child: Row(children: [
             Expanded(
-                child: Text(label,
+                child: SkinText(label,
                     style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -241,7 +241,7 @@ class ImmersiveSkin implements StepSkin {
           color: onDark ? Colors.white24 : _surface,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Text(label,
+        child: SkinText(label,
             style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
@@ -261,19 +261,19 @@ class ImmersiveSkin implements StepSkin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_eyebrow(step) != null)
-              Text(_eyebrow(step)!,
+              SkinText(_eyebrow(step)!,
                   style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
                       color: _accent)),
             const SizedBox(height: 6),
-            Text(step.title,
+            SkinText(step.title,
                 style: const TextStyle(
                     fontSize: 22, fontWeight: FontWeight.w700, color: _ink)),
             if (text != null) ...[
               const SizedBox(height: 10),
-              Text(text.text,
+              SkinText(text.text,
                   style: const TextStyle(fontSize: 14, height: 1.5, color: _ink2)),
             ],
             if (choice != null)
@@ -283,64 +283,6 @@ class ImmersiveSkin implements StepSkin {
             for (final l in links) _optionPill('↗ ${l.label}', false),
           ],
         ),
-      );
-
-  @override
-  Widget buildMiniature(BuildContext context, StepView step) {
-    MediaBlock? media;
-    DocBlock? doc;
-    for (final b in step.blocks) {
-      if (b is MediaBlock && media == null) media = b;
-      if (b is DocBlock && doc == null) doc = b;
-    }
-    final onDark = media != null;
-    if (media == null && doc == null) {
-      // typo miniature
-      return Container(
-        color: _surface,
-        padding: const EdgeInsets.all(10),
-        alignment: Alignment.center,
-        child: Text(step.title,
-            maxLines: 3,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: _ink)),
-      );
-    }
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (media != null) _mediaBg(media) else _docBgSmall(),
-        Align(
-          alignment: Alignment.bottomLeft,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
-            decoration: onDark
-                ? const BoxDecoration(
-                    gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [Color(0xCC000000), Color(0x00000000)]))
-                : null,
-            child: Text(step.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: onDark ? Colors.white : _ink)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _docBgSmall() => Container(
-        color: _surface,
-        alignment: Alignment.center,
-        child: const Icon(Icons.picture_as_pdf, color: _pdf, size: 28),
       );
 
   String? _eyebrow(StepView s) {

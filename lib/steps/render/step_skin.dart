@@ -15,12 +15,9 @@ abstract interface class StepSkin {
   String get id;
   String get label;
 
-  /// The full step card.
+  /// The full step card. The miniature is derived from this same tree (scaled
+  /// down by the registry), so a skin never draws a separate thumbnail — card
+  /// and miniature always match by construction. Text abstracts to gray bars at
+  /// small scale via [SkinText]; use it instead of [Text] for readable content.
   Widget buildStep(BuildContext context, StepView step, RenderBlock renderBlock);
-
-  /// A compact, non-interactive preview of the step in this skin's style — for
-  /// list thumbnails and mini process maps. Fills the constraints it's given,
-  /// so wrap it in a sized box. Designed alongside [buildStep] so the card and
-  /// its miniature always match.
-  Widget buildMiniature(BuildContext context, StepView step);
 }
