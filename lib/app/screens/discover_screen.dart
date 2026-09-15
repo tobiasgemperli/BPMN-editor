@@ -9,6 +9,7 @@ import 'presentation_screen.dart';
 import 'editor_screen.dart';
 import 'edit_profile_sheet.dart';
 import 'steps_preview_screen.dart';
+import 'fullscreen_preview_screen.dart';
 
 /// YouTube-inspired discovery screen for browsing process content.
 class DiscoverScreen extends StatefulWidget {
@@ -159,7 +160,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         ),
                   ),
                   const Spacer(),
-                  // Dev: open the skin preview.
+                  // Dev: open the skin preview (card gallery).
                   IconButton(
                     icon: const Icon(Icons.palette_outlined,
                         color: Color(0xFF007AFF)),
@@ -168,6 +169,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const StepsPreviewScreen()),
+                    ),
+                  ),
+                  // Dev: open the fullscreen skin preview.
+                  IconButton(
+                    icon: const Icon(Icons.fullscreen,
+                        color: Color(0xFF007AFF)),
+                    tooltip: 'Fullscreen preview',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const FullscreenPreviewScreen()),
                     ),
                   ),
                   _Pressable(
