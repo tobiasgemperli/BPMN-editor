@@ -23,6 +23,20 @@ class WorkoutInfo {
   });
 }
 
+/// A tappable point on a step's image (for troubleshooting hotspots), by
+/// normalized coordinates (0..1 of the image). Rendered as a HotspotBlock.
+class ContentHotspot {
+  double x;
+  double y;
+  String label;
+  String detail;
+  ContentHotspot(
+      {this.x = 0.5, this.y = 0.5, this.label = '', this.detail = ''});
+
+  ContentHotspot copy() =>
+      ContentHotspot(x: x, y: y, label: label, detail: detail);
+}
+
 /// A single document link.
 class DocLink {
   final String url;
@@ -57,6 +71,7 @@ class TaskContent {
   List<DocLink> links;
   List<Callout> callouts;
   WorkoutInfo? workout;
+  List<ContentHotspot> hotspots;
   ContentDisplayMode displayMode;
 
   TaskContent({
@@ -72,6 +87,7 @@ class TaskContent {
     this.links = const [],
     this.callouts = const [],
     this.workout,
+    this.hotspots = const [],
     this.displayMode = ContentDisplayMode.mixed,
   })  : imagePaths = imagePaths ?? (imagePath != null ? [imagePath] : []),
         videoPaths = videoPaths ?? (videoPath != null ? [videoPath] : []),
@@ -101,6 +117,7 @@ class TaskContent {
         links: links,
         callouts: callouts,
         workout: workout,
+        hotspots: hotspots.map((h) => h.copy()).toList(),
         displayMode: displayMode,
       );
 }

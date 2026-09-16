@@ -55,6 +55,16 @@ StepView nodeToStepView(
 }) {
   final blocks = <StepBlock>[...blocksFromTaskContent(node.content)];
 
+  // Hotspots → an interactive HotspotBlock over the step's image (replacing the
+  // plain image media, which the hotspot block now renders).
+  final hs = node.content?.hotspots ?? const <ContentHotspot>[];
+  final imgs = node.content?.imagePaths ?? const <String>[];
+  if (hs.isNotEmpty && imgs.isNotEmpty) {
+    blocks.removeWhere((b) => b is MediaBlock && b.kind == MediaKind.image);
+    blocks.add(HotspotBlock(imgs.first,
+        [for (final h in hs) Hotspot(h.x, h.y, h.label, h.detail)]));
+  }
+
   // Workout metadata → the workout pack's reps/music blocks (app layer knows
   // about packs; the core adapter stays pack-agnostic).
   final w = node.content?.workout;

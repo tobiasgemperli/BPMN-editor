@@ -86,6 +86,18 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   late List<String> _videoPaths;
   late List<String> _pdfPaths;
 
+  // Theme-specific slots.
+  late final TextEditingController _setsCtrl;
+  late final TextEditingController _repsCtrl;
+  late final TextEditingController _restCtrl;
+  late final TextEditingController _musicCtrl;
+  late final TextEditingController _bpmCtrl;
+  late List<ContentHotspot> _hotspots;
+  final List<TextEditingController> _hsLabelCtrls = [];
+  final List<TextEditingController> _hsDetailCtrls = [];
+
+  String? get _themeId => widget.controller.diagram.theme;
+
   // Gateway outgoing edge label controllers.
   final Map<String, TextEditingController> _edgeLabelCtrls = {};
   late List<EdgeModel> _outgoingEdges;
@@ -110,11 +122,27 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     _videoPaths = List<String>.from(c?.videoPaths ?? const []);
     _pdfPaths = List<String>.from(c?.pdfPaths ?? const []);
 
+    final w = c?.workout;
+    _setsCtrl = TextEditingController(text: w != null ? '${w.sets}' : '');
+    _repsCtrl = TextEditingController(text: w != null ? '${w.reps}' : '');
+    _restCtrl =
+        TextEditingController(text: w?.restSeconds != null ? '${w!.restSeconds}' : '');
+    _musicCtrl = TextEditingController(text: w?.musicTitle ?? '');
+    _bpmCtrl = TextEditingController(text: w?.musicBpm != null ? '${w!.musicBpm}' : '');
+    _hotspots = (c?.hotspots ?? const []).map((h) => h.copy()).toList();
+    for (final h in _hotspots) {
+      _hsLabelCtrls.add(TextEditingController(text: h.label));
+      _hsDetailCtrls.add(TextEditingController(text: h.detail));
+    }
+
     _template = inferTemplate(
+      themeId: _themeId,
       hasImage: _imagePaths.isNotEmpty,
       hasVideo: _videoPaths.isNotEmpty,
       hasPdf: _pdfPaths.isNotEmpty,
       hasText: (c?.text ?? '').isNotEmpty,
+      hasWorkout: w != null,
+      hasHotspot: _hotspots.isNotEmpty,
     );
 
     // Build edge label controllers for gateway nodes.
@@ -131,6 +159,14 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     _textCtrl.dispose();
     _urlCtrl.dispose();
     _urlLabelCtrl.dispose();
+    _setsCtrl.dispose();
+    _repsCtrl.dispose();
+    _restCtrl.dispose();
+    _musicCtrl.dispose();
+    _bpmCtrl.dispose();
+    for (final c in [..._hsLabelCtrls, ..._hsDetailCtrls]) {
+      c.dispose();
+    }
     for (final ctrl in _edgeLabelCtrls.values) {
       ctrl.dispose();
     }
@@ -215,9 +251,32 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
               ? ContentDisplayMode.image
               : ContentDisplayMode.mixed;
 
+  WorkoutInfo? _buildWorkout() {
+    final sets = int.tryParse(_setsCtrl.text);
+    final reps = int.tryParse(_repsCtrl.text);
+    if (sets == null && reps == null && _musicCtrl.text.isEmpty) return null;
+    return WorkoutInfo(
+      sets: sets ?? 0,
+      reps: reps ?? 0,
+      restSeconds: int.tryParse(_restCtrl.text),
+      musicTitle: _musicCtrl.text.isNotEmpty ? _musicCtrl.text : null,
+      musicBpm: int.tryParse(_bpmCtrl.text),
+    );
+  }
+
+  List<ContentHotspot> _buildHotspots() => [
+        for (int i = 0; i < _hotspots.length; i++)
+          ContentHotspot(
+            x: _hotspots[i].x,
+            y: _hotspots[i].y,
+            label: _hsLabelCtrls[i].text,
+            detail: _hsDetailCtrls[i].text,
+          ),
+      ];
+
   /// Assemble the saved content from the shared model. All filled fields are
   /// kept — even ones the current template doesn't show — so switching template
-  /// never deletes content. Callouts/workout on the node are preserved.
+  /// never deletes content. Callouts on the node are preserved.
   TaskContent? _buildContent() {
     if (!_hasContent) return null;
     final orig = widget.node.content;
@@ -229,7 +288,8 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
       linkUrl: _urlCtrl.text.isNotEmpty ? _urlCtrl.text : null,
       linkLabel: _urlLabelCtrl.text.isNotEmpty ? _urlLabelCtrl.text : null,
       callouts: orig?.callouts ?? const [],
-      workout: orig?.workout,
+      workout: _buildWorkout(),
+      hotspots: _buildHotspots(),
       displayMode: _modeFor(_template),
     );
   }
@@ -241,9 +301,12 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
       text: t.has(CardSlot.text) && _textCtrl.text.isNotEmpty
           ? _textCtrl.text
           : null,
-      imagePaths: t.has(CardSlot.image) ? _clean(_imagePaths) : const [],
+      imagePaths:
+          (t.has(CardSlot.image) || t.has(CardSlot.hotspot)) ? _clean(_imagePaths) : const [],
       videoPaths: t.has(CardSlot.video) ? _clean(_videoPaths) : const [],
       pdfPaths: t.has(CardSlot.pdf) ? _clean(_pdfPaths) : const [],
+      workout: t.has(CardSlot.workout) ? _buildWorkout() : null,
+      hotspots: t.has(CardSlot.hotspot) ? _buildHotspots() : const [],
       displayMode: _modeFor(t),
     );
     final temp = NodeModel(
@@ -260,19 +323,23 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   /// content limited to that template, in the diagram's look. Tap to choose.
   Widget _templateStrip() {
     return ListenableBuilder(
-      listenable: Listenable.merge(
-          [_nameCtrl, _textCtrl, _urlCtrl, _urlLabelCtrl, widget.controller]),
+      listenable: Listenable.merge([
+        _nameCtrl, _textCtrl, _urlCtrl, _urlLabelCtrl,
+        _setsCtrl, _repsCtrl, _restCtrl, _musicCtrl, _bpmCtrl,
+        widget.controller,
+      ]),
       builder: (context, _) {
         final skin =
             widget.controller.diagram.skinId ?? SkinController.defaultSkin;
+        final templates = templatesForTheme(_themeId);
         return SizedBox(
           height: 214,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: kTemplates.length,
+            itemCount: templates.length,
             separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (context, i) {
-              final t = kTemplates[i];
+              final t = templates[i];
               return _TemplateTile(
                 label: t.label,
                 selected: t.id == _template.id,
@@ -292,6 +359,8 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     CardSlot.video,
     CardSlot.pdf,
     CardSlot.text,
+    CardSlot.workout,
+    CardSlot.hotspot,
   ];
 
   /// The editable fields for a set of slots, in a canonical order.
@@ -309,7 +378,12 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   /// A "More fields" disclosure holding the slots the current template doesn't
   /// feature, plus the link — so every field stays reachable.
   List<Widget> _moreFields() {
-    final rest = _slotOrder.where((s) => !_template.has(s)).toList();
+    // Only offer slots this theme actually supports (across its templates),
+    // minus the ones the current template already shows.
+    final pool = {for (final t in templatesForTheme(_themeId)) ...t.slots};
+    final rest = _slotOrder
+        .where((s) => pool.contains(s) && !_template.has(s))
+        .toList();
     return [
       const SizedBox(height: 4),
       Align(
@@ -387,10 +461,105 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
             minLines: 3,
           ),
         ];
+      case CardSlot.workout:
+        return [
+          _SectionLabel(label: 'Sets · Reps · Rest'),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+                child: StyledField(
+                    controller: _setsCtrl,
+                    placeholder: 'Sets',
+                    keyboardType: TextInputType.number)),
+            const SizedBox(width: 10),
+            Expanded(
+                child: StyledField(
+                    controller: _repsCtrl,
+                    placeholder: 'Reps',
+                    keyboardType: TextInputType.number)),
+            const SizedBox(width: 10),
+            Expanded(
+                child: StyledField(
+                    controller: _restCtrl,
+                    placeholder: 'Rest s',
+                    keyboardType: TextInputType.number)),
+          ]),
+          const SizedBox(height: 10),
+          _SectionLabel(label: 'Music'),
+          const SizedBox(height: 8),
+          StyledField(controller: _musicCtrl, placeholder: 'Track title'),
+          const SizedBox(height: 10),
+          StyledField(
+              controller: _bpmCtrl,
+              placeholder: 'BPM',
+              keyboardType: TextInputType.number),
+        ];
+      case CardSlot.hotspot:
+        return [
+          _SectionLabel(label: 'Hotspots'),
+          const SizedBox(height: 8),
+          for (int i = 0; i < _hotspots.length; i++) _hotspotRow(i),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _addHotspot,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add hotspot'),
+              style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF007AFF),
+                  padding: EdgeInsets.zero),
+            ),
+          ),
+        ];
       case CardSlot.link:
         return _linkFields();
     }
   }
+
+  Widget _hotspotRow(int i) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            children: [
+              Row(children: [
+                Expanded(
+                    child: StyledField(
+                        controller: _hsLabelCtrls[i],
+                        placeholder: 'Label (e.g. Power light)')),
+                IconButton(
+                  onPressed: () => _removeHotspot(i),
+                  icon: const Icon(Icons.close, size: 18, color: Color(0xFF8E8E93)),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              StyledField(
+                  controller: _hsDetailCtrls[i],
+                  placeholder: 'What it means…',
+                  maxLines: 2),
+            ],
+          ),
+        ),
+      );
+
+  void _addHotspot() => setState(() {
+        final n = _hotspots.length;
+        _hotspots.add(ContentHotspot(
+            x: 0.25 + 0.15 * (n % 4), y: 0.35 + 0.12 * ((n ~/ 4) % 3)));
+        _hsLabelCtrls.add(TextEditingController());
+        _hsDetailCtrls.add(TextEditingController());
+      });
+
+  void _removeHotspot(int i) => setState(() {
+        _hotspots.removeAt(i);
+        _hsLabelCtrls.removeAt(i).dispose();
+        _hsDetailCtrls.removeAt(i).dispose();
+      });
 
   List<Widget> _linkFields() => [
         _SectionLabel(label: 'Link'),

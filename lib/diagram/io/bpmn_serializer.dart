@@ -123,7 +123,8 @@ class BpmnSerializer {
         content.pdfPaths.isNotEmpty ||
         content.linkUrl != null ||
         content.callouts.isNotEmpty ||
-        content.workout != null;
+        content.workout != null ||
+        content.hotspots.isNotEmpty;
     if (!hasExtensions) return;
 
     builder.element('bpmn:extensionElements', nest: () {
@@ -164,6 +165,13 @@ class BpmnSerializer {
             if (w.musicTitle != null) 'music': w.musicTitle!,
             if (w.musicBpm != null) 'bpm': '${w.musicBpm}',
           });
+        }
+        for (final h in content.hotspots) {
+          builder.element('ed:hotspot', attributes: {
+            'x': h.x.toStringAsFixed(4),
+            'y': h.y.toStringAsFixed(4),
+            if (h.label.isNotEmpty) 'label': h.label,
+          }, nest: () => builder.text(h.detail));
         }
       });
     });

@@ -164,6 +164,7 @@ class BpmnParser {
     String? linkLabel;
     final callouts = <Callout>[];
     WorkoutInfo? workout;
+    final hotspots = <ContentHotspot>[];
     ContentDisplayMode displayMode = ContentDisplayMode.mixed;
 
     for (final child in taskEl.children.whereType<XmlElement>()) {
@@ -219,6 +220,14 @@ class BpmnParser {
                     );
                   }
                   break;
+                case 'hotspot':
+                  hotspots.add(ContentHotspot(
+                    x: double.tryParse(item.getAttribute('x') ?? '') ?? 0.5,
+                    y: double.tryParse(item.getAttribute('y') ?? '') ?? 0.5,
+                    label: item.getAttribute('label') ?? '',
+                    detail: item.innerText,
+                  ));
+                  break;
               }
             }
           }
@@ -228,7 +237,7 @@ class BpmnParser {
 
     if (text == null && imagePaths.isEmpty && videoPaths.isEmpty &&
         pdfPaths.isEmpty && linkUrl == null && callouts.isEmpty &&
-        workout == null) {
+        workout == null && hotspots.isEmpty) {
       return null;
     }
     return TaskContent(
@@ -240,6 +249,7 @@ class BpmnParser {
       linkLabel: linkLabel,
       callouts: callouts,
       workout: workout,
+      hotspots: hotspots,
       displayMode: displayMode,
     );
   }
