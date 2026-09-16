@@ -15,11 +15,15 @@ class SkinMiniatureStrip extends StatelessWidget {
   final String selectedSkinId;
   final ValueChanged<String> onSkinSelected;
 
+  /// Leading/trailing inset of the scroll. Pass 0 when the parent already pads.
+  final double horizontalPadding;
+
   const SkinMiniatureStrip({
     super.key,
     required this.step,
     required this.selectedSkinId,
     required this.onSkinSelected,
+    this.horizontalPadding = 20,
   });
 
   static const _tileWidth = 108.0;
@@ -30,7 +34,7 @@ class SkinMiniatureStrip extends StatelessWidget {
       height: 214,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
         itemCount: selectableSkins.length,
         separatorBuilder: (_, _) => const SizedBox(width: 14),
         itemBuilder: (context, i) {

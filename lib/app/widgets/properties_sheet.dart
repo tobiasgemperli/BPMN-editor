@@ -6,8 +6,12 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../../diagram/edit/editor_controller.dart';
 import '../../diagram/model/diagram_model.dart';
+import '../../steps/model/step_view.dart';
+import '../skins/app_skins.dart';
+import '../skins/skin_controller.dart';
 import 'close_circle_button.dart';
 import 'process_card.dart';
+import 'skin_miniature_strip.dart';
 import 'styled_field.dart';
 
 /// Copies a file from a temporary path to the app's documents directory
@@ -317,6 +321,53 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     );
   }
 
+  /// A StepView built from the *current, unsaved* editor state — so the skin
+  /// miniatures below reflect edits live as they're typed/picked.
+  StepView _previewStep() {
+    final temp = NodeModel(
+      id: widget.node.id,
+      type: widget.node.type,
+      name: _nameCtrl.text,
+      rect: widget.node.rect,
+      content: _buildContent(),
+    );
+    return nodeToStepView(temp, widget.controller.diagram);
+  }
+
+  /// Live "preview in every skin" strip: the same content rendered through each
+  /// skin. Tapping a tile chooses that skin. Rebuilds on any field or skin
+  /// change (list edits already trigger setState, which rebuilds this too).
+  Widget _skinPreview() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        _nameCtrl,
+        _textOnlyCtrl,
+        _mixedTextCtrl,
+        _mixedUrlCtrl,
+        _mixedUrlLabelCtrl,
+        _imageUrlCtrl,
+        _imageUrlLabelCtrl,
+        _videoUrlCtrl,
+        _videoUrlLabelCtrl,
+        SkinController.instance,
+      ]),
+      builder: (context, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionLabel(label: 'Preview · tap to choose a look'),
+          const SizedBox(height: 8),
+          SkinMiniatureStrip(
+            step: _previewStep(),
+            selectedSkinId: SkinController.instance.value,
+            onSkinSelected: (id) => SkinController.instance.setSkin(id),
+            horizontalPadding: 0,
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
   void _saveData() {
     if (_saved) return;
     _saved = true;
@@ -418,6 +469,9 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Live preview across skins ──
+                  if (_hasContent) _skinPreview(),
+
                   // ── Node title ──
                   _SectionLabel(label: 'Title'),
                   const SizedBox(height: 6),
