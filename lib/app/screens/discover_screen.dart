@@ -136,6 +136,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         !certification.contains(s) &&
         !technical.contains(s)).toList();
 
+    // Highlights: a hand-picked set of showcase models (with custom thumbnail
+    // images), shown in this order.
+    const highlightIds = ['850', '847', '846', '845'];
+    final byId = {for (final m in _remoteModels) m.id: m};
+    final highlights = [
+      for (final id in highlightIds)
+        if (byId[id] != null) byId[id]!,
+    ];
+
     final showFeatured = _selected == 'All' || _selected == 'Recent';
     final showMyFlowcharts = _selected == 'All' || _selected == 'My';
     final showTutorials = _selected == 'All' || _selected == 'Tutorials' || _selected == 'Recent';
@@ -271,6 +280,26 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     ),
                   ),
                 ),
+            ],
+
+            // ── Highlights section (models with a custom thumbnail image) ──
+            if (_selected == 'All' && highlights.isNotEmpty) ...[
+              _sectionHeader(context, 'Highlights'),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: highlights.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) => _RemoteModelCard(
+                      meta: highlights[i],
+                      onChanged: _loadRemote,
+                    ),
+                  ),
+                ),
+              ),
             ],
 
             // ── Server Models section (hidden under the "My" filter) ──

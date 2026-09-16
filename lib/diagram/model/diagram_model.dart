@@ -5,6 +5,24 @@ import '../edit/hit_test.dart';
 enum NodeType { startEvent, endEvent, task, exclusiveGateway }
 
 /// Content attached to a Task node.
+/// Workout metadata for a step — sets/reps/rest and an optional backing track.
+/// Rendered by the workout pack's RepsBlock/MusicBlock (emitted in the app
+/// layer so the core stays pack-agnostic).
+class WorkoutInfo {
+  final int sets;
+  final int reps;
+  final int? restSeconds;
+  final String? musicTitle;
+  final int? musicBpm;
+  const WorkoutInfo({
+    required this.sets,
+    required this.reps,
+    this.restSeconds,
+    this.musicTitle,
+    this.musicBpm,
+  });
+}
+
 /// A single document link.
 class DocLink {
   final String url;
@@ -17,6 +35,17 @@ class DocLink {
 /// Display mode for a node in presentation.
 enum ContentDisplayMode { mixed, image, video, textOnly }
 
+/// Severity of a [Callout] aside attached to a node's content.
+enum CalloutKind { warning, note, tip }
+
+/// A highlighted aside (warning / note / tip) shown as a tinted tile — e.g. a
+/// manual's CAUTION or NOTE. Rendered by the step system's CalloutBlock.
+class Callout {
+  final CalloutKind kind;
+  final String text;
+  const Callout(this.kind, this.text);
+}
+
 /// Content attached to a node (task, start event, or end event).
 class TaskContent {
   String? text;            // plain text → <bpmn:documentation>
@@ -26,6 +55,8 @@ class TaskContent {
   String? linkUrl;
   String? linkLabel;
   List<DocLink> links;
+  List<Callout> callouts;
+  WorkoutInfo? workout;
   ContentDisplayMode displayMode;
 
   TaskContent({
@@ -39,6 +70,8 @@ class TaskContent {
     this.linkUrl,
     this.linkLabel,
     this.links = const [],
+    this.callouts = const [],
+    this.workout,
     this.displayMode = ContentDisplayMode.mixed,
   })  : imagePaths = imagePaths ?? (imagePath != null ? [imagePath] : []),
         videoPaths = videoPaths ?? (videoPath != null ? [videoPath] : []),
@@ -66,6 +99,8 @@ class TaskContent {
         linkUrl: linkUrl,
         linkLabel: linkLabel,
         links: links,
+        callouts: callouts,
+        workout: workout,
         displayMode: displayMode,
       );
 }

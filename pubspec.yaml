@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+7
+version: 1.1.0+8
 
 environment:
   sdk: ^3.11.0
@@ -91,6 +91,42 @@ flutter:
     - assets/komplement_8.png
     - assets/komplement_9.png
     - assets/komplement_info.png
+    - assets/bekvaem_hero.png
+    - assets/bekvaem_1.png
+    - assets/bekvaem_2.png
+    - assets/bekvaem_3.png
+    - assets/bekvaem_4.png
+    - assets/bekvaem_5.png
+    - assets/bekvaem_6.png
+    - assets/bekvaem_7.png
+    - assets/att_cover.png
+    - assets/att_kit.png
+    - assets/att_1_connect.png
+    - assets/att_2_setup.png
+    - assets/att_3_power.png
+    - assets/att_4_wifi.png
+    - assets/att_5_register.png
+    - assets/att_trouble.png
+    - assets/ont_a.png
+    - assets/ont_b.png
+    - assets/ont_d.png
+    - assets/att_kit_ill.png
+    - assets/att_setup_ill.png
+    - assets/att_power_ill.png
+    - assets/att_wifi_ill.png
+    - assets/att_gateway_ill.png
+    - assets/nest_kit.png
+    - assets/nest_power.png
+    - assets/nest_cover.png
+    - assets/nest_system.png
+    - assets/nest_jumper.png
+    - assets/nest_label.png
+    - assets/nest_base_rm.png
+    - assets/nest_level.png
+    - assets/nest_attach.png
+    - assets/nest_connect.png
+    - assets/nest_display.png
+    - assets/nest_dial.png
     - assets/kwikee_p1.png
     - assets/kwikee_p2.png
     - assets/kwikee_p3.png

@@ -4,6 +4,7 @@ import '../../model/step_view.dart';
 import '../../registry/step_registry.dart';
 import '../block_view.dart';
 import '../skin_text.dart';
+import '../step_actions.dart';
 import '../step_skin.dart';
 
 const _accent = Color(0xFF007AFF);
@@ -114,11 +115,14 @@ class ImmersiveSkin implements StepSkin {
       List<StepBlock> extras, RenderBlock renderBlock,
       {required bool onDark}) {
     final fg = onDark ? Colors.white : _ink;
+    // Keep the text clear of the home indicator / bottom safe area — the
+    // gradient still bleeds to the screen edge, only the content is inset.
+    final safeBottom = MediaQuery.of(context).padding.bottom;
     return Align(
       alignment: Alignment.bottomLeft,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 20),
+        padding: EdgeInsets.fromLTRB(16, 40, 16, 20 + safeBottom),
         decoration: onDark
             ? const BoxDecoration(
                 gradient: LinearGradient(
@@ -153,15 +157,21 @@ class ImmersiveSkin implements StepSkin {
                       color: onDark ? Colors.white : _ink2)),
             ],
             if (choice != null)
-              for (final o in choice.options) _optionPill(o.label, onDark),
+              for (final o in choice.options)
+                _optionPill(o.label, onDark,
+                    onTap: () => StepActions.of(context)?.onChoose?.call(o.targetId)),
             for (final e in extras)
               renderBlock(context, e, SkinContext(id, immersive: onDark)),
-            if (links.isNotEmpty || extraDocs.isNotEmpty)
+            for (final l in links)
+              _optionPill(l.label, onDark,
+                  leading: Icons.north_east,
+                  trailingChevron: false,
+                  onTap: () => StepActions.of(context)?.onOpenLink?.call(l.url)),
+            if (extraDocs.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Wrap(spacing: 6, runSpacing: 6, children: [
                   for (final _ in extraDocs) _chip('PDF', onDark),
-                  for (final l in links) _chip('↗ ${l.label}', onDark),
                 ]),
               ),
           ],
@@ -170,28 +180,41 @@ class ImmersiveSkin implements StepSkin {
     );
   }
 
-  Widget _optionPill(String label, bool onDark) => Padding(
-        padding: const EdgeInsets.only(top: 7),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: onDark ? Colors.white24 : _surface,
-            borderRadius: BorderRadius.circular(11),
-            border: onDark ? Border.all(color: Colors.white38) : null,
+  Widget _optionPill(String label, bool onDark,
+          {VoidCallback? onTap,
+          IconData leading = Icons.arrow_forward,
+          bool trailingChevron = true}) =>
+      Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: onDark ? Colors.white24 : Colors.white.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(14),
+              border: onDark ? Border.all(color: Colors.white38) : null,
+            ),
+            child: Row(children: [
+              SkinDetail(
+                  size: 18,
+                  child: Icon(leading,
+                      size: 18, color: onDark ? Colors.white : _accent)),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: SkinText(label,
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: onDark ? Colors.white : _ink))),
+              if (trailingChevron)
+                SkinDetail(
+                    size: 18,
+                    child: Icon(Icons.chevron_right,
+                        size: 18, color: onDark ? Colors.white70 : _ink2)),
+            ]),
           ),
-          child: Row(children: [
-            Expanded(
-                child: SkinText(label,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: onDark ? Colors.white : _ink))),
-            SkinDetail(
-                size: 16,
-                child: Icon(Icons.arrow_forward,
-                    size: 16, color: onDark ? Colors.white : _accent)),
-          ]),
         ),
       );
 
@@ -226,41 +249,53 @@ class ImmersiveSkin implements StepSkin {
   }
 
   // ── typographic slide (no hero medium) ──
+  // Left-anchored (consistent edge padding, no floating centre block), large
+  // title, and links/choices rendered as full-width pressable pills.
   Widget _typoSlide(BuildContext context, StepView step, TextBlock? text,
-          ChoiceBlock? choice, List<LinkBlock> links, List<StepBlock> extras,
-          RenderBlock renderBlock) =>
-      Container(
-        decoration: BoxDecoration(gradient: _titleGradient(step.title)),
-        padding: const EdgeInsets.all(22),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_eyebrow(step) != null)
-              SkinText(_eyebrow(step)!,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: _accent)),
-            const SizedBox(height: 6),
-            SkinText(step.title,
+      ChoiceBlock? choice, List<LinkBlock> links, List<StepBlock> extras,
+      RenderBlock renderBlock) {
+    final actions = StepActions.of(context);
+    return Container(
+      decoration: BoxDecoration(gradient: _titleGradient(step.title)),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+      alignment: Alignment.centerLeft,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_eyebrow(step) != null)
+            SkinText(_eyebrow(step)!,
                 style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w700, color: _ink)),
-            if (text != null) ...[
-              const SizedBox(height: 10),
-              SkinText(text.text,
-                  style: const TextStyle(fontSize: 14, height: 1.5, color: _ink2)),
-            ],
-            if (choice != null)
-              for (final o in choice.options) _optionPill(o.label, false),
-            for (final e in extras)
-              renderBlock(context, e, const SkinContext('immersive')),
-            for (final l in links) _optionPill('↗ ${l.label}', false),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                    color: _accent)),
+          const SizedBox(height: 10),
+          SkinText(step.title,
+              style: const TextStyle(
+                  fontSize: 30, height: 1.1, fontWeight: FontWeight.w800, color: _ink)),
+          if (text != null) ...[
+            const SizedBox(height: 12),
+            SkinText(text.text,
+                style: const TextStyle(fontSize: 17, height: 1.45, color: _ink2)),
           ],
-        ),
-      );
+          if (choice != null || links.isNotEmpty || extras.isNotEmpty)
+            const SizedBox(height: 10),
+          if (choice != null)
+            for (final o in choice.options)
+              _optionPill(o.label, false,
+                  onTap: () => actions?.onChoose?.call(o.targetId)),
+          for (final e in extras)
+            renderBlock(context, e, const SkinContext('immersive')),
+          for (final l in links)
+            _optionPill(l.label, false,
+                leading: Icons.north_east,
+                trailingChevron: false,
+                onTap: () => actions?.onOpenLink?.call(l.url)),
+        ],
+      ),
+    );
+  }
 
   String? _eyebrow(StepView s) {
     final parts = <String>[];

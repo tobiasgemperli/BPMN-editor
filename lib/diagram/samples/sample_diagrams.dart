@@ -1992,6 +1992,395 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// IKEA BEKVÄM step stool assembly manual (official 8-page PDF,
+  /// AA-444158-10), split into one portrait page per step. IKEA prints
+  /// steps 2 and 3 on a single page, so they share one card here.
+  static DiagramModel ikeaBekvaem() {
+    // Pure image-only walkthrough: every screen is a full-scale manual page with
+    // NO text at all (no titles, no captions). Start and End are the finished-
+    // stool hero image, bookending the build. Full-screen image display mode.
+    NodeModel img(String id, NodeType type, int row, String asset) =>
+        NodeModel(id: id, type: type, name: '', rect:
+            type == NodeType.task ? _task(_cx, _row(row)) : _event(_cx, _row(row)),
+            content: TaskContent(
+                imagePath: asset, displayMode: ContentDisplayMode.image));
+
+    final nodes = <String, NodeModel>{
+      'n1': img('n1', NodeType.startEvent, 0, 'assets/bekvaem_hero.png'),
+      'n2': img('n2', NodeType.task, 1, 'assets/bekvaem_1.png'),
+      'n3': img('n3', NodeType.task, 2, 'assets/bekvaem_2.png'),
+      'n4': img('n4', NodeType.task, 3, 'assets/bekvaem_3.png'),
+      'n5': img('n5', NodeType.task, 4, 'assets/bekvaem_4.png'),
+      'n6': img('n6', NodeType.task, 5, 'assets/bekvaem_5.png'),
+      'n7': img('n7', NodeType.task, 6, 'assets/bekvaem_6.png'),
+      'n8': img('n8', NodeType.task, 7, 'assets/bekvaem_7.png'),
+      'n9': img('n9', NodeType.endEvent, 8, 'assets/bekvaem_hero.png'),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// AT&T Internet Wi-Fi Gateway self-install guide (official PDF), converted to
+  /// a guided walkthrough with a troubleshooting branch: after Power up, a
+  /// gateway asks whether the Broadband & Service lights are solid green — "No"
+  /// routes through the Having-trouble card, then both paths rejoin at Go Wi-Fi.
+  static DiagramModel attInternetInstall() {
+    final right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'AT&T Internet Self-Install', rect: _event(_cx, _row(0)),
+          content: TaskContent(
+            text: 'Set aside about 40 minutes. Have your AT&T Access ID (or '
+                'account number and passcode) ready.',
+            imagePath: 'assets/att_cover.png',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Don\'t start before 2 PM on your activation date — check '
+                  'your packing slip.'),
+            ])),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Check Your Kit', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            text: 'In the box: the Wi-Fi Gateway, 2 yellow Ethernet cables, and '
+                'the 2-part power cord.',
+            imagePath: 'assets/att_kit_ill.png')),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Find the ONT', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            text: 'Locate your Optical Network Terminal — usually near a wall '
+                'jack, in the basement, a closet, or the garage.',
+            imagePath: 'assets/ont_a.png')),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Open the Lower Cover', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            text: 'Pinch the sides and lift (or slide down) to expose the green '
+                'fiber connector.',
+            imagePath: 'assets/ont_b.png',
+            callouts: const [
+              Callout(CalloutKind.warning,
+                  'Never look into the end of the fiber connector — the light '
+                  'can damage your eyes.'),
+            ])),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Connect the ONT Cables', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            text: 'Green fiber → green PON. Yellow Ethernet → yellow ONT port. '
+                'Black power → outlet, press ON. Wait for POWER and PON to go '
+                'solid green.',
+            imagePath: 'assets/ont_d.png')),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Set Up the Gateway', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            text: 'Run a yellow Ethernet cable from the ONT to the gateway\'s '
+                'red Broadband port — match every cable to its colored port — '
+                'then plug in power.',
+            imagePath: 'assets/att_setup_ill.png')),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Power Up', rect: _task(_cx, _row(6)),
+          content: TaskContent(
+            text: 'Wait 10–15 minutes for the Broadband and Service lights to '
+                'turn solid green.',
+            imagePath: 'assets/att_power_ill.png')),
+
+      'n8': NodeModel(id: 'n8', type: NodeType.exclusiveGateway,
+          name: 'Broadband & Service lights solid green?',
+          rect: _gw(_cx, _row(7))),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.task,
+          name: 'Troubleshoot', rect: _task(right, _row(8)),
+          content: TaskContent(
+            text: 'Reseat every cable firmly, then unplug the gateway for 15 '
+                'seconds and plug it back in.',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Still not green after a few minutes? Call 800.288.2020 and '
+                  'ask for technical support.'),
+            ])),
+
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Go Wi-Fi', rect: _task(_cx, _row(9)),
+          content: TaskContent(
+            text: 'Find the Wi-Fi Network Name and password on the gateway\'s '
+                'label, then connect your device.',
+            imagePath: 'assets/att_wifi_ill.png')),
+
+      'n11': NodeModel(id: 'n11', type: NodeType.task,
+          name: 'Register & Activate', rect: _task(_cx, _row(10)),
+          content: TaskContent(
+            text: 'Already registered online? Service activates automatically. '
+                'If not, open a browser and sign in with your Access ID to '
+                'finish.')),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.endEvent,
+          name: 'You\'re Online', rect: _event(_cx, _row(11)),
+          content: TaskContent(
+            text: 'Your AT&T internet is set up. Enjoy!',
+            imagePath: 'assets/att_cover.png')),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n10', name: 'Yes'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n8', targetId: 'n9', name: 'No',
+          waypoints: _hv(_cx, _row(7), right, _row(8))),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n9', targetId: 'n10',
+          waypoints: _hv(right, _row(8), _cx, _row(9))),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n10', targetId: 'n11'),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n11', targetId: 'n12'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// Nest Learning Thermostat self-install (from the official install guide),
+  /// as a guided walkthrough with a troubleshooting branch: after the display
+  /// is attached and power restored, a gateway asks whether it turned on — "No"
+  /// routes through a reseat-the-wires card, then both paths rejoin at Setup.
+  /// Every step reuses the guide's own line drawings (assets/nest_*.png).
+  static DiagramModel nestThermostatInstall() {
+    final right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Install Your Nest Thermostat', rect: _event(_cx, _row(0)),
+          content: TaskContent(
+            text: 'Set aside about 30 minutes. You\'ll need a Nest Account and '
+                'your home Wi-Fi password to finish setup.',
+            imagePath: 'assets/nest_dial.png',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Works with most 24V heating and cooling systems — not '
+                  'high-voltage (120V/240V) systems.'),
+            ])),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'What\'s in the Box', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            text: 'The Nest display, the base, a Nest screwdriver, and optional '
+                'trim and steel plates with screws.',
+            imagePath: 'assets/nest_kit.png')),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Switch Off Power', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            text: 'Turn off power to your heating and cooling system at the '
+                'breaker box or switch. Adjust your old thermostat to confirm '
+                'the system is off.',
+            imagePath: 'assets/nest_power.png')),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Remove the Old Cover', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            text: 'Take the cover off your old thermostat. Some covers pop off; '
+                'others need to be unscrewed.',
+            imagePath: 'assets/nest_cover.png')),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Check Your System', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            text: 'If your old thermostat is labeled 120V or 240V, or has thick '
+                'wires joined with wire nuts, it\'s high voltage.',
+            imagePath: 'assets/nest_system.png',
+            callouts: const [
+              Callout(CalloutKind.warning,
+                  'Never connect Nest to high-voltage wires. Not sure? Contact '
+                  'support before continuing.'),
+            ])),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Remove Any Jumper Wires', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            text: 'Jumper wires are short wires linking two connectors — you '
+                'won\'t need them. A single R wire can go into either RC or RH.',
+            imagePath: 'assets/nest_jumper.png')),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.task,
+          name: 'Label the Wires', rect: _task(_cx, _row(6)),
+          content: TaskContent(
+            text: 'Peel off the labels and stick them on the matching wires. '
+                'Use the white labels for any W3, E, HUM or DEHUM wires.',
+            imagePath: 'assets/nest_label.png',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Tip: snap a photo of your old thermostat\'s wiring first so '
+                  'you remember where everything went.'),
+            ])),
+
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Disconnect & Remove the Base', rect: _task(_cx, _row(7)),
+          content: TaskContent(
+            text: 'Disconnect the wires and take off the old base. Wrap the '
+                'wires around a pencil so they don\'t slip back into the wall.',
+            imagePath: 'assets/nest_base_rm.png',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Keep the power to your HVAC system off the whole time.'),
+            ])),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.task,
+          name: 'Mark & Level the Base', rect: _task(_cx, _row(8)),
+          content: TaskContent(
+            text: 'Hold the Nest base against the wall, use the built-in bubble '
+                'level to get it straight, then mark where the screws go.',
+            imagePath: 'assets/nest_level.png')),
+
+      'n10': NodeModel(id: 'n10', type: NodeType.task,
+          name: 'Attach the Nest Base', rect: _task(_cx, _row(9)),
+          content: TaskContent(
+            text: 'Pull the wires through the center of the base, then screw the '
+                'base to the wall.',
+            imagePath: 'assets/nest_attach.png')),
+
+      'n11': NodeModel(id: 'n11', type: NodeType.task,
+          name: 'Connect the Wires', rect: _task(_cx, _row(10)),
+          content: TaskContent(
+            text: 'Press each wire into its matching connector until it clicks, '
+                'then push the wires down so they sit flush — the exposed end '
+                'should be straight, about 3/8 inch.',
+            imagePath: 'assets/nest_connect.png')),
+
+      'n12': NodeModel(id: 'n12', type: NodeType.task,
+          name: 'Attach the Display', rect: _task(_cx, _row(11)),
+          content: TaskContent(
+            text: 'Line up the display with the base and press until it clicks '
+                'into place.',
+            imagePath: 'assets/nest_display.png')),
+
+      'n13': NodeModel(id: 'n13', type: NodeType.task,
+          name: 'Switch the Power Back On', rect: _task(_cx, _row(12)),
+          content: TaskContent(
+            text: 'Return to the breaker box or switch and turn the power back '
+                'on.',
+            imagePath: 'assets/nest_power.png')),
+
+      'n14': NodeModel(id: 'n14', type: NodeType.exclusiveGateway,
+          name: 'Did the display turn on?', rect: _gw(_cx, _row(13))),
+
+      'n15': NodeModel(id: 'n15', type: NodeType.task,
+          name: 'Not Turning On?', rect: _task(right, _row(14)),
+          content: TaskContent(
+            text: 'Switch the power off again and reseat every wire, making sure '
+                'each one clicks in and sits flush. Then restore power.',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Still dark? Check the breaker and visit nest.com/support.'),
+            ])),
+
+      'n16': NodeModel(id: 'n16', type: NodeType.endEvent,
+          name: 'Set Up Your Nest', rect: _event(_cx, _row(15)),
+          content: TaskContent(
+            text: 'The display walks you through setup — turn the ring to '
+                'choose, press to select, and connect to Wi-Fi. Sign in to your '
+                'Nest Account to finish.',
+            imagePath: 'assets/nest_dial.png')),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n8'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n8', targetId: 'n9'),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n9', targetId: 'n10'),
+      'e10': EdgeModel(id: 'e10', sourceId: 'n10', targetId: 'n11'),
+      'e11': EdgeModel(id: 'e11', sourceId: 'n11', targetId: 'n12'),
+      'e12': EdgeModel(id: 'e12', sourceId: 'n12', targetId: 'n13'),
+      'e13': EdgeModel(id: 'e13', sourceId: 'n13', targetId: 'n14'),
+      'e14': EdgeModel(id: 'e14', sourceId: 'n14', targetId: 'n16', name: 'Yes'),
+      'e15': EdgeModel(id: 'e15', sourceId: 'n14', targetId: 'n15', name: 'No',
+          waypoints: _hv(_cx, _row(13), right, _row(14))),
+      'e16': EdgeModel(id: 'e16', sourceId: 'n15', targetId: 'n16',
+          waypoints: _hv(right, _row(14), _cx, _row(15))),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
+  /// PROTOTYPE — the AT&T "Connect ONT" panel re-flowed for mobile. Instead of
+  /// one shrunk page of tiny text, the illustration is tight-cropped (no baked
+  /// text) and the instructions become legible native text, split into short
+  /// swipeable cards, with the CAUTION/NOTE as their own callout cards.
+  static DiagramModel attConnectOntReflow() {
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Connect the ONT', rect: _event(_cx, _row(0)),
+          content: TaskContent(
+            text: 'Find your ONT — usually near a wall jack, in the basement, a '
+                'closet, or the garage.',
+            imagePath: 'assets/ont_a.png')),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Open the Lower Cover', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            text: 'Pinch the sides and lift (or slide down) to expose the green '
+                'fiber connector.',
+            imagePath: 'assets/ont_b.png',
+            callouts: const [
+              Callout(CalloutKind.warning,
+                  'Never look into the end of the fiber connector — the light '
+                  'can damage your eyes.'),
+            ])),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Connect the Cables', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            text: 'Green fiber → green PON. Yellow → yellow ONT. Black power → '
+                'outlet, press ON.',
+            imagePath: 'assets/ont_d.png')),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Wait for Solid Green', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            text: 'Wait for the ONT\'s POWER and PON lights to turn solid green.',
+            imagePath: 'assets/ont_a.png',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Still off or red? Call 800.288.2020 and ask for '
+                  '“technical support.”'),
+            ])),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.endEvent,
+          name: 'ONT Connected', rect: _event(_cx, _row(4)),
+          content: TaskContent(
+            text: 'Next: set up your Wi-Fi gateway.',
+            imagePath: 'assets/ont_a.png')),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// Kwikee Electric Step Troubleshooting Flowchart (4-page PDF).
   static DiagramModel kwikeeStepTroubleshooting() {
     final right = _cx + _branchX;
@@ -2509,6 +2898,60 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// A strength workout with full exercise cards — portrait clip hero + sets /
+  /// reps / rest metrics + a backing track (workout pack blocks). Built for the
+  /// Immersive skin: the clip fills the card, the metrics/music overlay the
+  /// scrim. This is the card from Skin Preview, as a real diagram.
+  static DiagramModel demoStrengthWorkout() {
+    NodeModel ex(String id, int row, String name, String fileId, String cue,
+            WorkoutInfo w) =>
+        NodeModel(id: id, type: NodeType.task, name: name,
+            rect: _task(_cx, _row(row)),
+            content: TaskContent(
+                text: cue, videoPath: 'remote:$fileId', workout: w));
+
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Warm up', rect: _event(_cx, _row(0)),
+          content: TaskContent(
+              text: '5 minutes easy — raise the heart rate and loosen the hips.')),
+      'n2': ex('n2', 1, 'Barbell back squat', 'f_c9LJjW',
+          'Brace your core, sit back, drive through the heels.',
+          const WorkoutInfo(
+              sets: 3, reps: 12, restSeconds: 60,
+              musicTitle: 'Uptown Funk', musicBpm: 128)),
+      'n3': ex('n3', 2, 'Kettlebell swing', 'f_HjOUiH',
+          'Hinge at the hips and snap — power comes from the glutes.',
+          const WorkoutInfo(
+              sets: 3, reps: 15, restSeconds: 45,
+              musicTitle: "Can't Stop the Feeling", musicBpm: 113)),
+      'n4': ex('n4', 3, 'Deadlift', 'f_80sgeL',
+          'Flat back, bar close to the shins, stand tall.',
+          const WorkoutInfo(
+              sets: 3, reps: 8, restSeconds: 90,
+              musicTitle: 'Thunderstruck', musicBpm: 134)),
+      'n5': ex('n5', 4, 'Hip thrust', 'f_avCGHU',
+          'Squeeze at the top, chin tucked, ribs down.',
+          const WorkoutInfo(
+              sets: 3, reps: 12, restSeconds: 60,
+              musicTitle: 'Levels', musicBpm: 126)),
+      'n6': ex('n6', 5, 'Overhead press', 'f_xxVqL3',
+          'Tight glutes, press straight up, biceps by the ears.',
+          const WorkoutInfo(
+              sets: 3, reps: 10, restSeconds: 75,
+              musicTitle: 'Stronger', musicBpm: 104)),
+      'n7': NodeModel(id: 'n7', type: NodeType.endEvent,
+          name: 'Cool down', rect: _event(_cx, _row(6)),
+          content: TaskContent(
+              text: 'Stretch the worked muscles and breathe. Nice work.')),
+    };
+    final edges = <String, EdgeModel>{
+      for (var i = 1; i <= 6; i++)
+        'e$i': EdgeModel(id: 'e$i', sourceId: 'n$i', targetId: 'n${i + 1}'),
+    };
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// A text-only workout — no media, so the Immersive skin renders each step as
   /// a coloured gradient card (backdrop derived from the title).
   static DiagramModel demoGradientWorkout() {
@@ -2546,15 +2989,15 @@ class SampleDiagrams {
   /// with form cues — shows the Immersive skin's full-bleed image hero.
   static DiagramModel demoImages() {
     const shots = [
-      ('Barbell back squat', 'f_VlbhOG', 'Brace your core, sit back, drive through the heels.'),
-      ('Kettlebell swing', 'f_F9WYWn', 'Hinge at the hips and snap — power from the glutes.'),
-      ('Deadlift', 'f_7apey9', 'Flat back, bar close to the shins, stand tall.'),
-      ('Hip thrust', 'f_qZNNh2', 'Squeeze at the top, chin tucked, ribs down.'),
-      ('Overhead press', 'f_Gveo0G', 'Tight glutes, press straight up, finish by the ears.'),
+      ('Warm up', 'f_RXgz8L', 'A few light rounds together to raise the heart rate.'),
+      ('Bodyweight squat', 'f_DhJlaW', 'Chest up, sit back, drive through the heels.'),
+      ('Reverse lunge', 'f_A3nI0d', 'Step back, both knees to ~90°, torso tall.'),
+      ('Forearm plank', 'f_WKyOax', 'Straight line head to heels — brace the core.'),
+      ('Push-up', 'f_830TnY', 'Lower under control, elbows ~45°, full range.'),
     ];
     final nodes = <String, NodeModel>{
       'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
-          name: 'Warm up', rect: _event(_cx, _row(0))),
+          name: 'Ready?', rect: _event(_cx, _row(0))),
       for (var i = 0; i < shots.length; i++)
         'n${i + 2}': NodeModel(id: 'n${i + 2}', type: NodeType.task,
             name: shots[i].$1, rect: _task(_cx, _row(i + 1)),
@@ -2602,6 +3045,16 @@ class SampleDiagrams {
         creator: _creators['maria']!, isFavorite: true, isPaid: true),
     SampleDiagramEntry(name: 'IKEA KOMPLEMENT Manual', builder: ikeaKomplement,
         creator: _creators['maria']!, isPaid: true),
+    SampleDiagramEntry(name: 'IKEA BEKVÄM Step Stool', builder: ikeaBekvaem,
+        creator: _creators['maria']!, isFavorite: true),
+    SampleDiagramEntry(name: 'Strength Workout', builder: demoStrengthWorkout,
+        creator: _creators['sam']!, isFavorite: true),
+    SampleDiagramEntry(name: 'AT&T Internet Self-Install', builder: attInternetInstall,
+        creator: _creators['alex']!, isFavorite: true),
+    SampleDiagramEntry(name: 'AT&T · Connect ONT (mobile re-flow)', builder: attConnectOntReflow,
+        creator: _creators['alex']!, isFavorite: true),
+    SampleDiagramEntry(name: 'Nest Thermostat Install', builder: nestThermostatInstall,
+        creator: _creators['alex']!, isFavorite: true),
     SampleDiagramEntry(name: 'Electric Step Troubleshooting', builder: kwikeeStepTroubleshooting,
         creator: _creators['alex']!),
     SampleDiagramEntry(name: 'Emergency: Fire Evacuation', builder: emergencyProcedure,

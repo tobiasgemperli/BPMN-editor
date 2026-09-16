@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../diagram/io/api_client.dart';
+import '../../diagram/io/media_ref.dart';
+import '../widgets/step_media.dart';
+import '../../steps/render/step_actions.dart';
 import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
@@ -142,6 +147,27 @@ class _PresentationScreenState extends State<PresentationScreen> {
     if (index < 0 || index >= _path.length) return false;
     return _path[index].type == NodeType.exclusiveGateway &&
         widget.diagram.outgoingEdges(_path[index].id).isNotEmpty;
+  }
+
+  /// Open an external link from a skin-rendered link pill.
+  Future<void> _openLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// Follow a skin choice/option to [targetId] (append it to the path).
+  void _jumpToTarget(String targetId) {
+    final target = widget.diagram.nodes[targetId];
+    if (target == null) return;
+    setState(() {
+      _path
+        ..removeRange(_currentPage + 1, _path.length)
+        ..add(target);
+    });
+    _pageController.animateToPage(_currentPage + 1,
+        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
   }
 
   void _jumpToGatewayTarget(NodeModel gatewayNode, int optionIndex) {
@@ -299,15 +325,19 @@ class _PresentationScreenState extends State<PresentationScreen> {
                     node.type == NodeType.task) {
                   final hasGateway = widget.diagram.nodes.values
                       .any((n) => n.type == NodeType.exclusiveGateway);
-                  return appStepRegistry.renderStep(
-                    context,
-                    skin,
-                    nodeToStepView(
-                      node,
-                      widget.diagram,
-                      index: index,
-                      total: hasGateway ? null : _allNodes.length,
-                      linear: !hasGateway,
+                  return StepActions(
+                    onOpenLink: _openLink,
+                    onChoose: (targetId) => _jumpToTarget(targetId),
+                    child: appStepRegistry.renderStep(
+                      context,
+                      skin,
+                      nodeToStepView(
+                        node,
+                        widget.diagram,
+                        index: index,
+                        total: hasGateway ? null : _allNodes.length,
+                        linear: !hasGateway,
+                      ),
                     ),
                   );
                 }
@@ -768,7 +798,10 @@ class _ModelInfoSheetState extends State<_ModelInfoSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _MetaEditSheet(meta: _meta),
+      builder: (_) => _MetaEditSheet(
+        meta: _meta,
+        diagramImages: collectDiagramImages(widget.diagram),
+      ),
     );
     if (updated != null && mounted) {
       setState(() => _meta = updated);
@@ -895,14 +928,29 @@ class _ModelInfoSheetState extends State<_ModelInfoSheet> {
   }
 }
 
+/// Distinct image sources used anywhere in [diagram] — offered as ready-made
+/// thumbnail choices so the user needn't re-upload an image they already used.
+List<String> collectDiagramImages(DiagramModel diagram) {
+  final seen = <String>{};
+  final images = <String>[];
+  for (final node in diagram.nodes.values) {
+    for (final src in node.content?.imagePaths ?? const <String>[]) {
+      if (src.isNotEmpty && seen.add(src)) images.add(src);
+    }
+  }
+  return images;
+}
+
 /// Open the "Edit Info" sheet for a model's metadata. Returns true if saved.
-/// Shared by the presentation and the editor (My Flowcharts).
-Future<bool> showEditInfoSheet(BuildContext context, ApiModelMeta meta) async {
+/// Shared by the presentation and the editor (My Flowcharts). Pass
+/// [diagramImages] so "Replace image" can offer the guide's own images.
+Future<bool> showEditInfoSheet(BuildContext context, ApiModelMeta meta,
+    {List<String> diagramImages = const []}) async {
   final updated = await showModalBottomSheet<ApiModelMeta>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _MetaEditSheet(meta: meta),
+    builder: (_) => _MetaEditSheet(meta: meta, diagramImages: diagramImages),
   );
   return updated != null;
 }
@@ -911,8 +959,9 @@ Future<bool> showEditInfoSheet(BuildContext context, ApiModelMeta meta) async {
 /// (Name, Description, Keywords, Sources, Categories/Relations).
 class _MetaEditSheet extends StatefulWidget {
   final ApiModelMeta meta;
+  final List<String> diagramImages;
 
-  const _MetaEditSheet({required this.meta});
+  const _MetaEditSheet({required this.meta, this.diagramImages = const []});
 
   @override
   State<_MetaEditSheet> createState() => _MetaEditSheetState();
@@ -988,6 +1037,43 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
       setState(() => _thumbBusy = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Thumbnail upload failed: $e')));
+    }
+  }
+
+  /// Use an image already present in the diagram as the thumbnail. A backend
+  /// image (`remote:<id>`) is reused as-is (no re-upload); an asset or local
+  /// file is uploaded once to obtain a file id.
+  Future<void> _useDiagramImage(String src) async {
+    setState(() => _thumbBusy = true);
+    try {
+      String fileId;
+      Uint8List? preview;
+      if (MediaRef.isRemote(src)) {
+        fileId = MediaRef.fileId(src); // already on the backend — just point at it
+      } else if (MediaRef.isAsset(src)) {
+        final data = await rootBundle.load(src);
+        preview = data.buffer.asUint8List();
+        fileId = await ApiClient.instance
+            .uploadFile(preview, filename: src.split('/').last, mime: 'image/png');
+      } else {
+        final path = await MediaRef.resolveLocalPath(src);
+        if (path == null) throw 'image not found on this device';
+        preview = await File(path).readAsBytes();
+        fileId = await ApiClient.instance
+            .uploadFile(preview, filename: src.split('/').last);
+      }
+      if (!mounted) return;
+      setState(() {
+        _thumbnailFileId = fileId;
+        _thumbPreview = preview; // null for remote → loads from fileId
+        _customThumbIntent = true; // user-set → protect from auto-regen
+        _thumbBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _thumbBusy = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Couldn\'t use that image: $e')));
     }
   }
 
@@ -1160,10 +1246,10 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: _thumbBusy ? null : _pickThumbnail,
-                      icon: const Icon(Icons.upload, size: 18),
+                      onPressed: _thumbBusy ? null : _onReplacePressed,
+                      icon: const Icon(Icons.image_outlined, size: 18),
                       label: Text(_thumbnailFileId == null
-                          ? 'Upload custom image'
+                          ? 'Choose image'
                           : 'Replace image'),
                     ),
                     if (_thumbnailFileId != null && !_thumbBusy)
@@ -1188,6 +1274,77 @@ class _MetaEditSheetState extends State<_MetaEditSheet> {
         ],
       ),
     );
+  }
+
+  /// The "Choose / Replace image" button. With no images in the diagram there's
+  /// nothing to pick from, so go straight to the gallery; otherwise offer a
+  /// chooser (the guide's own images + an upload option).
+  void _onReplacePressed() {
+    if (widget.diagramImages.isEmpty) {
+      _pickThumbnail();
+    } else {
+      _showImageChooser();
+    }
+  }
+
+  /// Bottom sheet: pick a thumbnail from the images already used in the diagram,
+  /// or fall through to uploading one from the gallery.
+  Future<void> _showImageChooser() async {
+    const galleryTag = '__gallery__';
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Use an image from this guide',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1C1C1E))),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final src in widget.diagramImages)
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx, src),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          width: 96,
+                          height: 72,
+                          child: StepImage(src, fit: BoxFit.cover),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(ctx, galleryTag),
+                icon: const Icon(Icons.upload, size: 18),
+                label: const Text('Upload from gallery'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (choice == null) return;
+    if (choice == galleryTag) {
+      await _pickThumbnail();
+    } else {
+      await _useDiagramImage(choice);
+    }
   }
 
   Widget _field(String label, TextEditingController c,

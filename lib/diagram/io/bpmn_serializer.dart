@@ -118,7 +118,9 @@ class BpmnSerializer {
     final hasExtensions = content.imagePaths.isNotEmpty ||
         content.videoPaths.isNotEmpty ||
         content.pdfPaths.isNotEmpty ||
-        content.linkUrl != null;
+        content.linkUrl != null ||
+        content.callouts.isNotEmpty ||
+        content.workout != null;
     if (!hasExtensions) return;
 
     builder.element('bpmn:extensionElements', nest: () {
@@ -144,6 +146,21 @@ class BpmnSerializer {
           final attrs = <String, String>{'href': content.linkUrl!};
           if (content.linkLabel != null) attrs['label'] = content.linkLabel!;
           builder.element('ed:url', attributes: attrs);
+        }
+        for (final c in content.callouts) {
+          builder.element('ed:callout',
+              attributes: {'kind': c.kind.name},
+              nest: () => builder.text(c.text));
+        }
+        final w = content.workout;
+        if (w != null) {
+          builder.element('ed:workout', attributes: {
+            'sets': '${w.sets}',
+            'reps': '${w.reps}',
+            if (w.restSeconds != null) 'rest': '${w.restSeconds}',
+            if (w.musicTitle != null) 'music': w.musicTitle!,
+            if (w.musicBpm != null) 'bpm': '${w.musicBpm}',
+          });
         }
       });
     });

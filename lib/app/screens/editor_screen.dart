@@ -130,7 +130,8 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _openEditInfo() async {
     final meta = widget.meta;
     if (meta == null) return;
-    final saved = await showEditInfoSheet(context, meta);
+    final saved = await showEditInfoSheet(context, meta,
+        diagramImages: collectDiagramImages(_controller.diagram));
     if (saved) widget.onSaved?.call();
   }
 

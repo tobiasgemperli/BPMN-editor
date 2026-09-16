@@ -12,6 +12,10 @@ List<StepBlock> blocksFromTaskContent(TaskContent? content) {
   final text = content.text;
   if (text != null && text.isNotEmpty) blocks.add(TextBlock(text));
 
+  for (final c in content.callouts) {
+    blocks.add(CalloutBlock(_severity(c.kind), c.text));
+  }
+
   if (content.imagePaths.isNotEmpty) {
     blocks.add(MediaBlock(
         MediaKind.image, content.imagePaths.map(MediaRef.new).toList()));
@@ -34,3 +38,9 @@ List<StepBlock> blocksFromTaskContent(TaskContent? content) {
 
   return blocks;
 }
+
+CalloutSeverity _severity(CalloutKind k) => switch (k) {
+      CalloutKind.warning => CalloutSeverity.warning,
+      CalloutKind.note => CalloutSeverity.note,
+      CalloutKind.tip => CalloutSeverity.tip,
+    };

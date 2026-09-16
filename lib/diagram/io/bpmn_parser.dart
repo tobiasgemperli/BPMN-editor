@@ -158,6 +158,8 @@ class BpmnParser {
     final pdfPaths = <String>[];
     String? linkUrl;
     String? linkLabel;
+    final callouts = <Callout>[];
+    WorkoutInfo? workout;
     ContentDisplayMode displayMode = ContentDisplayMode.mixed;
 
     for (final child in taskEl.children.whereType<XmlElement>()) {
@@ -191,6 +193,28 @@ class BpmnParser {
                   linkUrl = item.getAttribute('href');
                   linkLabel = item.getAttribute('label');
                   break;
+                case 'callout':
+                  final kind = CalloutKind.values.firstWhere(
+                      (k) => k.name == item.getAttribute('kind'),
+                      orElse: () => CalloutKind.note);
+                  if (item.innerText.isNotEmpty) {
+                    callouts.add(Callout(kind, item.innerText));
+                  }
+                  break;
+                case 'workout':
+                  final sets = int.tryParse(item.getAttribute('sets') ?? '');
+                  final reps = int.tryParse(item.getAttribute('reps') ?? '');
+                  if (sets != null && reps != null) {
+                    final music = item.getAttribute('music');
+                    workout = WorkoutInfo(
+                      sets: sets,
+                      reps: reps,
+                      restSeconds: int.tryParse(item.getAttribute('rest') ?? ''),
+                      musicTitle: (music != null && music.isNotEmpty) ? music : null,
+                      musicBpm: int.tryParse(item.getAttribute('bpm') ?? ''),
+                    );
+                  }
+                  break;
               }
             }
           }
@@ -199,7 +223,8 @@ class BpmnParser {
     }
 
     if (text == null && imagePaths.isEmpty && videoPaths.isEmpty &&
-        pdfPaths.isEmpty && linkUrl == null) {
+        pdfPaths.isEmpty && linkUrl == null && callouts.isEmpty &&
+        workout == null) {
       return null;
     }
     return TaskContent(
@@ -209,6 +234,8 @@ class BpmnParser {
       pdfPaths: pdfPaths,
       linkUrl: linkUrl,
       linkLabel: linkLabel,
+      callouts: callouts,
+      workout: workout,
       displayMode: displayMode,
     );
   }

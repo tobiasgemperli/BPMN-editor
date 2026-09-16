@@ -204,6 +204,57 @@ class ClassicLinkView implements BlockView<LinkBlock> {
       );
 }
 
+/// A tinted callout tile (warning / note / tip) with a leading icon.
+class ClassicCalloutView implements BlockView<CalloutBlock> {
+  const ClassicCalloutView();
+
+  ({Color bg, Color fg, IconData icon}) _style(CalloutSeverity s) => switch (s) {
+        CalloutSeverity.warning => (
+            bg: const Color(0xFFFFF4E5),
+            fg: const Color(0xFFB26A00),
+            icon: Icons.warning_amber_rounded
+          ),
+        CalloutSeverity.note => (
+            bg: const Color(0xFFEAF2FF),
+            fg: const Color(0xFF0A66C2),
+            icon: Icons.info_outline
+          ),
+        CalloutSeverity.tip => (
+            bg: const Color(0xFFEAF7EE),
+            fg: const Color(0xFF1B7F3B),
+            icon: Icons.lightbulb_outline
+          ),
+      };
+
+  @override
+  Widget build(BuildContext c, CalloutBlock b, SkinContext ctx) {
+    final s = _style(b.severity);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: s.bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: s.fg.withValues(alpha: 0.25)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SkinDetail(size: 20, child: Icon(s.icon, size: 20, color: s.fg)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SkinText(b.text,
+                  style: const TextStyle(fontSize: 14, height: 1.4, color: _ink)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ClassicChoiceView implements BlockView<ChoiceBlock> {
   const ClassicChoiceView();
   @override

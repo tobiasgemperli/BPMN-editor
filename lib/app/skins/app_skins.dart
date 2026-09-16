@@ -7,6 +7,7 @@ import '../../steps/registry/step_registry.dart';
 import '../../steps/render/skins/classic_skin.dart';
 import '../../steps/render/skins/immersive_skin.dart';
 import 'app_media_view.dart';
+import 'app_hotspot_view.dart';
 
 /// The app's shared skin registry: the render-layer skins/packs plus real media
 /// wired in over the placeholders. One instance is reused everywhere (previews
@@ -20,6 +21,8 @@ StepRegistry _build() {
   r.install(const WorkoutPack());
   // Override the placeholder media view with the real loader.
   r.registerBlock<MediaBlock>(const AppMediaView());
+  // Interactive hotspot block (tappable image regions).
+  r.registerBlock<HotspotBlock>(const AppHotspotView());
   return r;
 }
 
@@ -51,6 +54,19 @@ StepView nodeToStepView(
   String? eyebrow,
 }) {
   final blocks = <StepBlock>[...blocksFromTaskContent(node.content)];
+
+  // Workout metadata → the workout pack's reps/music blocks (app layer knows
+  // about packs; the core adapter stays pack-agnostic).
+  final w = node.content?.workout;
+  if (w != null) {
+    blocks.add(RepsBlock(
+        sets: w.sets,
+        reps: w.reps,
+        rest: w.restSeconds != null ? Duration(seconds: w.restSeconds!) : null));
+    if (w.musicTitle != null) {
+      blocks.add(MusicBlock(w.musicTitle!, bpm: w.musicBpm));
+    }
+  }
 
   if (node.type == NodeType.exclusiveGateway) {
     final outgoing = diagram.outgoingEdges(node.id);

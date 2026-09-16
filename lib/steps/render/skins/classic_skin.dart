@@ -72,4 +72,5 @@ void installClassic(StepRegistry registry) {
   registry.registerBlock<DocBlock>(const ClassicDocView());
   registry.registerBlock<LinkBlock>(const ClassicLinkView());
   registry.registerBlock<ChoiceBlock>(const ClassicChoiceView());
+  registry.registerBlock<CalloutBlock>(const ClassicCalloutView());
 }

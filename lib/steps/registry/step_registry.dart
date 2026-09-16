@@ -84,8 +84,19 @@ class StepRegistry {
               child: SizedBox(
                 width: _miniatureDesignWidth,
                 height: designHeight,
-                child: skin.buildStep(
-                    context, step, (c, b, cx) => renderBlock(c, b, cx)),
+                // Strip the device safe-area insets: a miniature is a fixed
+                // design-space card, not the full screen, so skins must not add
+                // home-indicator / notch padding here.
+                child: MediaQuery(
+                  data: MediaQuery.of(context).removePadding(
+                    removeTop: true,
+                    removeBottom: true,
+                    removeLeft: true,
+                    removeRight: true,
+                  ),
+                  child: skin.buildStep(
+                      context, step, (c, b, cx) => renderBlock(c, b, cx)),
+                ),
               ),
             ),
           ),
