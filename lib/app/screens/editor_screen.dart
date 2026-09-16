@@ -35,6 +35,10 @@ class EditorScreen extends StatefulWidget {
   final String? savedId;
   final VoidCallback? onSaved;
 
+  /// The vertical (content pack) for a NEW diagram — chosen at creation and
+  /// fixed thereafter. Ignored when [initialDiagram] is provided.
+  final String? vertical;
+
   /// Backend model metadata — when set, a top-left Info button opens Edit Info.
   final ApiModelMeta? meta;
 
@@ -48,6 +52,7 @@ class EditorScreen extends StatefulWidget {
     this.showBackButton = false,
     this.savedId,
     this.onSaved,
+    this.vertical,
     this.meta,
   });
 
@@ -92,7 +97,9 @@ class _EditorScreenState extends State<EditorScreen>
         _centerDiagram();
       });
     } else if (_isOwner) {
-      // New diagram — add a start event and center the view on it.
+      // New diagram — record its vertical (fixed for the diagram's life), then
+      // add a start event and center the view on it.
+      _controller.diagram.vertical = widget.vertical;
       _controller.addNodeAtPosition(NodeType.startEvent, const Offset(200, 100));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _centerDiagram();

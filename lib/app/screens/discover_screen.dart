@@ -5,6 +5,7 @@ import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
+import '../widgets/vertical_picker.dart';
 import 'presentation_screen.dart';
 import 'editor_screen.dart';
 import 'edit_profile_sheet.dart';
@@ -138,7 +139,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
     // Highlights: a hand-picked set of showcase models (with custom thumbnail
     // images), shown in this order.
-    const highlightIds = ['850', '847', '846', '845'];
+    const highlightIds = ['858', '850', '847', '846', '845'];
     final byId = {for (final m in _remoteModels) m.id: m};
     final highlights = [
       for (final id in highlightIds)
@@ -195,11 +196,19 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     ),
                   ),
                   _Pressable(
-                    onTap: () => Navigator.push(
-                      context,
-                      _bottomToTopRoute(
-                          EditorScreen(showCloseButton: true, onSaved: _loadMyModels)),
-                    ),
+                    onTap: () async {
+                      // Choose the guide's vertical first (fixed at creation).
+                      final v = await showVerticalPicker(context);
+                      if (v == null || !context.mounted) return;
+                      Navigator.push(
+                        context,
+                        _bottomToTopRoute(EditorScreen(
+                          showCloseButton: true,
+                          onSaved: _loadMyModels,
+                          vertical: v.id,
+                        )),
+                      );
+                    },
                     child: Container(
                       width: 44,
                       height: 44,
