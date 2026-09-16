@@ -24,6 +24,10 @@ class BpmnParser {
     if (process == null) return model;
 
     model.processId = process.getAttribute('id');
+    model.skinId = process.getAttribute('ed:skin') ??
+        process.getAttribute('skin', namespace: _nsEd);
+    model.vertical = process.getAttribute('ed:vertical') ??
+        process.getAttribute('vertical', namespace: _nsEd);
 
     // Parse nodes.
     for (final child in process.children.whereType<XmlElement>()) {

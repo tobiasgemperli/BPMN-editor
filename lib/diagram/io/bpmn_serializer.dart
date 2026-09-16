@@ -25,6 +25,7 @@ class BpmnSerializer {
         'xmlns:bpmndi': _nsBpmnDi,
         'xmlns:dc': _nsDc,
         'xmlns:di': _nsDi,
+        'xmlns:ed': _nsEd,
         'id': defId,
         'targetNamespace': 'http://example.com/bpmn',
       },
@@ -33,6 +34,8 @@ class BpmnSerializer {
         builder.element('bpmn:process', attributes: {
           'id': procId,
           'isExecutable': 'false',
+          if (model.skinId != null) 'ed:skin': model.skinId!,
+          if (model.vertical != null) 'ed:vertical': model.vertical!,
         }, nest: () {
           // Nodes.
           for (final node in model.nodes.values) {

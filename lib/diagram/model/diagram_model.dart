@@ -185,11 +185,21 @@ class DiagramModel {
   String? processId;
   String? definitionsId;
 
+  /// The look (skin id) this diagram renders with — a per-diagram choice, not a
+  /// global app toggle. Null falls back to the app/category default.
+  String? skinId;
+
+  /// The diagram's vertical (content pack): decides which content fields the
+  /// editor offers (e.g. 'workout' adds reps/music). Null = plain.
+  String? vertical;
+
   DiagramModel({
     Map<String, NodeModel>? nodes,
     Map<String, EdgeModel>? edges,
     this.processId,
     this.definitionsId,
+    this.skinId,
+    this.vertical,
   })  : nodes = nodes ?? {},
         edges = edges ?? {};
 
@@ -199,6 +209,8 @@ class DiagramModel {
       edges: {for (final e in edges.entries) e.key: e.value.copy()},
       processId: processId,
       definitionsId: definitionsId,
+      skinId: skinId,
+      vertical: vertical,
     );
   }
 

@@ -349,22 +349,27 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
         _imageUrlLabelCtrl,
         _videoUrlCtrl,
         _videoUrlLabelCtrl,
-        SkinController.instance,
+        widget.controller,
       ]),
-      builder: (context, _) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionLabel(label: 'Preview · tap to choose a look'),
-          const SizedBox(height: 8),
-          SkinMiniatureStrip(
-            step: _previewStep(),
-            selectedSkinId: SkinController.instance.value,
-            onSkinSelected: (id) => SkinController.instance.setSkin(id),
-            horizontalPadding: 0,
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
+      builder: (context, _) {
+        // The look is a per-diagram choice; fall back to the global default.
+        final selected =
+            widget.controller.diagram.skinId ?? SkinController.defaultSkin;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionLabel(label: 'Preview · tap to choose a look'),
+            const SizedBox(height: 8),
+            SkinMiniatureStrip(
+              step: _previewStep(),
+              selectedSkinId: selected,
+              onSkinSelected: (id) => widget.controller.setDiagramSkin(id),
+              horizontalPadding: 0,
+            ),
+            const SizedBox(height: 20),
+          ],
+        );
+      },
     );
   }
 

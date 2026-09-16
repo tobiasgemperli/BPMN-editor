@@ -320,7 +320,10 @@ class _PresentationScreenState extends State<PresentationScreen> {
                 final node = _path[index];
                 // Non-classic skins render task pages through the skin system;
                 // gateways and events stay on the polished ProcessCard.
-                final skin = SkinController.instance.value;
+                // The look is a per-diagram choice, falling back to the global
+                // default when the diagram hasn't set one.
+                final skin =
+                    widget.diagram.skinId ?? SkinController.instance.value;
                 if (skin != SkinController.defaultSkin &&
                     node.type == NodeType.task) {
                   final hasGateway = widget.diagram.nodes.values

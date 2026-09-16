@@ -722,6 +722,22 @@ class EditorController extends ChangeNotifier {
     _exec(UpdateTaskContentCommand(nodeId, content));
   }
 
+  /// Set the diagram's look (skin id) — a per-diagram choice. Not on the undo
+  /// stack; notifies so the editor auto-saves.
+  void setDiagramSkin(String? skinId) {
+    if (diagram.skinId == skinId) return;
+    diagram.skinId = skinId;
+    notifyListeners();
+  }
+
+  /// Set the diagram's vertical (content pack), which drives the editor's field
+  /// set. Not on the undo stack; notifies so the editor auto-saves.
+  void setDiagramVertical(String? vertical) {
+    if (diagram.vertical == vertical) return;
+    diagram.vertical = vertical;
+    notifyListeners();
+  }
+
   void _startConnection(Offset point, {ConnectorSide? side}) {
     if (selectedNodeId == null) return;
     final node = diagram.nodes[selectedNodeId!];
