@@ -9,9 +9,9 @@ import '../../diagram/model/diagram_model.dart';
 import '../../steps/model/step_view.dart';
 import '../skins/app_skins.dart';
 import '../skins/skin_controller.dart';
+import 'card_template.dart';
 import 'close_circle_button.dart';
 import 'process_card.dart';
-import 'skin_miniature_strip.dart';
 import 'styled_field.dart';
 
 /// Copies a file from a temporary path to the app's documents directory
@@ -30,7 +30,6 @@ Future<String> _persistFile(String tempPath) async {
 /// The display type determines how a task card renders in presentation mode.
 /// `text` is the Mixed layout (title + text + media, top-aligned); `textOnly`
 /// is centered title + text with no media.
-enum DisplayType { text, textOnly, image, video }
 
 /// Opens the node editor for the currently selected node.
 void showPropertiesSheet(BuildContext context, EditorController controller) {
@@ -73,30 +72,19 @@ class _NodeEditorScreen extends StatefulWidget {
 class _NodeEditorScreenState extends State<_NodeEditorScreen> {
   late final TextEditingController _nameCtrl;
 
-  late DisplayType _displayType;
   final _picker = ImagePicker();
 
-  // ── Per-mode state: Text only ──
-  late final TextEditingController _textOnlyCtrl;
-
-  // ── Per-mode state: Mixed ──
-  late final TextEditingController _mixedTextCtrl;
-  late final TextEditingController _mixedUrlCtrl;
-  late final TextEditingController _mixedUrlLabelCtrl;
-  late List<String> _mixedImagePaths;
-  late List<String> _mixedPdfPaths;
-
-  // ── Per-mode state: Image ──
-  late final TextEditingController _imageUrlCtrl;
-  late final TextEditingController _imageUrlLabelCtrl;
-  late List<String> _imageImagePaths;
-  late List<String> _imagePdfPaths;
-
-  // ── Per-mode state: Video ──
-  late final TextEditingController _videoUrlCtrl;
-  late final TextEditingController _videoUrlLabelCtrl;
-  late List<String> _videoVideoPaths;
-  late List<String> _videoPdfPaths;
+  // ── Unified content model (slot-based) ──
+  // One set of fields; the chosen card template decides which are shown. Fields
+  // a template doesn't show are still preserved on save (never deleted).
+  late CardTemplate _template;
+  bool _showMore = false;
+  late final TextEditingController _textCtrl;
+  late final TextEditingController _urlCtrl;
+  late final TextEditingController _urlLabelCtrl;
+  late List<String> _imagePaths;
+  late List<String> _videoPaths;
+  late List<String> _pdfPaths;
 
   // Gateway outgoing edge label controllers.
   final Map<String, TextEditingController> _edgeLabelCtrls = {};
@@ -113,53 +101,21 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     super.initState();
     final c = widget.node.content;
     _nameCtrl = TextEditingController(text: widget.node.name);
-    _displayType = _inferDisplayType(c);
 
-    // Initialize all per-mode controllers with empty defaults.
-    _textOnlyCtrl = TextEditingController();
-    _mixedTextCtrl = TextEditingController();
-    _mixedUrlCtrl = TextEditingController();
-    _mixedUrlLabelCtrl = TextEditingController();
-    _mixedImagePaths = [];
-    _mixedPdfPaths = [];
+    // One shared content model, populated from existing content.
+    _textCtrl = TextEditingController(text: c?.text ?? '');
+    _urlCtrl = TextEditingController(text: c?.linkUrl ?? '');
+    _urlLabelCtrl = TextEditingController(text: c?.linkLabel ?? '');
+    _imagePaths = List<String>.from(c?.imagePaths ?? const []);
+    _videoPaths = List<String>.from(c?.videoPaths ?? const []);
+    _pdfPaths = List<String>.from(c?.pdfPaths ?? const []);
 
-    _imageUrlCtrl = TextEditingController();
-    _imageUrlLabelCtrl = TextEditingController();
-    _imageImagePaths = [];
-    _imagePdfPaths = [];
-
-    _videoUrlCtrl = TextEditingController();
-    _videoUrlLabelCtrl = TextEditingController();
-    _videoVideoPaths = [];
-    _videoPdfPaths = [];
-
-    // Populate only the saved mode's fields from existing content.
-    if (c != null) {
-      switch (_displayType) {
-        case DisplayType.textOnly:
-          _textOnlyCtrl.text = c.text ?? '';
-          break;
-        case DisplayType.text:
-          _mixedTextCtrl.text = c.text ?? '';
-          _mixedImagePaths = List<String>.from(c.imagePaths);
-          _mixedPdfPaths = List<String>.from(c.pdfPaths);
-          _mixedUrlCtrl.text = c.linkUrl ?? '';
-          _mixedUrlLabelCtrl.text = c.linkLabel ?? '';
-          break;
-        case DisplayType.image:
-          _imageImagePaths = List<String>.from(c.imagePaths);
-          _imagePdfPaths = List<String>.from(c.pdfPaths);
-          _imageUrlCtrl.text = c.linkUrl ?? '';
-          _imageUrlLabelCtrl.text = c.linkLabel ?? '';
-          break;
-        case DisplayType.video:
-          _videoVideoPaths = List<String>.from(c.videoPaths);
-          _videoPdfPaths = List<String>.from(c.pdfPaths);
-          _videoUrlCtrl.text = c.linkUrl ?? '';
-          _videoUrlLabelCtrl.text = c.linkLabel ?? '';
-          break;
-      }
-    }
+    _template = inferTemplate(
+      hasImage: _imagePaths.isNotEmpty,
+      hasVideo: _videoPaths.isNotEmpty,
+      hasPdf: _pdfPaths.isNotEmpty,
+      hasText: (c?.text ?? '').isNotEmpty,
+    );
 
     // Build edge label controllers for gateway nodes.
     _outgoingEdges = widget.controller.diagram.outgoingEdges(widget.node.id);
@@ -168,32 +124,13 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
     }
   }
 
-  DisplayType _inferDisplayType(TaskContent? c) {
-    if (c == null) return DisplayType.text;
-    switch (c.displayMode) {
-      case ContentDisplayMode.image:
-        return DisplayType.image;
-      case ContentDisplayMode.video:
-        return DisplayType.video;
-      case ContentDisplayMode.textOnly:
-        return DisplayType.textOnly;
-      case ContentDisplayMode.mixed:
-        return DisplayType.text;
-    }
-  }
-
   @override
   void dispose() {
     _saveData();
     _nameCtrl.dispose();
-    _textOnlyCtrl.dispose();
-    _mixedTextCtrl.dispose();
-    _mixedUrlCtrl.dispose();
-    _mixedUrlLabelCtrl.dispose();
-    _imageUrlCtrl.dispose();
-    _imageUrlLabelCtrl.dispose();
-    _videoUrlCtrl.dispose();
-    _videoUrlLabelCtrl.dispose();
+    _textCtrl.dispose();
+    _urlCtrl.dispose();
+    _urlLabelCtrl.dispose();
     for (final ctrl in _edgeLabelCtrls.values) {
       ctrl.dispose();
     }
@@ -268,110 +205,203 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
 
   /// Builds a [TaskContent] from the current editor state, with no side
   /// effects. Shared by save and the live preview.
+  List<String> _clean(List<String> l) => l.where((p) => p.isNotEmpty).toList();
+
+  ContentDisplayMode _modeFor(CardTemplate t) => t.id == 'text_only'
+      ? ContentDisplayMode.textOnly
+      : t.has(CardSlot.video)
+          ? ContentDisplayMode.video
+          : t.has(CardSlot.image)
+              ? ContentDisplayMode.image
+              : ContentDisplayMode.mixed;
+
+  /// Assemble the saved content from the shared model. All filled fields are
+  /// kept — even ones the current template doesn't show — so switching template
+  /// never deletes content. Callouts/workout on the node are preserved.
   TaskContent? _buildContent() {
     if (!_hasContent) return null;
-    String? text;
-    List<String> images = [];
-    List<String> videos = [];
-    List<String> pdfs = [];
-    String? url;
-    String? urlLabel;
-    ContentDisplayMode mode;
-
-    switch (_displayType) {
-      case DisplayType.textOnly:
-        mode = ContentDisplayMode.textOnly;
-        text = _textOnlyCtrl.text.isNotEmpty ? _textOnlyCtrl.text : null;
-        break;
-      case DisplayType.text:
-        mode = ContentDisplayMode.mixed;
-        text = _mixedTextCtrl.text.isNotEmpty ? _mixedTextCtrl.text : null;
-        images = _mixedImagePaths.where((p) => p.isNotEmpty).toList();
-        pdfs = _mixedPdfPaths.where((p) => p.isNotEmpty).toList();
-        url = _mixedUrlCtrl.text.isNotEmpty ? _mixedUrlCtrl.text : null;
-        urlLabel =
-            _mixedUrlLabelCtrl.text.isNotEmpty ? _mixedUrlLabelCtrl.text : null;
-        break;
-      case DisplayType.image:
-        mode = ContentDisplayMode.image;
-        images = _imageImagePaths.where((p) => p.isNotEmpty).toList();
-        pdfs = _imagePdfPaths.where((p) => p.isNotEmpty).toList();
-        url = _imageUrlCtrl.text.isNotEmpty ? _imageUrlCtrl.text : null;
-        urlLabel =
-            _imageUrlLabelCtrl.text.isNotEmpty ? _imageUrlLabelCtrl.text : null;
-        break;
-      case DisplayType.video:
-        mode = ContentDisplayMode.video;
-        videos = _videoVideoPaths.where((p) => p.isNotEmpty).toList();
-        pdfs = _videoPdfPaths.where((p) => p.isNotEmpty).toList();
-        url = _videoUrlCtrl.text.isNotEmpty ? _videoUrlCtrl.text : null;
-        urlLabel =
-            _videoUrlLabelCtrl.text.isNotEmpty ? _videoUrlLabelCtrl.text : null;
-        break;
-    }
-
+    final orig = widget.node.content;
     return TaskContent(
-      text: text,
-      imagePaths: images,
-      videoPaths: videos,
-      pdfPaths: pdfs,
-      linkUrl: url,
-      linkLabel: urlLabel,
-      displayMode: mode,
+      text: _textCtrl.text.isNotEmpty ? _textCtrl.text : null,
+      imagePaths: _clean(_imagePaths),
+      videoPaths: _clean(_videoPaths),
+      pdfPaths: _clean(_pdfPaths),
+      linkUrl: _urlCtrl.text.isNotEmpty ? _urlCtrl.text : null,
+      linkLabel: _urlLabelCtrl.text.isNotEmpty ? _urlLabelCtrl.text : null,
+      callouts: orig?.callouts ?? const [],
+      workout: orig?.workout,
+      displayMode: _modeFor(_template),
     );
   }
 
-  /// A StepView built from the *current, unsaved* editor state — so the skin
-  /// miniatures below reflect edits live as they're typed/picked.
-  StepView _previewStep() {
+  /// A StepView showing only [t]'s slots from the shared model — used for the
+  /// per-template miniatures so each shows how this step looks with that layout.
+  StepView _templateStep(CardTemplate t) {
+    final content = TaskContent(
+      text: t.has(CardSlot.text) && _textCtrl.text.isNotEmpty
+          ? _textCtrl.text
+          : null,
+      imagePaths: t.has(CardSlot.image) ? _clean(_imagePaths) : const [],
+      videoPaths: t.has(CardSlot.video) ? _clean(_videoPaths) : const [],
+      pdfPaths: t.has(CardSlot.pdf) ? _clean(_pdfPaths) : const [],
+      displayMode: _modeFor(t),
+    );
     final temp = NodeModel(
       id: widget.node.id,
       type: widget.node.type,
       name: _nameCtrl.text,
       rect: widget.node.rect,
-      content: _buildContent(),
+      content: content.isEmpty ? null : content,
     );
     return nodeToStepView(temp, widget.controller.diagram);
   }
 
-  /// Live "preview in every skin" strip: the same content rendered through each
-  /// skin. Tapping a tile chooses that skin. Rebuilds on any field or skin
-  /// change (list edits already trigger setState, which rebuilds this too).
-  Widget _skinPreview() {
+  /// The swipe strip of card-template miniatures. Each renders this step's
+  /// content limited to that template, in the diagram's look. Tap to choose.
+  Widget _templateStrip() {
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        _nameCtrl,
-        _textOnlyCtrl,
-        _mixedTextCtrl,
-        _mixedUrlCtrl,
-        _mixedUrlLabelCtrl,
-        _imageUrlCtrl,
-        _imageUrlLabelCtrl,
-        _videoUrlCtrl,
-        _videoUrlLabelCtrl,
-        widget.controller,
-      ]),
+      listenable: Listenable.merge(
+          [_nameCtrl, _textCtrl, _urlCtrl, _urlLabelCtrl, widget.controller]),
       builder: (context, _) {
-        // The look is a per-diagram choice; fall back to the global default.
-        final selected =
+        final skin =
             widget.controller.diagram.skinId ?? SkinController.defaultSkin;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SectionLabel(label: 'Preview · tap to choose a look'),
-            const SizedBox(height: 8),
-            SkinMiniatureStrip(
-              step: _previewStep(),
-              selectedSkinId: selected,
-              onSkinSelected: (id) => widget.controller.setDiagramSkin(id),
-              horizontalPadding: 0,
-            ),
-            const SizedBox(height: 20),
-          ],
+        return SizedBox(
+          height: 214,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: kTemplates.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
+            itemBuilder: (context, i) {
+              final t = kTemplates[i];
+              return _TemplateTile(
+                label: t.label,
+                selected: t.id == _template.id,
+                child: appStepRegistry.renderMiniature(
+                    context, skin, _templateStep(t)),
+                onTap: () => setState(() => _template = t),
+              );
+            },
+          ),
         );
       },
     );
   }
+
+  static const _slotOrder = [
+    CardSlot.image,
+    CardSlot.video,
+    CardSlot.pdf,
+    CardSlot.text,
+  ];
+
+  /// The editable fields for a set of slots, in a canonical order.
+  List<Widget> _slotFields(Set<CardSlot> slots) {
+    final w = <Widget>[];
+    for (final s in _slotOrder) {
+      if (slots.contains(s)) {
+        w.addAll(_fieldFor(s));
+        w.add(const SizedBox(height: 18));
+      }
+    }
+    return w;
+  }
+
+  /// A "More fields" disclosure holding the slots the current template doesn't
+  /// feature, plus the link — so every field stays reachable.
+  List<Widget> _moreFields() {
+    final rest = _slotOrder.where((s) => !_template.has(s)).toList();
+    return [
+      const SizedBox(height: 4),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => setState(() => _showMore = !_showMore),
+          icon: Icon(_showMore ? Icons.expand_less : Icons.expand_more,
+              size: 18),
+          label: Text(_showMore ? 'Fewer fields' : 'More fields'),
+          style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF007AFF),
+              padding: EdgeInsets.zero),
+        ),
+      ),
+      if (_showMore) ...[
+        const SizedBox(height: 8),
+        for (final s in rest) ...[..._fieldFor(s), const SizedBox(height: 18)],
+        ..._linkFields(),
+      ],
+    ];
+  }
+
+  List<Widget> _fieldFor(CardSlot s) {
+    switch (s) {
+      case CardSlot.image:
+        return [
+          _SectionLabel(label: 'Image'),
+          const SizedBox(height: 8),
+          _MultiMediaPicker(
+            paths: _imagePaths,
+            maxItems: 3,
+            label: 'Photo',
+            icon: Icons.image_outlined,
+            onPick: (i) => _pickImageFor(_imagePaths, 3, replaceIndex: i),
+            onAdd: () => _pickImageFor(_imagePaths, 3),
+            onRemove: (i) => setState(() => _imagePaths.removeAt(i)),
+          ),
+        ];
+      case CardSlot.video:
+        return [
+          _SectionLabel(label: 'Video'),
+          const SizedBox(height: 8),
+          _MultiMediaPicker(
+            paths: _videoPaths,
+            maxItems: 1,
+            label: 'Video',
+            icon: Icons.videocam_outlined,
+            onPick: (i) => _pickVideoFor(_videoPaths, 1, replaceIndex: i),
+            onAdd: () => _pickVideoFor(_videoPaths, 1),
+            onRemove: (i) => setState(() => _videoPaths.removeAt(i)),
+          ),
+        ];
+      case CardSlot.pdf:
+        return [
+          _SectionLabel(label: 'PDF'),
+          const SizedBox(height: 8),
+          _MultiMediaPicker(
+            paths: _pdfPaths,
+            maxItems: 3,
+            label: 'PDF',
+            icon: Icons.picture_as_pdf_outlined,
+            onPick: (i) => _pickPdfFor(_pdfPaths, 3, replaceIndex: i),
+            onAdd: () => _pickPdfFor(_pdfPaths, 3),
+            onRemove: (i) => setState(() => _pdfPaths.removeAt(i)),
+          ),
+        ];
+      case CardSlot.text:
+        return [
+          _SectionLabel(label: 'Text'),
+          const SizedBox(height: 8),
+          StyledField(
+            controller: _textCtrl,
+            placeholder: 'Body text...',
+            maxLines: 6,
+            minLines: 3,
+          ),
+        ];
+      case CardSlot.link:
+        return _linkFields();
+    }
+  }
+
+  List<Widget> _linkFields() => [
+        _SectionLabel(label: 'Link'),
+        const SizedBox(height: 8),
+        StyledField(
+            controller: _urlCtrl,
+            placeholder: 'Link URL',
+            prefixIcon: Icons.link),
+        const SizedBox(height: 10),
+        StyledField(controller: _urlLabelCtrl, placeholder: 'Link label'),
+      ];
 
   void _saveData() {
     if (_saved) return;
@@ -474,9 +504,6 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Live preview across skins ──
-                  if (_hasContent) _skinPreview(),
-
                   // ── Node title ──
                   _SectionLabel(label: 'Title'),
                   const SizedBox(height: 6),
@@ -505,171 +532,20 @@ class _NodeEditorScreenState extends State<_NodeEditorScreen> {
                     ],
                   ],
 
-                  // ── Display type picker (task, start, end — not gateway) ──
+                  // ── Card-template swipe + slot fields (task, start, end) ──
                   if (_hasContent) ...[
                     const SizedBox(height: 20),
-                    _SectionLabel(label: 'Display Mode'),
+                    _SectionLabel(label: 'Layout · swipe to choose'),
                     const SizedBox(height: 8),
-                    _DisplayTypePicker(
-                      selected: _displayType,
-                      onChanged: (t) => setState(() => _displayType = t),
-                    ),
-
-                    // ── Content fields per mode ──
+                    _templateStrip(),
                     const SizedBox(height: 20),
 
-                    // ── Text only mode (centered title + text) ──
-                    if (_displayType == DisplayType.textOnly) ...[
-                      _SectionLabel(label: 'Text'),
-                      const SizedBox(height: 8),
-                      StyledField(
-                        controller: _textOnlyCtrl,
-                        placeholder: 'Body text...',
-                        maxLines: 8,
-                        minLines: 3,
-                      ),
-                    ],
+                    // Fields for the chosen template's slots (prefilled).
+                    ..._slotFields(_template.slots),
 
-                    // ── Mixed mode ──
-                    if (_displayType == DisplayType.text) ...[
-                      _SectionLabel(label: 'Content'),
-                      const SizedBox(height: 8),
-                      StyledField(
-                        controller: _mixedTextCtrl,
-                        placeholder: 'Body text...',
-                        maxLines: 6,
-                        minLines: 3,
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionLabel(label: 'Images (up to 3)'),
-                      const SizedBox(height: 8),
-                      _MultiMediaPicker(
-                        paths: _mixedImagePaths,
-                        maxItems: 3,
-                        label: 'Photo',
-                        icon: Icons.image_outlined,
-                        onPick: (index) => _pickImageFor(
-                            _mixedImagePaths, 3, replaceIndex: index),
-                        onAdd: () => _pickImageFor(_mixedImagePaths, 3),
-                        onRemove: (index) =>
-                            setState(() => _mixedImagePaths.removeAt(index)),
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionLabel(label: 'PDFs (up to 3)'),
-                      const SizedBox(height: 8),
-                      _MultiMediaPicker(
-                        paths: _mixedPdfPaths,
-                        maxItems: 3,
-                        label: 'PDF',
-                        icon: Icons.picture_as_pdf_outlined,
-                        onPick: (index) => _pickPdfFor(
-                            _mixedPdfPaths, 3, replaceIndex: index),
-                        onAdd: () => _pickPdfFor(_mixedPdfPaths, 3),
-                        onRemove: (index) =>
-                            setState(() => _mixedPdfPaths.removeAt(index)),
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionLabel(label: 'Link'),
-                      const SizedBox(height: 8),
-                      StyledField(
-                        controller: _mixedUrlCtrl,
-                        placeholder: 'Link URL',
-                        prefixIcon: Icons.link,
-                      ),
-                      const SizedBox(height: 10),
-                      StyledField(
-                        controller: _mixedUrlLabelCtrl,
-                        placeholder: 'Link label',
-                      ),
-                    ],
-
-                    // ── Image mode ──
-                    if (_displayType == DisplayType.image) ...[
-                      _SectionLabel(label: 'Image'),
-                      const SizedBox(height: 8),
-                      _MultiMediaPicker(
-                        paths: _imageImagePaths,
-                        maxItems: 1,
-                        label: 'Photo',
-                        icon: Icons.image_outlined,
-                        onPick: (index) => _pickImageFor(
-                            _imageImagePaths, 1, replaceIndex: index),
-                        onAdd: () => _pickImageFor(_imageImagePaths, 1),
-                        onRemove: (index) =>
-                            setState(() => _imageImagePaths.removeAt(index)),
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionLabel(label: 'PDF'),
-                      const SizedBox(height: 8),
-                      _MultiMediaPicker(
-                        paths: _imagePdfPaths,
-                        maxItems: 1,
-                        label: 'PDF',
-                        icon: Icons.picture_as_pdf_outlined,
-                        onPick: (index) => _pickPdfFor(
-                            _imagePdfPaths, 1, replaceIndex: index),
-                        onAdd: () => _pickPdfFor(_imagePdfPaths, 1),
-                        onRemove: (index) =>
-                            setState(() => _imagePdfPaths.removeAt(index)),
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionLabel(label: 'Link'),
-                      const SizedBox(height: 8),
-                      StyledField(
-                        controller: _imageUrlCtrl,
-                        placeholder: 'Link URL',
-                        prefixIcon: Icons.link,
-                      ),
-                      const SizedBox(height: 10),
-                      StyledField(
-                        controller: _imageUrlLabelCtrl,
-                        placeholder: 'Link label',
-                      ),
-                    ],
-
-                    // ── Video mode ──
-                    if (_displayType == DisplayType.video) ...[
-                      _SectionLabel(label: 'Video'),
-                      const SizedBox(height: 8),
-                      _MultiMediaPicker(
-                        paths: _videoVideoPaths,
-                        maxItems: 1,
-                        label: 'Video',
-                        icon: Icons.videocam_outlined,
-                        onPick: (index) => _pickVideoFor(
-                            _videoVideoPaths, 1, replaceIndex: index),
-                        onAdd: () => _pickVideoFor(_videoVideoPaths, 1),
-                        onRemove: (index) =>
-                            setState(() => _videoVideoPaths.removeAt(index)),
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionLabel(label: 'PDF'),
-                      const SizedBox(height: 8),
-                      _MultiMediaPicker(
-                        paths: _videoPdfPaths,
-                        maxItems: 1,
-                        label: 'PDF',
-                        icon: Icons.picture_as_pdf_outlined,
-                        onPick: (index) => _pickPdfFor(
-                            _videoPdfPaths, 1, replaceIndex: index),
-                        onAdd: () => _pickPdfFor(_videoPdfPaths, 1),
-                        onRemove: (index) =>
-                            setState(() => _videoPdfPaths.removeAt(index)),
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionLabel(label: 'Link'),
-                      const SizedBox(height: 8),
-                      StyledField(
-                        controller: _videoUrlCtrl,
-                        placeholder: 'Link URL',
-                        prefixIcon: Icons.link,
-                      ),
-                      const SizedBox(height: 10),
-                      StyledField(
-                        controller: _videoUrlLabelCtrl,
-                        placeholder: 'Link label',
-                      ),
-                    ],
+                    // Everything else the diagram can hold — reachable so no
+                    // content gets stranded when a template hides its field.
+                    ..._moreFields(),
                   ],
                 ],
               ),
@@ -853,219 +729,50 @@ class _MultiMediaPicker extends StatelessWidget {
 
 // ── Display type picker ──────────────────────────────────────
 
-class _DisplayTypePicker extends StatelessWidget {
-  final DisplayType selected;
-  final ValueChanged<DisplayType> onChanged;
-
-  const _DisplayTypePicker({required this.selected, required this.onChanged});
+class _TemplateTile extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Widget child;
+  final VoidCallback onTap;
+  const _TemplateTile({
+    required this.label,
+    required this.selected,
+    required this.child,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: DisplayType.values.map((type) {
-        final isSelected = type == selected;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onChanged(type),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: EdgeInsets.only(
-                  right: type != DisplayType.values.last ? 6 : 0),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF007AFF).withValues(alpha: 0.1)
-                    : Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF007AFF)
-                      : Colors.grey[200]!,
-                  width: isSelected ? 2 : 1,
-                ),
+    const accent = Color(0xFF007AFF);
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 108,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? accent : const Color(0xFFE0E0E0),
+                width: selected ? 2.5 : 1,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _MiniScreenPreview(
-                    type: type,
-                    isSelected: isSelected,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _labelFor(type),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected
-                          ? const Color(0xFF007AFF)
-                          : const Color(0xFF1C1C1E),
-                    ),
-                  ),
-                ],
-              ),
+              boxShadow: const [
+                BoxShadow(
+                    color: Colors.black12, blurRadius: 10, offset: Offset(0, 3)),
+              ],
             ),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(width: 108, height: 144, child: child),
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  String _labelFor(DisplayType type) {
-    switch (type) {
-      case DisplayType.text:
-        return 'Mixed';
-      case DisplayType.textOnly:
-        return 'Text';
-      case DisplayType.image:
-        return 'Image';
-      case DisplayType.video:
-        return 'Video';
-    }
-  }
-}
-
-/// A tiny portrait phone wireframe showing the layout of each display mode.
-class _MiniScreenPreview extends StatelessWidget {
-  final DisplayType type;
-  final bool isSelected;
-
-  const _MiniScreenPreview({required this.type, required this.isSelected});
-
-  Color get _fg =>
-      isSelected ? const Color(0xFF007AFF) : const Color(0xFF999999);
-
-  @override
-  Widget build(BuildContext context) {
-    // 9:16 phone ratio.
-    return AspectRatio(
-      aspectRatio: 9 / 16,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isSelected ? _fg : Colors.grey[300]!,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
-        child: _buildLayout(),
-      ),
-    );
-  }
-
-  Widget _buildLayout() {
-    switch (type) {
-      case DisplayType.text:
-        return _buildMixed();
-      case DisplayType.textOnly:
-        return _buildTextOnly();
-      case DisplayType.image:
-        return _buildImage();
-      case DisplayType.video:
-        return _buildVideo();
-    }
-  }
-
-  /// Text only: title + text lines centered vertically, no media.
-  Widget _buildTextOnly() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Center(child: _bar(widthFraction: 0.6, height: 4)),
-        const SizedBox(height: 5),
-        Center(child: _bar(widthFraction: 0.85, height: 3)),
-        const SizedBox(height: 3),
-        Center(child: _bar(widthFraction: 0.7, height: 3)),
-        const SizedBox(height: 3),
-        Center(child: _bar(widthFraction: 0.8, height: 3)),
-      ],
-    );
-  }
-
-  /// Mixed: title at top, text lines, image thumbnail, link at bottom.
-  Widget _buildMixed() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 3),
-        Center(child: _bar(widthFraction: 0.6, height: 4)),
-        const SizedBox(height: 5),
-        _bar(widthFraction: 0.9, height: 3),
-        const SizedBox(height: 3),
-        _bar(widthFraction: 0.75, height: 3),
-        const SizedBox(height: 3),
-        _bar(widthFraction: 0.85, height: 3),
-        const SizedBox(height: 3),
-        _bar(widthFraction: 0.6, height: 3),
-        const Spacer(),
-        Container(
-          height: 26,
-          width: 38,
-          decoration: BoxDecoration(
-            color: _fg.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(2),
-          ),
-          child: Icon(Icons.image, size: 16, color: _fg.withValues(alpha: 0.6)),
-        ),
-        const Spacer(),
-        _bar(widthFraction: 0.55, height: 3),
-        const SizedBox(height: 3),
-      ],
-    );
-  }
-
-  /// Image: fullscreen landscape image, title at top, link at bottom.
-  Widget _buildImage() {
-    return Column(
-      children: [
-        const SizedBox(height: 3),
-        Center(child: _bar(widthFraction: 0.55, height: 4)),
-        const Spacer(),
-        Container(
-          width: double.infinity,
-          height: 36,
-          decoration: BoxDecoration(
-            color: _fg.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(2),
-          ),
-          child: Icon(Icons.image, size: 20, color: _fg.withValues(alpha: 0.6)),
-        ),
-        const Spacer(),
-        _bar(widthFraction: 0.5, height: 3),
-        const SizedBox(height: 3),
-      ],
-    );
-  }
-
-  /// Video: fullscreen with play icon, title at top, link at bottom.
-  Widget _buildVideo() {
-    return Column(
-      children: [
-        const SizedBox(height: 3),
-        Center(child: _bar(widthFraction: 0.55, height: 4)),
-        const Spacer(),
-        Icon(Icons.play_circle_outline, size: 22, color: _fg.withValues(alpha: 0.7)),
-        const Spacer(),
-        _bar(widthFraction: 0.5, height: 3),
-        const SizedBox(height: 3),
-      ],
-    );
-  }
-
-  Widget _bar({required double widthFraction, required double height}) {
-    return FractionallySizedBox(
-      widthFactor: widthFraction,
-      alignment: Alignment.centerLeft,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: _fg.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(1.5),
-        ),
+          const SizedBox(height: 8),
+          Text(label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? accent : const Color(0xFF3A3A3C),
+              )),
+        ],
       ),
     );
   }
