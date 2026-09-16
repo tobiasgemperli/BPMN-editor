@@ -1,29 +1,48 @@
 import 'package:flutter/material.dart';
 
-/// A diagram "vertical" (content pack): the kind of guide being authored. It's
-/// chosen once when the diagram is created and can't be changed later, because
-/// it decides which content fields the editor offers.
-class VerticalOption {
-  final String? id; // null = plain
+/// A diagram "theme": the kind of guide being authored. Chosen once when the
+/// diagram is created and fixed thereafter. A theme bundles the visual style
+/// ([skinId], formerly the Classic/Immersive look) and the pool of content
+/// fields the editor offers.
+class GuideTheme {
+  final String id;
   final String title;
   final String subtitle;
   final IconData icon;
-  const VerticalOption(this.id, this.title, this.subtitle, this.icon);
+
+  /// The look this theme renders with (a registered skin id).
+  final String skinId;
+
+  const GuideTheme(this.id, this.title, this.subtitle, this.icon, this.skinId);
 }
 
-const List<VerticalOption> kVerticals = [
-  VerticalOption(null, 'Plain guide',
-      'Steps with a title, a photo or video, and text.', Icons.description_outlined),
-  VerticalOption('workout', 'Workout',
-      'Exercises with sets, reps, rest and a backing track.', Icons.fitness_center),
-  VerticalOption('troubleshooting', 'Troubleshooting',
-      'Branching diagnostics with tappable image hotspots.', Icons.build_outlined),
+const List<GuideTheme> kThemes = [
+  GuideTheme('course', 'Course',
+      'Media-first lessons — big visuals, short text.', Icons.school_outlined,
+      'immersive'),
+  GuideTheme('regulation', 'Regulation',
+      'Formal, document-style steps with PDFs and notes.',
+      Icons.gavel_outlined, 'classic'),
+  GuideTheme('workout', 'Workout',
+      'Exercises with sets, reps, rest and a backing track.',
+      Icons.fitness_center, 'immersive'),
+  GuideTheme('troubleshooting', 'Troubleshooting',
+      'Branching diagnostics with tappable image hotspots.',
+      Icons.build_outlined, 'classic'),
 ];
 
-/// Ask which kind of guide to create. Returns the chosen [VerticalOption], or
-/// null if dismissed. The choice is permanent, so the sheet says so.
-Future<VerticalOption?> showVerticalPicker(BuildContext context) {
-  return showModalBottomSheet<VerticalOption>(
+GuideTheme? themeById(String? id) {
+  if (id == null) return null;
+  for (final t in kThemes) {
+    if (t.id == id) return t;
+  }
+  return null;
+}
+
+/// Ask which theme to create with. Returns the chosen [GuideTheme], or null if
+/// dismissed. The choice is permanent, so the sheet says so.
+Future<GuideTheme?> showThemePicker(BuildContext context) {
+  return showModalBottomSheet<GuideTheme>(
     context: context,
     backgroundColor: Colors.white,
     isScrollControlled: true,
@@ -52,11 +71,12 @@ Future<VerticalOption?> showVerticalPicker(BuildContext context) {
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF1C1C1E))),
             const SizedBox(height: 4),
-            Text('This sets the fields you can add — and can\'t be changed later.',
+            Text('This sets the look and the fields you can add — '
+                'and can\'t be changed later.',
                 style: TextStyle(fontSize: 13, color: Colors.grey[700])),
             const SizedBox(height: 16),
-            for (final v in kVerticals) ...[
-              _VerticalTile(option: v, onTap: () => Navigator.pop(ctx, v)),
+            for (final t in kThemes) ...[
+              _ThemeTile(theme: t, onTap: () => Navigator.pop(ctx, t)),
               const SizedBox(height: 10),
             ],
           ],
@@ -66,10 +86,10 @@ Future<VerticalOption?> showVerticalPicker(BuildContext context) {
   );
 }
 
-class _VerticalTile extends StatelessWidget {
-  final VerticalOption option;
+class _ThemeTile extends StatelessWidget {
+  final GuideTheme theme;
   final VoidCallback onTap;
-  const _VerticalTile({required this.option, required this.onTap});
+  const _ThemeTile({required this.theme, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +111,7 @@ class _VerticalTile extends StatelessWidget {
               decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(11)),
-              child: Icon(option.icon, color: accent, size: 22),
+              child: Icon(theme.icon, color: accent, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -99,13 +119,13 @@ class _VerticalTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(option.title,
+                  Text(theme.title,
                       style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF1C1C1E))),
                   const SizedBox(height: 2),
-                  Text(option.subtitle,
+                  Text(theme.subtitle,
                       style: const TextStyle(
                           fontSize: 13, height: 1.3, color: Color(0xFF6A6A6E))),
                 ],

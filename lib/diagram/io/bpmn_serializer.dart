@@ -35,7 +35,7 @@ class BpmnSerializer {
           'id': procId,
           'isExecutable': 'false',
           if (model.skinId != null) 'ed:skin': model.skinId!,
-          if (model.vertical != null) 'ed:vertical': model.vertical!,
+          if (model.theme != null) 'ed:theme': model.theme!,
         }, nest: () {
           // Nodes.
           for (final node in model.nodes.values) {

@@ -13,6 +13,7 @@ import '../../diagram/io/media_ref.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
+import '../widgets/theme_picker.dart';
 import '../widgets/diagram_canvas.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/properties_sheet.dart';
@@ -35,9 +36,9 @@ class EditorScreen extends StatefulWidget {
   final String? savedId;
   final VoidCallback? onSaved;
 
-  /// The vertical (content pack) for a NEW diagram — chosen at creation and
-  /// fixed thereafter. Ignored when [initialDiagram] is provided.
-  final String? vertical;
+  /// The theme id for a NEW diagram — chosen at creation and fixed thereafter.
+  /// Sets the diagram's look + field pool. Ignored when [initialDiagram] is set.
+  final String? theme;
 
   /// Backend model metadata — when set, a top-left Info button opens Edit Info.
   final ApiModelMeta? meta;
@@ -52,7 +53,7 @@ class EditorScreen extends StatefulWidget {
     this.showBackButton = false,
     this.savedId,
     this.onSaved,
-    this.vertical,
+    this.theme,
     this.meta,
   });
 
@@ -97,9 +98,11 @@ class _EditorScreenState extends State<EditorScreen>
         _centerDiagram();
       });
     } else if (_isOwner) {
-      // New diagram — record its vertical (fixed for the diagram's life), then
-      // add a start event and center the view on it.
-      _controller.diagram.vertical = widget.vertical;
+      // New diagram — record its theme (fixed for the diagram's life) and the
+      // look that comes with it, then add a start event and center on it.
+      final theme = themeById(widget.theme);
+      _controller.diagram.theme = widget.theme;
+      _controller.diagram.skinId = theme?.skinId;
       _controller.addNodeAtPosition(NodeType.startEvent, const Offset(200, 100));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _centerDiagram();

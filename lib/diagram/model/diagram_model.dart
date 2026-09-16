@@ -185,13 +185,15 @@ class DiagramModel {
   String? processId;
   String? definitionsId;
 
-  /// The look (skin id) this diagram renders with — a per-diagram choice, not a
-  /// global app toggle. Null falls back to the app/category default.
+  /// The look (skin id) this diagram renders with. Derived from the theme at
+  /// creation; a per-diagram value, not a global toggle. Null falls back to the
+  /// app default.
   String? skinId;
 
-  /// The diagram's vertical (content pack): decides which content fields the
-  /// editor offers (e.g. 'workout' adds reps/music). Null = plain.
-  String? vertical;
+  /// The diagram's theme (Course / Regulation / Workout / …) — chosen at
+  /// creation and fixed. It bundles the visual style (→ [skinId]) and the pool
+  /// of content fields the editor offers. Null = a plain guide.
+  String? theme;
 
   DiagramModel({
     Map<String, NodeModel>? nodes,
@@ -199,7 +201,7 @@ class DiagramModel {
     this.processId,
     this.definitionsId,
     this.skinId,
-    this.vertical,
+    this.theme,
   })  : nodes = nodes ?? {},
         edges = edges ?? {};
 
@@ -210,7 +212,7 @@ class DiagramModel {
       processId: processId,
       definitionsId: definitionsId,
       skinId: skinId,
-      vertical: vertical,
+      theme: theme,
     );
   }
 

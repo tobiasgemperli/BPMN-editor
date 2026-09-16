@@ -730,11 +730,11 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Set the diagram's vertical (content pack), which drives the editor's field
-  /// set. Not on the undo stack; notifies so the editor auto-saves.
-  void setDiagramVertical(String? vertical) {
-    if (diagram.vertical == vertical) return;
-    diagram.vertical = vertical;
+  /// Set the diagram's theme (look + field pool). Not on the undo stack;
+  /// notifies so the editor auto-saves.
+  void setDiagramTheme(String? theme) {
+    if (diagram.theme == theme) return;
+    diagram.theme = theme;
     notifyListeners();
   }
 

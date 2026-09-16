@@ -2321,6 +2321,108 @@ class SampleDiagrams {
     return DiagramModel(nodes: nodes, edges: edges);
   }
 
+  /// Full-Body Strength workout: a warm-up, four exercises (each a portrait
+  /// film with sets·reps·rest and a backing track), an optional finisher
+  /// branch, then a cooldown. Built to shine in the immersive skin, where each
+  /// clip is the full-bleed hero and the metrics/music overlay the bottom.
+  /// Exercise films are backend clips (see exerciseClipIds in app_skins.dart).
+  static DiagramModel fullBodyStrength() {
+    final right = _cx + _branchX;
+    final nodes = <String, NodeModel>{
+      'n1': NodeModel(id: 'n1', type: NodeType.startEvent,
+          name: 'Full-Body Strength', rect: _event(_cx, _row(0)),
+          content: TaskContent(
+            text: 'Five moves, about 30 minutes. Grab a barbell, a kettlebell '
+                'and some water — then follow each clip and hit the numbers.',
+            callouts: const [
+              Callout(CalloutKind.note,
+                  'Warm up first and keep every rep controlled — form beats '
+                  'weight.'),
+            ])),
+
+      'n2': NodeModel(id: 'n2', type: NodeType.task,
+          name: 'Warm-Up', rect: _task(_cx, _row(1)),
+          content: TaskContent(
+            text: 'Five minutes easy: leg swings, hip circles, and a light set '
+                'of air squats to get the blood moving.')),
+
+      'n3': NodeModel(id: 'n3', type: NodeType.task,
+          name: 'Kettlebell Swing', rect: _task(_cx, _row(2)),
+          content: TaskContent(
+            text: 'Hinge at the hips and snap them forward — the arms just '
+                'guide the bell. Keep your back flat.',
+            videoPath: 'remote:f_HjOUiH',
+            workout: const WorkoutInfo(
+                sets: 3, reps: 15, restSeconds: 45,
+                musicTitle: 'Ignition', musicBpm: 130))),
+
+      'n4': NodeModel(id: 'n4', type: NodeType.task,
+          name: 'Barbell Back Squat', rect: _task(_cx, _row(3)),
+          content: TaskContent(
+            text: 'Brace your core, sit down between your hips, and drive up '
+                'through your heels. Depth over load.',
+            videoPath: 'remote:f_c9LJjW',
+            workout: const WorkoutInfo(
+                sets: 4, reps: 10, restSeconds: 60,
+                musicTitle: 'Redline', musicBpm: 128))),
+
+      'n5': NodeModel(id: 'n5', type: NodeType.task,
+          name: 'Deadlift', rect: _task(_cx, _row(4)),
+          content: TaskContent(
+            text: 'Bar over mid-foot, flat back, push the floor away. Stand '
+                'tall, then lower with control.',
+            videoPath: 'remote:f_80sgeL',
+            workout: const WorkoutInfo(
+                sets: 3, reps: 8, restSeconds: 90,
+                musicTitle: 'Bedrock', musicBpm: 124))),
+
+      'n6': NodeModel(id: 'n6', type: NodeType.task,
+          name: 'Overhead Press', rect: _task(_cx, _row(5)),
+          content: TaskContent(
+            text: 'Squeeze your glutes, press the bar straight up, and finish '
+                'with it stacked over your shoulders.',
+            videoPath: 'remote:f_xxVqL3',
+            workout: const WorkoutInfo(
+                sets: 3, reps: 12, restSeconds: 60,
+                musicTitle: 'Overdrive', musicBpm: 126))),
+
+      'n7': NodeModel(id: 'n7', type: NodeType.exclusiveGateway,
+          name: 'Add a finisher?', rect: _gw(_cx, _row(6))),
+
+      'n8': NodeModel(id: 'n8', type: NodeType.task,
+          name: 'Hip Thrust Finisher', rect: _task(right, _row(7)),
+          content: TaskContent(
+            text: 'Burn out the glutes: drive the hips up, pause hard at the '
+                'top, and lower slow.',
+            videoPath: 'remote:f_avCGHU',
+            workout: const WorkoutInfo(
+                sets: 2, reps: 20, restSeconds: 30,
+                musicTitle: 'Afterburner', musicBpm: 134))),
+
+      'n9': NodeModel(id: 'n9', type: NodeType.endEvent,
+          name: 'Cooldown & Done', rect: _event(_cx, _row(8)),
+          content: TaskContent(
+            text: 'Nice work. Walk it out, stretch your hips and shoulders, and '
+                'rehydrate. See you next session.')),
+    };
+
+    final edges = <String, EdgeModel>{
+      'e1': EdgeModel(id: 'e1', sourceId: 'n1', targetId: 'n2'),
+      'e2': EdgeModel(id: 'e2', sourceId: 'n2', targetId: 'n3'),
+      'e3': EdgeModel(id: 'e3', sourceId: 'n3', targetId: 'n4'),
+      'e4': EdgeModel(id: 'e4', sourceId: 'n4', targetId: 'n5'),
+      'e5': EdgeModel(id: 'e5', sourceId: 'n5', targetId: 'n6'),
+      'e6': EdgeModel(id: 'e6', sourceId: 'n6', targetId: 'n7'),
+      'e7': EdgeModel(id: 'e7', sourceId: 'n7', targetId: 'n9', name: 'Skip'),
+      'e8': EdgeModel(id: 'e8', sourceId: 'n7', targetId: 'n8', name: 'Yes',
+          waypoints: _hv(_cx, _row(6), right, _row(7))),
+      'e9': EdgeModel(id: 'e9', sourceId: 'n8', targetId: 'n9',
+          waypoints: _hv(right, _row(7), _cx, _row(8))),
+    };
+
+    return DiagramModel(nodes: nodes, edges: edges);
+  }
+
   /// PROTOTYPE — the AT&T "Connect ONT" panel re-flowed for mobile. Instead of
   /// one shrunk page of tiny text, the illustration is tight-cropped (no baked
   /// text) and the instructions become legible native text, split into short
@@ -3054,6 +3156,8 @@ class SampleDiagrams {
     SampleDiagramEntry(name: 'AT&T · Connect ONT (mobile re-flow)', builder: attConnectOntReflow,
         creator: _creators['alex']!, isFavorite: true),
     SampleDiagramEntry(name: 'Nest Thermostat Install', builder: nestThermostatInstall,
+        creator: _creators['alex']!, isFavorite: true),
+    SampleDiagramEntry(name: 'Full-Body Strength', builder: fullBodyStrength,
         creator: _creators['alex']!, isFavorite: true),
     SampleDiagramEntry(name: 'Electric Step Troubleshooting', builder: kwikeeStepTroubleshooting,
         creator: _creators['alex']!),

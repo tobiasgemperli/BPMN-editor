@@ -5,7 +5,7 @@ import '../../diagram/io/diagram_storage.dart';
 import '../../diagram/model/diagram_model.dart';
 import '../../diagram/samples/sample_diagrams.dart';
 import '../widgets/close_circle_button.dart';
-import '../widgets/vertical_picker.dart';
+import '../widgets/theme_picker.dart';
 import 'presentation_screen.dart';
 import 'editor_screen.dart';
 import 'edit_profile_sheet.dart';
@@ -197,15 +197,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   ),
                   _Pressable(
                     onTap: () async {
-                      // Choose the guide's vertical first (fixed at creation).
-                      final v = await showVerticalPicker(context);
-                      if (v == null || !context.mounted) return;
+                      // Choose the guide's theme first (fixed at creation).
+                      final t = await showThemePicker(context);
+                      if (t == null || !context.mounted) return;
                       Navigator.push(
                         context,
                         _bottomToTopRoute(EditorScreen(
                           showCloseButton: true,
                           onSaved: _loadMyModels,
-                          vertical: v.id,
+                          theme: t.id,
                         )),
                       );
                     },
